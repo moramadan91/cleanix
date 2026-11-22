@@ -8,9 +8,13 @@ struct RootView: View {
             AuroraBackground(section: selection)
             HStack(spacing: 0) {
                 Sidebar(selection: $selection)
+                    .zIndex(1) // the hover pill must draw above the page, not under it
                 SectionPage(section: selection)
             }
         }
+        // The window itself stays left-to-right (the app bundle has no ar.lproj), so mirror the layout
+        // by hand whenever the strings resolved to Arabic: sidebar on the right, text right-aligned.
+        .environment(\.layoutDirection, Bundle.module.preferredLocalizations.first == "ar" ? .rightToLeft : .leftToRight)
         .animation(.spring(duration: 0.5, bounce: 0.2), value: selection)
         .frame(minWidth: 1060, minHeight: 680)
     }
