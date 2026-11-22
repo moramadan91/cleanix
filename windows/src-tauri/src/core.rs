@@ -49,8 +49,6 @@ pub struct Places {
     pub local: PathBuf,
     pub roaming: PathBuf,
     pub temp: PathBuf,
-    /// C:\Windows\Temp, when known.
-    pub win_temp: Option<PathBuf>,
 }
 
 impl Places {
@@ -60,22 +58,23 @@ impl Places {
         let local = var("LOCALAPPDATA").unwrap_or_else(|| home.join("AppData/Local"));
         let roaming = var("APPDATA").unwrap_or_else(|| home.join("AppData/Roaming"));
         let temp = var("TEMP").filter(|_| cfg!(windows)).unwrap_or_else(|| local.join("Temp"));
-        let win_temp = var("WINDIR").map(|w| w.join("Temp"));
-        Places { home, local, roaming, temp, win_temp }
+        Places { home, local, roaming, temp }
     }
 
     /// Folders a removal may ever reach into.
-    fn roots(&self) -> Vec<&Path> {
-        let mut r = vec![self.home.as_path(), self.local.as_path(), self.roaming.as_path(), self.temp.as_path()];
-        if let Some(w) = &self.win_temp {
-            r.push(w);
-        }
-        r
+    fn roots(&self) -> [&Path; 3] {
+        [&self.home, &self.local, &self.roaming]
+    }
+
+    fn contains_unlinked(&self, path: &Path) -> bool {
+        self.roots().into_iter().filter(|root| path.starts_with(root))
+            .min_by_key(|root| root.components().count())
+            .is_some_and(|root| within_user_folder(path, root))
     }
 }
 
 /// Symlinks and junctions are never followed: they can point anywhere, including system folders.
-fn is_link(md: &fs::Metadata) -> bool {
+pub(crate) fn is_link(md: &fs::Metadata) -> bool {
     #[cfg(windows)]
     {
         use std::os::windows::fs::MetadataExt;
@@ -101,7 +100,7 @@ pub fn size_of(path: &Path) -> u64 {
     while let Some(dir) = stack.pop() {
         let Ok(entries) = fs::read_dir(&dir) else { continue };
         for e in entries.flatten() {
-            let Ok(md) = e.metadata() else { continue };
+            let Ok(md) = fs::symlink_metadata(e.path()) else { continue };
             if is_link(&md) {
                 continue;
             }
@@ -123,26 +122,26 @@ fn item(path: PathBuf, bytes: u64, group: &str, safety: Safety) -> ScanItem {
     ScanItem { name: name_of(&path), path: path.to_string_lossy().into_owned(), bytes, group: group.into(), safety }
 }
 
-fn children(dir: &Path) -> Vec<PathBuf> {
+pub(crate) fn children(dir: &Path) -> Vec<PathBuf> {
     fs::read_dir(dir).map(|r| r.flatten().map(|e| e.path()).collect()).unwrap_or_default()
 }
 
 /// Everything inside temp and crash-report folders, one row per entry.
 pub fn scan_junk(p: &Places) -> Vec<ScanItem> {
-    let mut roots: Vec<(PathBuf, &str)> = vec![
+    let roots = [
         (p.temp.clone(), "temp"),
         (p.local.join("Temp"), "temp"),
         (p.local.join("CrashDumps"), "crash"),
         (p.local.join("Microsoft/Windows/WER"), "crash"),
         (p.local.join("Microsoft/Windows/INetCache"), "inet"),
     ];
-    if let Some(w) = &p.win_temp {
-        roots.push((w.clone(), "winTemp"));
-    }
     let mut seen = std::collections::HashSet::new();
     let mut out = vec![];
     for (root, group) in roots {
-        if !seen.insert(root.clone()) {
+        if p.roots().iter().any(|user_root| user_root.starts_with(&root))
+            || !p.contains_unlinked(&root)
+            || !seen.insert(root.clone())
+        {
             continue;
         }
         for c in children(&root) {
@@ -159,6 +158,9 @@ pub fn scan_junk(p: &Places) -> Vec<ScanItem> {
 pub fn scan_caches(p: &Places) -> Vec<ScanItem> {
     let mut out = vec![];
     let mut add = |dir: PathBuf, group: &str| {
+        if !p.contains_unlinked(&dir) {
+            return;
+        }
         let bytes = size_of(&dir);
         if bytes > 0 {
             out.push(item(dir, bytes, group, Safety::Safe));
@@ -185,14 +187,12 @@ pub fn scan_caches(p: &Places) -> Vec<ScanItem> {
     for profile in children(&p.local.join("Mozilla/Firefox/Profiles")) {
         add(profile.join("cache2"), "Firefox");
     }
-    let apps: [(&str, PathBuf, &[&str]); 8] = [
+    let apps: [(&str, PathBuf, &[&str]); 6] = [
         ("Discord", p.roaming.join("discord"), &["Cache", "Code Cache", "GPUCache"]),
         ("Slack", p.roaming.join("Slack"), &["Cache", "Code Cache", "GPUCache"]),
         ("Teams", p.roaming.join("Microsoft/Teams"), &["Cache", "Code Cache", "GPUCache"]),
         ("VS Code", p.roaming.join("Code"), &["Cache", "CachedData", "Code Cache", "GPUCache"]),
         ("Spotify", p.local.join("Spotify"), &["Data"]),
-        ("npm", p.local.clone(), &["npm-cache"]),
-        ("pip", p.local.join("pip"), &["cache"]),
         ("DirectX", p.local.clone(), &["D3DSCache", "NVIDIA/DXCache", "AMD/DxCache"]),
     ];
     for (name, base, subs) in apps {
@@ -200,7 +200,94 @@ pub fn scan_caches(p: &Places) -> Vec<ScanItem> {
             add(base.join(sub), name);
         }
     }
+    for (dir, group) in extra_cache_paths(p) {
+        add(dir, group);
+    }
+    for root in backup_roots(p) {
+        if !p.contains_unlinked(&root) {
+            continue;
+        }
+        for dir in children(&root) {
+            let Ok(md) = fs::symlink_metadata(&dir) else { continue };
+            if !md.is_dir() || is_link(&md) {
+                continue;
+            }
+            let info = dir.join("Info.plist");
+            let name = fs::symlink_metadata(&info).ok()
+                .filter(|m| m.is_file() && !is_link(m))
+                .and_then(|_| fs::read_to_string(info).ok())
+                .and_then(|xml| device_name(&xml));
+            let bytes = size_of(&dir);
+            let mut backup = item(dir, bytes, "iosBackups", Safety::Review);
+            if let (Some(name), Some(date)) = (name, md.modified().ok().and_then(date_string)) {
+                backup.name = format!("{name} · {date}");
+            }
+            out.push(backup);
+        }
+    }
     out
+}
+
+fn extra_cache_paths(p: &Places) -> [(PathBuf, &'static str); 5] {
+    [
+        (p.local.join("npm-cache"), "npm"),
+        (p.local.join("pip/Cache"), "pip"),
+        (p.local.join("Yarn/Cache"), "Yarn"),
+        (p.local.join("NuGet/v3-cache"), "NuGet"),
+        (p.roaming.join("Apple Computer/iTunes/iPhone Software Updates"), "iosUpdates"),
+    ]
+}
+
+fn backup_roots(p: &Places) -> [PathBuf; 2] {
+    [p.roaming.join("Apple Computer/MobileSync/Backup"), p.home.join("Apple/MobileSync/Backup")]
+}
+
+pub fn device_name(xml: &str) -> Option<String> {
+    let mut tail = xml;
+    while let Some((_, key)) = tail.split_once("<key>") {
+        let (label, rest) = key.split_once("</key>")?;
+        tail = rest;
+        if label.trim() != "Device Name" {
+            continue;
+        }
+        let (mut text, _) = rest.trim_start().strip_prefix("<string>")?.split_once("</string>")?;
+        let mut name = String::new();
+        while let Some((plain, entity)) = text.split_once('&') {
+            name.push_str(plain);
+            let (entity, rest) = entity.split_once(';')?;
+            name.push(match entity {
+                "amp" => '&', "lt" => '<', "gt" => '>', "quot" => '"', "apos" => '\'',
+                n if n.starts_with("#x") => char::from_u32(u32::from_str_radix(&n[2..], 16).ok()?)?,
+                n if n.starts_with('#') => char::from_u32(n[1..].parse().ok()?)?,
+                _ => return None,
+            });
+            text = rest;
+        }
+        name.push_str(text);
+        let name = name.trim();
+        return (!name.is_empty()).then(|| name.to_string());
+    }
+    None
+}
+
+fn date_string(time: SystemTime) -> Option<String> {
+    let seconds = time.duration_since(SystemTime::UNIX_EPOCH).ok()?.as_secs();
+    let mut days = seconds / 86_400;
+    // 400 Gregorian years contain 146,097 days.
+    let mut year = 1970 + (days / 146_097) * 400;
+    days %= 146_097;
+    let leap = |y| y % 4 == 0 && (y % 100 != 0 || y % 400 == 0);
+    loop {
+        let length = 365 + u64::from(leap(year));
+        if days < length { break; }
+        days -= length;
+        year += 1;
+    }
+    for (month, length) in [31, 28 + u64::from(leap(year)), 31, 30, 31, 30, 31, 31, 30, 31, 30, 31].into_iter().enumerate() {
+        if days < length { return Some(format!("{year:04}-{:02}-{:02}", month + 1, days + 1)); }
+        days -= length;
+    }
+    None
 }
 
 /// Downloads untouched for `days`: the user decides, so they start unticked.
@@ -227,7 +314,7 @@ fn user_files(p: &Places, mut f: impl FnMut(PathBuf, &fs::Metadata)) {
     let mut stack = vec![p.home.clone()];
     while let Some(dir) = stack.pop() {
         for e in fs::read_dir(&dir).into_iter().flatten().flatten() {
-            let Ok(md) = e.metadata() else { continue };
+            let Ok(md) = fs::symlink_metadata(e.path()) else { continue };
             if is_link(&md) {
                 continue;
             }
@@ -377,7 +464,16 @@ pub fn scan_leftovers(p: &Places, installed: &[String], days: u64, now: SystemTi
 
 /// How safe removing something is, for the disk map.
 pub fn advise(path: &Path, p: &Places) -> Safety {
-    if !path.starts_with(&p.home) || path == p.home {
+    if p.roots().contains(&path) {
+        return Safety::Risky;
+    }
+    if backup_roots(p).iter().any(|root| path.starts_with(root) && path != root) {
+        return Safety::Review;
+    }
+    if extra_cache_paths(p).iter().any(|(root, _)| path.starts_with(root)) {
+        return Safety::Safe;
+    }
+    if !path.starts_with(&p.home) {
         return Safety::Risky;
     }
     // AppData itself and its first level hold app settings and data: not for a quick delete.
@@ -439,6 +535,21 @@ impl Offered {
     }
 }
 
+// Check each step below a user root so a junction cannot take disposal outside it.
+fn within_user_folder(path: &Path, root: &Path) -> bool {
+    let Ok(relative) = path.strip_prefix(root) else { return false };
+    let mut current = root.to_path_buf();
+    let unlinked = |p: &Path| fs::symlink_metadata(p).is_ok_and(|m| !is_link(&m));
+    if !unlinked(current.as_path()) {
+        return false;
+    }
+    relative.components().all(|part| {
+        let std::path::Component::Normal(name) = part else { return false };
+        current.push(name);
+        unlinked(current.as_path())
+    })
+}
+
 /// Removes `paths` with `dispose` (the Recycle Bin in the app) after checking each one:
 /// offered by a scan, not risky, strictly inside one of the user's folders, not a link.
 pub fn remove(
@@ -452,14 +563,17 @@ pub fn remove(
     for raw in paths {
         let path = PathBuf::from(raw);
         let allowed = matches!(offered.0.get(&path), Some(Safety::Safe | Safety::Review))
-            && roots.iter().any(|root| path.starts_with(root) && path.as_path() != *root)
             && !roots.contains(&path.as_path())
-            && !path.components().any(|c| matches!(c, std::path::Component::ParentDir));
+            && places.contains_unlinked(&path);
         if !allowed {
             r.failed.push(raw.clone());
             continue;
         }
         let bytes = size_of(&path);
+        if !places.contains_unlinked(&path) {
+            r.failed.push(raw.clone());
+            continue;
+        }
         match dispose(&path) {
             Ok(()) => {
                 r.freed += bytes;
@@ -479,7 +593,7 @@ mod tests {
         let home = root.join("home");
         let local = home.join("AppData/Local");
         let roaming = home.join("AppData/Roaming");
-        Places { temp: local.join("Temp"), home, local, roaming, win_temp: None }
+        Places { temp: local.join("Temp"), home, local, roaming }
     }
 
     fn write(path: &Path, bytes: usize) {
@@ -516,6 +630,86 @@ mod tests {
         let items = scan_caches(&p);
         assert_eq!(items.iter().map(|i| i.bytes).sum::<u64>(), 55);
         assert!(items.iter().any(|i| i.group == "Discord"));
+    }
+
+    #[test]
+    fn extra_caches_and_backups_are_offered_with_the_right_safety() {
+        let t = tempfile::tempdir().unwrap();
+        let mut p = places(t.path());
+        p.roaming = t.path().join("redirected-roaming");
+        for (root, _) in extra_cache_paths(&p) {
+            write(&root.join("cache.db"), 8);
+        }
+        let [roaming, home] = backup_roots(&p);
+        let named = roaming.join("old-phone");
+        fs::create_dir_all(&named).unwrap();
+        fs::write(named.join("Info.plist"), "<plist><dict><key>Device Name</key><string>My &amp; your iPhone</string></dict></plist>").unwrap();
+        let fallback = home.join("new-phone");
+        write(&fallback.join("file"), 4);
+        write(&home.join("file-not-a-backup"), 4);
+        let rows = scan_caches(&p);
+        assert_eq!(rows.len(), 7);
+        for (dir, group) in extra_cache_paths(&p) {
+            assert!(rows.iter().any(|r| Path::new(&r.path) == dir && r.safety == Safety::Safe && r.group == group));
+            assert_eq!(advise(&dir, &p), Safety::Safe);
+        }
+        assert!(rows.iter().any(|r| r.name.starts_with("My & your iPhone · ") && r.group == "iosBackups" && r.safety == Safety::Review));
+        assert!(rows.iter().any(|r| r.name == "new-phone" && r.group == "iosBackups" && r.safety == Safety::Review));
+        assert_eq!(advise(&named, &p), Safety::Review);
+        assert_eq!(advise(&fallback, &p), Safety::Review);
+        let paths: Vec<_> = rows.iter().map(|r| r.path.clone()).collect();
+        let mut offered = Offered::default();
+        offered.add_items(&rows);
+        let result = remove(&paths, &offered, &p, |_| Ok(()));
+        assert_eq!(result.removed, paths);
+        assert!(result.failed.is_empty());
+    }
+
+    #[test]
+    fn backup_names_decode_xml_and_ignore_other_keys() {
+        assert_eq!(device_name("<key>Other</key><string>Other</string>
+<key>Device Name</key>
+ <string>&lt;iPhone&gt; &quot;علي&quot; &#x2605; &#38; &apos;</string>"),
+            Some("<iPhone> \"علي\" ★ & '".into()));
+        assert_eq!(device_name("<key>Device Name</key><string></string>"), None);
+        assert_eq!(device_name("<key>Other</key><string>iPhone</string>"), None);
+        let leap_day = SystemTime::UNIX_EPOCH + Duration::from_secs(1_709_164_800);
+        assert_eq!(date_string(leap_day).as_deref(), Some("2024-02-29"));
+    }
+
+    #[test]
+    fn junk_skips_temp_outside_user_folders_and_the_profile_root() {
+        let t = tempfile::tempdir().unwrap();
+        let mut p = places(t.path());
+        p.temp = t.path().join("other-temp");
+        write(&p.temp.join("system-file"), 4);
+        write(&p.home.join("Documents/personal-file"), 4);
+        assert!(scan_junk(&p).is_empty());
+        let mut offered = Offered::default();
+        let outside_file = p.temp.join("system-file");
+        offered.0.insert(outside_file.clone(), Safety::Safe);
+        let result = remove(&[outside_file.to_string_lossy().into_owned()], &offered, &p, |_| panic!("outside path reached disposal"));
+        assert_eq!(result.failed.len(), 1);
+        p.temp = p.home.clone();
+        assert!(scan_junk(&p).is_empty());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn deletion_rechecks_ancestor_links() {
+        let t = tempfile::tempdir().unwrap();
+        let p = places(t.path());
+        let outside = t.path().join("outside");
+        write(&outside.join("keep"), 1);
+        fs::create_dir_all(&p.temp).unwrap();
+        let link = p.temp.join("link");
+        std::os::unix::fs::symlink(outside, &link).unwrap();
+        let path = link.join("keep");
+        let mut offered = Offered::default();
+        offered.0.insert(path.clone(), Safety::Safe);
+        let result = remove(&[path.to_string_lossy().into_owned()], &offered, &p, |_| panic!("link reached disposal"));
+        assert_eq!(result.failed.len(), 1);
+        assert!(scan_junk(&p).is_empty());
     }
 
     #[test]

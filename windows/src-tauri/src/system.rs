@@ -70,30 +70,12 @@ pub fn access() -> Vec<Access> {
 /// Runs one of Windows' own maintenance tools. Each id maps to a fixed command; nothing else runs.
 #[cfg(windows)]
 pub fn run_task(id: &str) -> Result<(), String> {
-    use std::os::windows::process::CommandExt;
-    use std::process::Command;
-    const NO_WINDOW: u32 = 0x0800_0000;
     let quiet = |prog: &str, args: &[&str]| -> Result<(), String> {
-        let ok = Command::new(prog).args(args).creation_flags(NO_WINDOW).status().map_err(|e| e.to_string())?.success();
+        let ok = hidden_command(prog).args(args).status().map_err(|e| e.to_string())?.success();
         ok.then_some(()).ok_or_else(|| format!("{prog} failed"))
     };
     match id {
         "dns" => quiet("ipconfig", &["/flushdns"]),
-        "explorer" => {
-            // Explorer restarts itself on most systems; start it if it did not.
-            let _ = quiet("taskkill", &["/f", "/im", "explorer.exe"]);
-            std::thread::sleep(std::time::Duration::from_millis(1500));
-            let running = Command::new("tasklist")
-                .args(["/fi", "imagename eq explorer.exe", "/nh"])
-                .creation_flags(NO_WINDOW)
-                .output()
-                .map(|o| String::from_utf8_lossy(&o.stdout).to_lowercase().contains("explorer.exe"))
-                .unwrap_or(false);
-            if !running {
-                Command::new("explorer.exe").spawn().map_err(|e| e.to_string())?;
-            }
-            Ok(())
-        }
         "diskCleanup" => crate::apps::launch("cleanmgr.exe"),
         "storageSense" => crate::apps::launch("ms-settings:storagesense"),
         "defender" => crate::apps::launch("windowsdefender:"),
@@ -130,4 +112,30 @@ mod tests {
         assert_eq!(settings_page("webcam"), Some("ms-settings:privacy-webcam"));
         assert_eq!(settings_page("calc.exe"), None);
     }
+}
+
+#[cfg(windows)]
+pub fn hidden_command(program: impl AsRef<std::ffi::OsStr>) -> std::process::Command {
+    use std::os::windows::process::CommandExt;
+    let mut command = std::process::Command::new(program);
+    command.creation_flags(0x0800_0000);
+    command
+}
+
+#[cfg(windows)]
+pub fn powershell(script: &str) -> Result<Vec<u8>, String> {
+    let output = hidden_command("powershell.exe")
+        .args(["-NoProfile", "-NonInteractive", "-EncodedCommand", &crate::settings::encode_script(script)])
+        .output()
+        .map_err(|e| e.to_string())?;
+    if output.status.success() {
+        Ok(output.stdout)
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).trim().to_string())
+    }
+}
+
+#[cfg(windows)]
+pub fn filetime(time: windows_sys::Win32::Foundation::FILETIME) -> u64 {
+    (u64::from(time.dwHighDateTime) << 32) | u64::from(time.dwLowDateTime)
 }

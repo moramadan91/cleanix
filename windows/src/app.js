@@ -17,20 +17,23 @@ const SECTIONS = [
 const TABS = {
   cleanup: ['junk', 'caches', 'bin'],
   protection: ['privacy', 'permissions', 'suspicious'],
-  performance: ['maintenance', 'startup'],
-  apps: ['uninstall', 'leftovers'],
+  performance: ['maintenance', 'startup', 'heavy'],
+  apps: ['uninstall', 'leftovers', 'extensions'],
   clutter: ['downloads', 'large', 'duplicates'],
 };
 
 const store = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch { return null; } };
 
-let lang = store('cleanix.lang') || (navigator.language.startsWith('ar') ? 'ar' : 'en');
+const savedLang = store('cleanix.lang');
+let lang = savedLang === 'ar' || savedLang === 'en' ? savedLang : (navigator.language.startsWith('ar') ? 'ar' : 'en');
 let section = 'overview';
 const tab = Object.fromEntries(Object.entries(TABS).map(([k, v]) => [k, v[0]]));
 let sort = store('cleanix.sort') || 'largest';
 const views = {}; // per scan key: { phase, items, selected, result }
 const map = { trail: [], selected: new Set(), loading: false };
 let overview = null;
+let overviewLoading = false;
+let overviewReady = !window.__TAURI__;
 
 const $ = (s, el = document) => el.querySelector(s);
 const t = (k, ...a) => (STRINGS[lang][k] ?? STRINGS.en[k] ?? k).replace(/\{(\d)\}/g, (_, i) => a[i]);
@@ -42,6 +45,15 @@ function fmt(bytes) {
   let i = 0, v = bytes;
   while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
   return `${v >= 100 || i === 0 ? Math.round(v) : v.toFixed(1)} ${units[i]}`;
+}
+
+const localNumber = value => new Intl.NumberFormat(lang === 'ar' ? 'ar-EG' : 'en', { useGrouping: false }).format(value);
+const percent = value => localNumber(value) + (lang === 'ar' ? '٪' : '%');
+
+function flag(code) {
+  const arab = '<rect width="22" height="15" fill="#16834a"/><path fill="#fff" d="M13.7 3.6a4.4 4.4 0 1 0 0 7.8 4.1 4.1 0 0 1 0-7.8z"/><path fill="#fff" d="m14 5 .55 1.55 1.65.04-1.3 1 .47 1.6L14 8.23l-1.37.96.47-1.6-1.3-1 1.65-.04z"/>';
+  const uk = '<rect width="22" height="15" fill="#163568"/><path d="m0 0 22 15m0-15L0 15" stroke="#fff" stroke-width="3"/><path d="m0 0 22 15m0-15L0 15" stroke="#c8102e" stroke-width="1.15"/><path d="M11 0v15M0 7.5h22" stroke="#fff" stroke-width="4.5"/><path d="M11 0v15M0 7.5h22" stroke="#c8102e" stroke-width="2.5"/>';
+  return `<svg class="flag" width="22" height="15" viewBox="0 0 22 15" aria-hidden="true">${code === 'ar' ? arab : uk}<rect x=".125" y=".125" width="21.75" height="14.75" rx="3" fill="none" stroke="#fff" stroke-width=".25"/></svg>`;
 }
 
 const icon = d => `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg>`;
@@ -63,7 +75,8 @@ function renderShell() {
     <button type="button" class="nav-item${x.id === section ? ' on' : ''}" data-section="${x.id}" style="--c:${x.tint}" ${x.id === section ? 'aria-current="page"' : ''}>
       ${icon(x.icon)}<span>${t(`section.${x.id}.title`)}</span>
     </button>`).join('');
-  $('#lang').textContent = t('lang.switch');
+  $('#lang').innerHTML = flag(lang === 'en' ? 'ar' : 'en') + `<span>${t('lang.switch')}</span>`;
+  $('#settings').textContent = t('settings.title');
   $('#update').hidden = !updateTag;
   if (updateTag) $('#update').textContent = t('update.available', updateTag.slice(5));
   render();
@@ -95,7 +108,7 @@ const view = key => (views[key] ??= { phase: 'intro', items: [], selected: new S
 
 function scanScreen() {
   const key = scanKey();
-  const custom = { bin: binView, uninstall: appsView, permissions: accessView, suspicious: () => startupView(true), startup: () => startupView(false), maintenance: maintView };
+  const custom = { bin: binView, uninstall: appsView, permissions: accessView, suspicious: () => startupView(true), startup: () => startupView(false), maintenance: maintView, heavy: heavyView, extensions: extensionsView };
   if (custom[key]) return header() + tabs() + custom[key]();
   const v = view(key);
   let body;
@@ -179,7 +192,6 @@ function binView() {
   return `<div class="center">
     <div class="orb">${icon(SECTIONS[2].icon)}</div>
     <h2 class="big-text">${t('bin.size', bin.items, fmt(bin.bytes))}</h2>
-    <button type="button" class="btn big primary" data-action="binAsk">${t('bin.action')}</button>
   </div>`;
 }
 
@@ -190,16 +202,37 @@ async function refreshBin() {
 
 /* ---------- Overview ---------- */
 
+function scoreRing(pct, label, text) {
+  const c = 2 * Math.PI * 70;
+  return `<svg viewBox="0 0 180 180" width="180" height="180" class="ring" role="img" aria-label="${esc(label)}">
+    <circle cx="90" cy="90" r="70" class="track"/><circle cx="90" cy="90" r="70" class="fill" stroke-dasharray="${c * pct / 100} ${c}" ${pct ? '' : 'visibility="hidden"'}/>
+    <text x="90" y="98" text-anchor="middle">${text}</text></svg>`;
+}
+
+function healthView(h) {
+  if (!h) return `<div class="panel health"><button type="button" class="btn big primary" data-action="boostAsk">${t('boost.title')}</button></div>`;
+  const band = h.score >= 80 ? 'good' : h.score >= 50 ? 'fair' : 'poor';
+  const destinations = { disk: ['clutter', 'large'], memory: ['performance', 'heavy'], startup: ['performance', 'startup'], junk: ['cleanup', 'junk'] };
+  return `<div class="panel health">
+    <div class="health-score">${scoreRing(h.score, t('health.score', localNumber(h.score)), localNumber(h.score))}</div>
+    <div class="health-details">
+      <h2>${t('health.' + band)}</h2>
+      <p class="muted">${t('health.ram', h.ram.total ? fmt(h.ram.used) : '—', h.ram.total ? fmt(h.ram.total) : '—')}</p>
+      ${h.battery ? `<p class="muted">${t(h.battery.cycles == null ? 'health.battery' : 'health.batteryCycles', percent(h.battery.health), localNumber(h.battery.cycles))}</p>` : ''}
+      ${h.issues.map(i => `<div class="tip"><span>${t('health.issue.' + i)}</span><button type="button" class="btn small" data-go="${destinations[i][0]}" data-go-tab="${destinations[i][1]}">${t('overview.go')}</button></div>`).join('')}
+      <button type="button" class="btn big primary" data-action="boostAsk" ${boostBusy ? 'disabled' : ''}>${t('boost.title')}</button>
+    </div>
+  </div>`;
+}
+
 function overviewView() {
-  if (!overview) { loadOverview(); return header() + spinner(''); }
-  const { disk, bin: b } = overview;
+  if (!overview) { if (overviewReady && !overviewLoading) loadOverview(); return header() + spinner(''); }
+  const { disk, bin: b, health } = overview;
   let ring = `<p class="muted">${t('overview.unknown')}</p>`;
-  if (disk) {
-    const used = disk.total - disk.free, pct = used / disk.total, c = 2 * Math.PI * 70;
-    ring = `<svg viewBox="0 0 180 180" width="180" height="180" class="ring" role="img" aria-label="${t('overview.free', fmt(disk.free), fmt(disk.total))}">
-        <circle cx="90" cy="90" r="70" class="track"/><circle cx="90" cy="90" r="70" class="fill" stroke-dasharray="${c * pct} ${c}"/>
-        <text x="90" y="98" text-anchor="middle">${Math.round(pct * 100)}%</text></svg>
-      <p>${t('overview.free', fmt(disk.free), fmt(disk.total))}</p>`;
+  if (disk?.total) {
+    const pct = Math.round((disk.total - disk.free) / disk.total * 100);
+    const free = t('overview.free', fmt(disk.free), fmt(disk.total));
+    ring = scoreRing(pct, free, percent(pct)) + `<p>${free}</p>`;
   }
   const tips = [
     ['cleanup', 'junk', t('overview.tipJunk')],
@@ -210,6 +243,7 @@ function overviewView() {
     ['diskMap', null, t('overview.tipMap')],
   ];
   return header() + `<div class="overview">
+    ${healthView(health)}
     <div class="panel disk"><h2>${t('overview.disk', 'C:')}</h2>${ring}</div>
     <div class="panel tips"><h2>${t('overview.tips')}</h2>
       ${tips.map(([s, k, text]) => `<div class="tip"><span>${text}</span><button type="button" class="btn small" data-go="${s}" data-go-tab="${k ?? ''}">${t('overview.go')}</button></div>`).join('')}
@@ -217,9 +251,36 @@ function overviewView() {
 }
 
 async function loadOverview() {
-  const [disk, b] = await Promise.all([invoke('disk_info').catch(() => null), invoke('recycle_info').catch(() => null)]);
-  overview = { disk, bin: b };
+  overviewLoading = true;
+  const [health, b] = await Promise.all([invoke('health').catch(() => null), invoke('recycle_info').catch(() => null)]);
+  const disk = health?.disk ?? await invoke('disk_info').catch(() => null);
+  overview = { disk, bin: b, health };
+  overviewLoading = false;
   if (section === 'overview') render();
+}
+
+let boostBusy = false;
+
+async function askBoost() {
+  if (boostBusy || (!$('#modal').hidden && $('#modal').dataset.kind === 'boost')) return;
+  boostBusy = true;
+  render();
+  const preview = await invoke('boost_preview').catch(() => null);
+  boostBusy = false;
+  render();
+  if (!preview) return showMessage('boost.title', t('boost.failed'));
+  confirmAction('boost.title', t('boost.confirm', fmt(preview.bytes)), 'boost.title', async () => {
+    boostBusy = true;
+    render();
+    const result = await invoke('boost_run').catch(() => null);
+    boostBusy = false;
+    overview = null;
+    render();
+    if (!result) return showMessage('boost.title', t('boost.failed'));
+    showMessage('boost.title', t('boost.result', fmt(result.freed), localNumber(result.ram_before), localNumber(result.ram_after)),
+      result.failed.length ? t('common.failed', result.failed.length) : '');
+  });
+  $('#modal').dataset.kind = 'boost';
 }
 
 /* ---------- Apps ---------- */
@@ -254,6 +315,53 @@ function appRows() {
 async function loadApps() {
   apps.list = await invoke('list_apps').catch(() => []);
   if (section === 'apps') render();
+}
+
+/* ---------- Heavy apps and extensions ---------- */
+
+let heavy = null;
+let heavyLoading = false;
+let heavyNote = '';
+let browserExtensions = null;
+let extensionsLoading = false;
+
+function heavyView() {
+  if (heavy === null) { if (!heavyLoading) loadHeavy(); return spinner(); }
+  return `<div class="bar"><span class="grow"></span><button type="button" class="btn small" data-action="heavyRefresh">${t('apps.refresh')}</button></div>
+    ${heavyNote ? `<p class="note">${esc(heavyNote)}</p>` : ''}
+    <div class="panel list">${heavy.length ? heavy.map(a => `<div class="row" data-heavy="${esc(a.id)}">
+      <div class="name"><b title="${esc(a.path)}"><bdi>${esc(a.name)}</bdi></b></div>
+      <span class="size">${fmt(a.bytes)}</span><span class="size">${t('heavy.cpu', percent(a.cpu))}</span>
+      <button type="button" class="btn small" data-action="heavyQuit">${t('heavy.quit')}</button>
+    </div>`).join('') : `<p class="muted pad">${t('common.nothing')}</p>`}</div>`;
+}
+
+async function loadHeavy() {
+  heavyLoading = true;
+  heavy = await invoke('heavy_apps').catch(() => []);
+  heavyLoading = false;
+  if (scanKey() === 'heavy') render();
+}
+
+function extensionsView() {
+  if (browserExtensions === null) {
+    if (!extensionsLoading) {
+      extensionsLoading = true;
+      invoke('extensions').catch(() => []).then(rows => {
+        browserExtensions = rows;
+        extensionsLoading = false;
+        if (scanKey() === 'extensions') render();
+      });
+    }
+    return spinner();
+  }
+  const browsers = [...new Set(browserExtensions.map(e => e.browser))];
+  return `<p class="note">${t('extensions.note')}</p><div class="panel list">${browsers.length ? browsers.map(browser =>
+    `<h2>${esc(browser)}</h2>` + browserExtensions.filter(e => e.browser === browser).map(e => `<div class="row" data-path="${esc(e.path)}">
+      <div class="name"><b><bdi>${esc(e.name)}</bdi></b><small><bdi>${esc(e.version)} · ${esc(e.profile)}</bdi></small></div>
+      <span class="size">${fmt(e.bytes)}</span>
+      <button type="button" class="btn small" data-action="reveal">${t('extensions.reveal')}</button>
+    </div>`).join('')).join('') : `<p class="muted pad">${t('common.nothing')}</p>`}</div>`;
 }
 
 /* ---------- Start-up programs (Performance) and suspicious ones (Protection) ---------- */
@@ -300,7 +408,7 @@ function accessView() {
 
 /* ---------- Maintenance (Performance) ---------- */
 
-const TASKS = ['dns', 'explorer', 'diskCleanup', 'storageSense', 'defender'];
+const TASKS = ['dns', 'diskCleanup', 'storageSense', 'defender'];
 const taskState = {};
 function maintView() {
   return `<div class="tasks">${TASKS.map(id => `<div class="panel task">
@@ -330,7 +438,6 @@ async function checkUpdate() {
     if (rel && newer(rel.tag_name.slice(5), current)) {
       updateTag = rel.tag_name;
       renderShell();
-checkUpdate();
     }
   } catch { /* offline: no notice */ }
 }
@@ -387,11 +494,55 @@ async function openDir(node) {
 
 function modal(html) {
   const m = $('#modal');
+  delete m.dataset.kind;
   m.innerHTML = `<div class="sheet panel" role="dialog" aria-modal="true">${html}</div>`;
   m.hidden = false;
   $('button', m)?.focus();
 }
-const closeModal = () => { $('#modal').hidden = true; $('#modal').innerHTML = ''; };
+const closeModal = () => {
+  $('#modal').hidden = true;
+  $('#modal').innerHTML = '';
+  delete $('#modal').dataset.kind;
+};
+
+function confirmAction(title, message, action, onConfirm) {
+  modal(`<h2>${t(title)}</h2><p>${message}</p><div class="actions">
+    <button type="button" class="btn" data-modal="cancel">${t('common.cancel')}</button>
+    <button type="button" class="btn primary" data-modal="ok">${t(action)}</button></div>`);
+  pendingOk = async () => { closeModal(); await onConfirm(); };
+}
+
+function showMessage(title, message, detail = '') {
+  modal(`<h2>${t(title)}</h2><p role="status">${message}</p>${detail ? `<p class="warn">${detail}</p>` : ''}
+    <div class="actions"><button type="button" class="btn primary" data-modal="cancel">${t('common.close')}</button></div>`);
+  pendingOk = null;
+}
+
+let settingsLoading = false;
+async function openSettings() {
+  if (settingsLoading) return;
+  settingsLoading = true;
+  const settings = await invoke('settings_get').catch(() => null);
+  settingsLoading = false;
+  if (!settings) return showMessage('settings.title', t('settings.failed'));
+  const switches = [
+    ['openAtLogin', 'open_at_login', 'settings.login', 'settings.loginNote'],
+    ['alertLowSpace', 'alert_low_space', 'settings.lowSpace'],
+    ['alertWeekly', 'alert_weekly', 'settings.weekly'],
+  ];
+  modal(`<h2>${t('settings.title')}</h2><p>${t('settings.note')}</p>
+    ${switches.map(([key, value, label, note]) => `<div class="row">
+      <div class="name"><b id="${key}-label">${t(label)}</b>${note ? `<small>${t(note)}</small>` : ''}</div>
+      <label class="switch"><input id="${key}" type="checkbox" role="switch" aria-labelledby="${key}-label" ${settings[value] ? 'checked' : ''}><span aria-hidden="true"></span></label>
+    </div>`).join('')}
+    <div class="actions"><button type="button" class="btn" data-modal="cancel">${t('common.cancel')}</button>
+    <button type="button" class="btn primary" data-modal="ok">${t('settings.save')}</button></div>`);
+  pendingOk = async () => {
+    const args = Object.fromEntries(switches.map(([key]) => [key, $('#' + key).checked]));
+    closeModal();
+    await invoke('settings_set', args).catch(() => showMessage('settings.title', t('settings.failed')));
+  };
+}
 
 function askClean(items, onDone) {
   const bytes = items.reduce((s, i) => s + i.bytes, 0);
@@ -410,24 +561,29 @@ let pendingOk = null;
 /* ---------- events ---------- */
 
 document.addEventListener('click', async e => {
-  const el = e.target.closest('[data-section],[data-tab],[data-action],[data-go],[data-crumb],[data-modal],[data-open],[data-settings],[data-task],#lang,#update');
+  const el = e.target.closest('[data-section],[data-tab],[data-action],[data-go],[data-crumb],[data-modal],[data-open],[data-settings],[data-task],#lang,#update,#settings');
   if (!el) return;
   if (el.id === 'update') return invoke('open_release', { tag: updateTag }).catch(() => {});
   if (el.dataset.settings) return invoke('open_settings', { page: el.dataset.settings }).catch(() => {});
-  if (el.dataset.task) {
-    if (el.dataset.task !== 'explorer') return runTask(el.dataset.task);
-    modal(`<h2>${t('task.explorer')}</h2><p>${t('task.explorer.confirm')}</p>
-      <div class="actions"><button type="button" class="btn" data-modal="cancel">${t('common.cancel')}</button>
-      <button type="button" class="btn primary" data-modal="ok">${t('task.run')}</button></div>`);
-    pendingOk = async () => { closeModal(); await runTask('explorer'); };
-    return;
+  if (el.id === 'settings') return openSettings();
+  if (el.dataset.task) return runTask(el.dataset.task);
+  if (el.id === 'lang') {
+    lang = lang === 'ar' ? 'en' : 'ar';
+    store('cleanix.lang', lang);
+    syncLang();
+    return renderShell();
   }
-  if (el.id === 'lang') { lang = lang === 'ar' ? 'en' : 'ar'; store('cleanix.lang', lang); return renderShell(); }
   if (el.dataset.section) { section = el.dataset.section; renderShell(); return $('#main').focus(); }
   if (el.dataset.tab) { tab[section] = el.dataset.tab; if (el.dataset.tab === 'bin') bin = null; return render(); }
   if (el.dataset.go) { section = el.dataset.go; if (el.dataset.goTab) tab[section] = el.dataset.goTab; if (el.dataset.goTab === 'bin') bin = null; return renderShell(); }
   if (el.dataset.crumb) { map.trail = map.trail.slice(0, +el.dataset.crumb + 1); map.selected = new Set(); return render(); }
-  if (el.dataset.modal) { if (el.dataset.modal === 'ok' && pendingOk) await pendingOk(); else closeModal(); pendingOk = null; return; }
+  if (el.dataset.modal) {
+    const action = pendingOk;
+    pendingOk = null;
+    if (el.dataset.modal === 'ok' && action) await action();
+    else closeModal();
+    return;
+  }
 
   const path = el.closest('[data-path]')?.dataset.path;
   const v = views[scanKey()];
@@ -459,12 +615,17 @@ document.addEventListener('click', async e => {
         render();
       };
       return;
-    case 'binAsk':
-      modal(`<h2>${t('bin.confirmTitle')}</h2><p>${t('bin.confirmBody')}</p>
-        <div class="actions"><button type="button" class="btn" data-modal="cancel">${t('common.cancel')}</button>
-        <button type="button" class="btn danger" data-modal="ok">${t('bin.action')}</button></div>`);
-      pendingOk = async () => { closeModal(); bin = null; render(); await invoke('empty_recycle', { confirmed: true }).catch(() => {}); overview = null; refreshBin(); };
-      return;
+    case 'boostAsk': return askBoost();
+    case 'heavyRefresh': heavy = null; heavyNote = ''; return render();
+    case 'heavyQuit': {
+      const app = heavy?.find(a => a.id === el.closest('[data-heavy]')?.dataset.heavy);
+      if (!app) return;
+      return confirmAction('heavy.quit', t('heavy.confirm', esc(app.name)), 'heavy.quit', async () => {
+        heavyNote = await invoke('quit_app', { id: app.id }).then(() => '', () => t('heavy.failed', app.name));
+        heavy = null;
+        render();
+      });
+    }
   }
   // Clicking a folder row (not its controls) opens it.
   if (el.dataset.open && !e.target.closest('label,button')) openDir(map.trail.at(-1).nodes.find(n => n.path === path));
@@ -510,4 +671,22 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && e.target.matches?.('.row.dir')) e.target.click();
 });
 
+let langUpdate = Promise.resolve();
+function syncLang() {
+  const selected = lang;
+  langUpdate = langUpdate.then(() => invoke('set_lang', { lang: selected })).catch(() => {});
+}
 renderShell();
+syncLang();
+if (window.__TAURI__) {
+  function windowShown() {
+    if (overviewReady) return;
+    overviewReady = true;
+    if (section === 'overview') render();
+    checkUpdate();
+  }
+  const api = window.__TAURI__;
+  api.event.listen('tray-boost', askBoost).catch(() => {});
+  api.event.listen('window-shown', windowShown).then(() => api.window.getCurrentWindow().isVisible())
+    .then(visible => { if (visible) windowShown(); }).catch(() => {});
+}

@@ -136,6 +136,33 @@ pub fn set_enabled(_: &str, _: bool) -> Result<(), String> {
     Err("Windows only".into())
 }
 
+#[cfg(windows)]
+pub fn set_open_at_login(enabled: bool) -> Result<(), String> {
+    use winreg::{enums::{HKEY_CURRENT_USER, KEY_SET_VALUE}, RegKey};
+
+    fn update(enabled: bool) -> std::io::Result<()> {
+        let user = RegKey::predef(HKEY_CURRENT_USER);
+        if enabled {
+            let exe = std::env::current_exe()?;
+            let command = format!(r#""{}" --hidden"#, exe.display());
+            let (run, _) = user.create_subkey(reg::RUN)?;
+            reg::set_flag(HKEY_CURRENT_USER, "Run", "Cleanix", flag_bytes(true))?;
+            run.set_value("Cleanix", &command)
+        } else {
+            let result = user.open_subkey_with_flags(reg::RUN, KEY_SET_VALUE)
+                .and_then(|run| run.delete_value("Cleanix"));
+            match result {
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+                other => other,
+            }
+        }
+    }
+    update(enabled).map_err(|e| e.to_string())
+}
+
+#[cfg(not(windows))]
+pub fn set_open_at_login(_: bool) -> Result<(), String> { Ok(()) }
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -156,7 +183,7 @@ mod tests {
     fn suspicious_temp_downloads_or_missing() {
         let home = std::path::PathBuf::from(r"C:\Users\Demo");
         let local = home.join(r"AppData\Local");
-        let p = Places { temp: local.join("Temp"), roaming: home.join(r"AppData\Roaming"), local, home, win_temp: None };
+        let p = Places { temp: local.join("Temp"), roaming: home.join(r"AppData\Roaming"), local, home };
         let yes = |_: &Path| true;
         if cfg!(windows) {
             assert!(is_suspicious(r#""C:\Users\Demo\AppData\Local\Temp\x.exe" /run"#, &p, yes));

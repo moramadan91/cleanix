@@ -55,7 +55,10 @@ button, select { font: inherit; color: inherit; }
 .nav-item svg { color: var(--c); }
 .nav-item:hover { background: rgba(255, 255, 255, 0.05); color: var(--text); }
 .nav-item.on { background: rgba(255, 255, 255, 0.1); color: var(--text); font-weight: 600; }
-.lang { margin-top: auto; }
+.sidebar-bottom { margin-top: auto; display: grid; gap: 14px; }
+.sidebar-bottom .btn { min-height: 32px; }
+.lang { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.flag { flex: none; border-radius: 3px; overflow: hidden; }
 
 /* ---------- main ---------- */
 main { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 26px 40px 24px; gap: 14px; overflow: hidden; outline: none; }
@@ -161,7 +164,7 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 26
 :dir(rtl) .sep { transform: scaleX(-1); }
 
 /* ---------- overview ---------- */
-.overview { flex: 1; display: grid; grid-template-columns: minmax(260px, 1fr) 1.4fr; gap: 18px; align-items: start; max-width: 900px; width: 100%; }
+.overview { flex: 1; display: grid; grid-template-columns: minmax(260px, 1fr) 1.4fr; gap: 18px; align-items: start; align-content: start; max-width: 900px; width: 100%; overflow-y: auto; }
 .overview .panel { padding: 22px; }
 .overview h2 { margin: 0 0 14px; font-size: 16px; }
 .disk { display: flex; flex-direction: column; align-items: center; text-align: center; }
@@ -211,5 +214,11 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 26
 .task-end { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 8px; }
 .ok { color: var(--safe); }
 .list h2 .btn { margin-inline-start: auto; }
-.update { margin-top: auto; }
-.update + .lang { margin-top: 8px; }
+
+
+.health { grid-column: 1 / -1; display: flex; align-items: center; gap: 24px; }
+.health-score { flex: none; }
+.health-details { flex: 1; display: grid; gap: 8px; }
+.overview .health-details h2, .health-details p { margin: 0; }
+.health-details .btn.big { justify-self: start; margin-top: 6px; }
+.sheet .row { padding-inline: 0; }
