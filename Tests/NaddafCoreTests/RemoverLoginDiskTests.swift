@@ -48,6 +48,39 @@ import Foundation
     }
 }
 
+@Test func removerResetFindsOnlyExactSettingsAndCachePaths() async throws {
+    try await withTempDirAsync { dir in
+        let apps = dir.appendingPathComponent("Applications")
+        let library = dir.appendingPathComponent("Library")
+        try makeApp(in: apps, name: "Editor", bundleID: "com.acme.app")
+        try makeApp(in: apps, name: "Empty", bundleID: "com.acme.empty")
+
+        let expected = ["Preferences/com.acme.app.plist", "Caches/com.acme.app",
+                        "Saved Application State/com.acme.app.savedState", "HTTPStorages/com.acme.app",
+                        "HTTPStorages/com.acme.app.binarycookies", "WebKit/com.acme.app",
+                        "Containers/com.acme.app/Data/Library/Caches"]
+        try makeFile(library.appendingPathComponent(expected[0]))
+        try makeFile(library.appendingPathComponent(expected[4]))
+        for index in [1, 2, 3, 5, 6] {
+            try makeFile(library.appendingPathComponent(expected[index] + "/data"))
+        }
+        for path in ["Preferences/com.acme.app.helper.plist", "Application Support/com.acme.app/document",
+                     "Containers/com.acme.app/Data/Documents/document", "Caches/Editor/data"] {
+            try makeFile(library.appendingPathComponent(path))
+        }
+        try makeFile(library.appendingPathComponent("Preferences/com.acme.empty.plist"), bytes: 0)
+
+        let remover = RemoverScanner(appDirs: [apps], home: dir)
+        let installed = await remover.apps()
+        let app = try #require(installed.first { $0.bundleID == "com.acme.app" })
+        let empty = try #require(installed.first { $0.bundleID == "com.acme.empty" })
+        let items = remover.resetItems(for: app)
+        #expect(Set(items.map(\.url.path)) == Set(expected.map { library.appendingPathComponent($0).path }))
+        #expect(items.allSatisfy { $0.safety == .review && $0.reason == "Settings and cache" && $0.group == "Editor" })
+        #expect(remover.resetItems(for: empty).isEmpty)
+    }
+}
+
 @Test func removerUnusedUsesLastUsedDate() async throws {
     try await withTempDirAsync { dir in
         let apps = dir.appendingPathComponent("Applications")

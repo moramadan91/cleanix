@@ -4,9 +4,9 @@ import NaddafCore
 /// Tabs inside a section. Titles come from the catalog key `tab.<rawValue>`.
 enum SectionTab: String, Identifiable {
     case sweep, appCaches, trash, mail, shredder
-    case privacy, permissions, suspicious
+    case privacy, permissions, suspicious, extensions
     case maintenance, loginItems, heavyApps
-    case uninstall, leftovers, unused
+    case uninstall, leftovers, unused, updates, reset
     case large, duplicates, similar, downloads
 
     var id: String { rawValue }
@@ -15,9 +15,9 @@ enum SectionTab: String, Identifiable {
     static func tabs(for section: AppSection) -> [SectionTab] {
         switch section {
         case .cleanup: [.sweep, .appCaches, .trash, .mail, .shredder]
-        case .protection: [.privacy, .permissions, .suspicious]
+        case .protection: [.privacy, .permissions, .suspicious, .extensions]
         case .performance: [.maintenance, .loginItems, .heavyApps]
-        case .apps: [.uninstall, .leftovers, .unused]
+        case .apps: [.uninstall, .leftovers, .unused, .updates, .reset]
         case .clutter: [.large, .duplicates, .similar, .downloads]
         case .overview, .smartScan, .diskMap, .cloud: []
         }
@@ -65,6 +65,8 @@ struct SectionContent: View {
             ScanListView(section: section, mode: .reveal) {
                 SuspiciousScanner(appDirs: env.appDirs, agentDirs: agentDirs, verifier: CodesignVerifier())
             }
+        case (_, .extensions?):
+            ScanListView(section: section, mode: .reveal) { BrowserExtensionsScanner(home: home) }
 
         case (_, .maintenance?): MaintenanceView()
         case (_, .heavyApps?): HeavyAppsView()
@@ -90,6 +92,8 @@ struct SectionContent: View {
                     return items
                 }
             }
+        case (_, .updates?): AppUpdatesView(section: section)
+        case (_, .reset?): AppResetView(section: section)
 
         case (_, .large?):
             let roots = AppEnv.userFolders.map(h)

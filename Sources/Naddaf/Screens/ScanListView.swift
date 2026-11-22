@@ -41,7 +41,7 @@ struct ScanListView: View {
         return sort.sorted(seen, name: groupTitle, bytes: { totals[$0] ?? 0 })
     }
     private func sortedItems(in group: String) -> [ScanItem] {
-        sort.sorted(items.filter { $0.group == group }, name: \.url.lastPathComponent, bytes: \.bytes)
+        sort.sorted(items.filter { $0.group == group }, name: { $0.title ?? $0.url.lastPathComponent }, bytes: \.bytes)
     }
     private var actionTitle: String {
         if case .emptyTrash = mode { return L("trash.action") }
@@ -182,7 +182,7 @@ struct ScanListView: View {
             if !isReveal { Toggle("", isOn: isOn).labelsHidden().toggleStyle(.glassCheck) }
             Image(nsImage: NSWorkspace.shared.icon(forFile: item.url.path)).resizable().frame(width: 28, height: 28)
             VStack(alignment: .leading, spacing: 2) {
-                Text(item.url.lastPathComponent).font(.system(size: 15, weight: .semibold)).lineLimit(1)
+                Text(item.title ?? item.url.lastPathComponent).font(.system(size: 15, weight: .semibold)).lineLimit(1)
                 Text(isReveal ? localized("reason", item.reason) : displayPath(item.url.deletingLastPathComponent()))
                     .font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
             }

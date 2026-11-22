@@ -73,6 +73,27 @@ public struct RemoverScanner: Sendable {
         return items
     }
 
+    /// Settings and caches at exact bundle-ID paths in the user's Library.
+    public func resetItems(for app: AppInfo) -> [ScanItem] {
+        let id = app.bundleID
+        guard !id.isEmpty, id != ".", id != "..",
+              id.utf8.allSatisfy({ "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-".utf8.contains($0) })
+        else { return [] }
+
+        let lib = home.appendingPathComponent("Library")
+        let canonicalLibrary = home.standardizedFileURL.resolvingSymlinksInPath().appendingPathComponent("Library")
+        let paths = ["Preferences/\(id).plist", "Caches/\(id)", "Saved Application State/\(id).savedState",
+                     "HTTPStorages/\(id)", "HTTPStorages/\(id).binarycookies", "WebKit/\(id)",
+                     "Containers/\(id)/Data/Library/Caches"]
+        return paths.compactMap { path in
+            let url = lib.appendingPathComponent(path)
+            guard url.resolvingSymlinksInPath().path == canonicalLibrary.appendingPathComponent(path).path else { return nil }
+            let bytes = FS.size(of: url)
+            guard bytes > 0 else { return nil }
+            return ScanItem(url: url, bytes: bytes, reason: "Settings and cache", safety: .review, group: app.name)
+        }
+    }
+
     /// Bundle-ID-looking entries in ~/Library whose app is not installed (Apple's own excluded).
     public func orphanLeftovers() async -> [ScanItem] {
         let installed = Set(await apps().map(\.bundleID))

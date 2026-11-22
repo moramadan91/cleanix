@@ -1441,6 +1441,22 @@
         }
       }
     },
+    "reason.Browser extension": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إضافة للمتصفح"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Browser extension"
+          }
+        }
+      }
+    },
     "reason.Cache": {
       "localizations": {
         "ar": {
@@ -1597,6 +1613,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Package cache"
+          }
+        }
+      }
+    },
+    "reason.Settings and cache": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الإعدادات والكاش"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Settings and cache"
           }
         }
       }
@@ -1789,6 +1821,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "npm cache"
+          }
+        }
+      }
+    },
+    "reset.chooseApp": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اختار برنامج"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose an app"
+          }
+        }
+      }
+    },
+    "reset.nothing": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مفيش إعدادات أو كاش للبرنامج ده"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No settings or cache found for this app"
           }
         }
       }
@@ -2897,6 +2961,22 @@
         }
       }
     },
+    "tab.extensions": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الإضافات"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Extensions"
+          }
+        }
+      }
+    },
     "tab.heavyApps": {
       "localizations": {
         "ar": {
@@ -3025,6 +3105,22 @@
         }
       }
     },
+    "tab.reset": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إعادة ضبط"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reset"
+          }
+        }
+      }
+    },
     "tab.shredder": {
       "localizations": {
         "ar": {
@@ -3133,6 +3229,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Unused Apps"
+          }
+        }
+      }
+    },
+    "tab.updates": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "التحديثات"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Updates"
           }
         }
       }
@@ -3389,6 +3501,70 @@
           "stringUnit": {
             "state": "translated",
             "value": "Check for Updates…"
+          }
+        }
+      }
+    },
+    "updates.check": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "دوّر على تحديثات"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check for updates"
+          }
+        }
+      }
+    },
+    "updates.checking": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "بندوّر على تحديثات للبرامج…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checking for app updates…"
+          }
+        }
+      }
+    },
+    "updates.upToDate": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "كل برامجك متحدّثة"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All your apps are up to date"
+          }
+        }
+      }
+    },
+    "updates.update": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "حدّث"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update"
           }
         }
       }
