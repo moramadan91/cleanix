@@ -76,9 +76,6 @@ struct IntroView: View {
                     .offset(y: word ? 0 : 12)
                     .opacity(word ? 1 : 0)
             }
-            // The logo keeps its own violet; a soft lavender halo lets it read on dark wallpapers too.
-            .shadow(color: Brand.lavender.opacity(ball ? 0.7 : 0), radius: 18)
-            .shadow(color: Brand.violet.opacity(ball ? 0.4 : 0), radius: 40)
             .scaleEffect(leaving ? 1.12 : 1)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
