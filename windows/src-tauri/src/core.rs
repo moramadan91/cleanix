@@ -248,27 +248,26 @@ pub fn scan_large(p: &Places, min: u64) -> Vec<ScanItem> {
 
 /// How safe removing something is, for the disk map.
 pub fn advise(path: &Path, p: &Places) -> Safety {
-    let in_any = |dirs: &[PathBuf]| dirs.iter().any(|d| path.starts_with(d) && path != d);
-    let cache_like = path.components().any(|c| {
-        let s = c.as_os_str().to_string_lossy().to_lowercase();
-        matches!(s.as_str(), "cache" | "cache2" | "code cache" | "gpucache" | "temp" | "tmp" | "crashdumps" | "npm-cache")
-    });
     if !path.starts_with(&p.home) || path == p.home {
         return Safety::Risky;
     }
-    if cache_like || in_any(&[p.temp.clone()]) {
-        return Safety::Safe;
-    }
     // AppData itself and its first level hold app settings and data: not for a quick delete.
     let appdata = p.home.join("AppData");
-    if path == appdata || path.parent() == Some(&appdata) || path.parent() == Some(p.local.as_path())
-        || path.parent() == Some(p.roaming.as_path()) || path == p.local || path == p.roaming
+    let parent = path.parent();
+    if path == appdata || path == p.local || path == p.roaming
+        || parent == Some(appdata.as_path()) || parent == Some(p.local.as_path()) || parent == Some(p.roaming.as_path())
+        || name_of(path).to_lowercase().starts_with("ntuser")
     {
         return Safety::Risky;
     }
-    let n = name_of(path).to_lowercase();
-    if n.starts_with("ntuser") {
-        return Safety::Risky;
+    // Only names below home count: home itself may sit under a "Temp" folder (tests do).
+    let rel = path.strip_prefix(&p.home).unwrap_or(path);
+    let cache_like = rel.components().any(|c| {
+        let s = c.as_os_str().to_string_lossy().to_lowercase();
+        matches!(s.as_str(), "cache" | "cache2" | "code cache" | "gpucache" | "temp" | "tmp" | "crashdumps" | "npm-cache")
+    });
+    if cache_like || (path.starts_with(&p.temp) && path != p.temp) {
+        return Safety::Safe;
     }
     Safety::Review
 }
