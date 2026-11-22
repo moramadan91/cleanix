@@ -62,7 +62,9 @@ struct ScanListView: View {
                     .padding(.top, 8)
             } else if !items.isEmpty {
                 HStack(spacing: 12) {
-                    Text(String(format: L("common.itemsSelected"), chosen.count, formatBytes(chosen.reduce(0) { $0 + $1.bytes })))
+                    let bytes = chosen.reduce(0) { $0 + $1.bytes }
+                    // No size when the only pick is the Trash counted through Finder.
+                    Text(String(format: L("common.itemsSelected"), chosen.count, bytes > 0 || chosen.isEmpty ? formatBytes(bytes) : "—"))
                         .font(.system(size: 14, weight: .semibold)).monospacedDigit()
                     Spacer()
                     SortMenu(sort: $sort)
@@ -132,7 +134,9 @@ struct ScanListView: View {
             if isReveal {
                 Button(L("common.reveal")) { revealInFinder(item.url) }.buttonStyle(.liquid())
             } else {
-                Text(formatBytes(item.bytes)).font(.system(size: 15, weight: .medium)).monospacedDigit()
+                // 0 = size unknown (the Trash read through Finder), not an empty item.
+                Text(item.bytes > 0 ? formatBytes(item.bytes) : localized("reason", item.reason))
+                    .font(.system(size: 15, weight: .medium)).monospacedDigit()
             }
         }
         .modifier(RowBackground(highlighted: isOn.wrappedValue && !isReveal))

@@ -1489,6 +1489,22 @@
         }
       }
     },
+    "reason.fmt.items": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ عنصر"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ items"
+          }
+        }
+      }
+    },
     "reason.fmt.leftBy": {
       "localizations": {
         "ar": {

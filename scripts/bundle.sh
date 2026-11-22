@@ -34,6 +34,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 <key>CFBundleShortVersionString</key><string>$VERSION</string>
 <key>CFBundleVersion</key><string>$VERSION</string>
 <key>LSMinimumSystemVersion</key><string>26.0</string>
+<key>NSAppleEventsUsageDescription</key><string>Cleanix uses Finder to see and empty your Trash when it has no Full Disk Access.</string>
 <key>CFBundleDevelopmentRegion</key><string>en</string>
 <key>CFBundleLocalizations</key><array><string>en</string><string>ar</string></array>
 <key>SUFeedURL</key><string>https://github.com/moramadan91/cleanix/releases/latest/download/appcast.xml</string>

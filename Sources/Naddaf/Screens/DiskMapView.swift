@@ -1,4 +1,5 @@
 import SwiftUI
+import QuickLook
 import AppKit
 import NaddafCore
 
@@ -12,6 +13,8 @@ struct DiskMapView: View {
     @State private var trail: [DiskNode] = []
     @State private var scanning = false
     @State private var selected: Set<URL> = []
+    /// Item shown in the Quick Look panel (right-click a row).
+    @State private var quickLook: URL?
     @State private var showPreview = false
     @State private var result: CleanResult?
 
@@ -48,6 +51,7 @@ struct DiskMapView: View {
                     }
                 }
                 .scrollIndicators(.hidden)
+                .quickLookPreview($quickLook)
                 .glassPanel()
                 .frame(maxWidth: .infinity)
 
@@ -133,6 +137,12 @@ struct DiskMapView: View {
         .modifier(RowBackground(highlighted: isOn.wrappedValue))
         .contentShape(Rectangle())
         .onTapGesture { if !node.children.isEmpty && !other { open(node) } }
+        .contextMenu {
+            if !other {
+                Button(L("common.quickLook"), systemImage: "eye") { quickLook = node.url }
+                Button(L("common.reveal"), systemImage: "folder") { revealInFinder(node.url) }
+            }
+        }
     }
 
     private func open(_ node: DiskNode) {

@@ -196,6 +196,7 @@ func localized(_ prefix: String, _ raw: String) -> String {
     if asGroup != "group.\(raw)" { return asGroup }
     // Reasons built with a name or number: "Left by Slack", "In Downloads for 90+ days"...
     let patterns: [(String, String)] = [
+        (#"^(\d+) items$"#, "reason.fmt.items"),
         (#"^In Downloads for (\d+)\+ days$"#, "reason.fmt.downloads"),
         (#"^Not modified for (\d+)\+ days$"#, "reason.fmt.notModified"),
         (#"^Duplicate of (.+)$"#, "reason.fmt.duplicate"),
