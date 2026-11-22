@@ -24,10 +24,11 @@ struct RootView: View {
                 }
             }
         }
-        // Language switch in the free bottom corner, away from the sidebar and the window buttons.
-        .overlay(alignment: .bottomTrailing) {
+        // Language switch at the physical top-right in both languages (leading is the right edge in Arabic),
+        // opposite the window buttons.
+        .overlay(alignment: lang == "ar" ? .topLeading : .topTrailing) {
             Button(lang == "ar" ? "English" : "العربية") { lang = lang == "ar" ? "en" : "ar" }
-                .padding(20)
+                .padding(.top, 10).padding(.horizontal, 16)
         }
         .id(lang)
         // Coming back from System Settings: check again so the banner goes away by itself.
