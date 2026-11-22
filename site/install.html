@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cleanix — خطوات التسطيب</title>
+<meta name="description" content="How to install Cleanix on Mac and Windows, step by step, including the macOS and SmartScreen warnings.">
+<meta name="theme-color" content="#171222">
+<link rel="icon" href="favicon.png">
+<script>
+  try { var l = localStorage.getItem('cleanix.lang') || (navigator.language.indexOf('ar') === 0 ? 'ar' : 'en');
+    document.documentElement.lang = l; document.documentElement.dir = l === 'ar' ? 'rtl' : 'ltr'; } catch (e) {}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --violet: #6035F5; --violet-2: #7A55FF; --lavender: #EAE4FF; --charcoal: #171222;
+    --white: #fff; --muted: #B6ADD3; --line: rgba(234, 228, 255, 0.12); --hit: #FFAA3D;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--charcoal); color: var(--white); font-family: "Readex Pro", system-ui, sans-serif; line-height: 1.7; }
+  [data-en] { display: none !important; }
+  html[lang="en"] [data-ar] { display: none !important; }
+  html[lang="en"] [data-en] { display: revert !important; }
+  a { color: var(--lavender); }
+  :focus-visible { outline: 2px solid var(--hit); outline-offset: 3px; }
+
+  .bar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 16px; padding: 14px 20px;
+    background: rgba(23, 18, 34, 0.85); backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); }
+  .brand { display: flex; align-items: center; gap: 10px; color: var(--white); text-decoration: none; font-weight: 600; font-size: 18px; }
+  .grow { flex: 1; }
+  .lang { font: inherit; font-size: 14px; color: var(--lavender); background: none; border: 1px solid var(--line); border-radius: 999px; padding: 6px 16px; cursor: pointer; }
+
+  main { max-width: 860px; margin: 0 auto; padding: 48px 16px 80px; }
+  h1 { font-size: clamp(30px, 5vw, 46px); font-weight: 600; line-height: 1.25; }
+  .lead { color: var(--muted); margin-top: 12px; max-width: 60ch; }
+  .jump { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+  .jump a { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; font-weight: 600; padding: 12px 24px; border-radius: 999px; background: var(--violet); color: var(--white); }
+  .jump a + a { background: none; border: 1px solid rgba(234, 228, 255, 0.35); color: var(--lavender); }
+
+  section { margin-top: 72px; scroll-margin-top: 80px; }
+  h2 { font-size: clamp(24px, 3.6vw, 32px); font-weight: 600; }
+  .why { color: var(--muted); margin-top: 8px; max-width: 64ch; }
+  ol { list-style: none; counter-reset: step; margin-top: 28px; display: grid; gap: 40px; }
+  li { counter-increment: step; display: grid; gap: 14px; }
+  li > h3 { display: flex; gap: 12px; align-items: baseline; font-size: 19px; font-weight: 600; }
+  li > h3::before { content: counter(step); flex: none; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--violet); font-size: 15px; }
+  li > p { color: var(--lavender); max-width: 64ch; }
+  b.k { font-weight: 600; color: var(--hit); white-space: nowrap; }
+  .note { font-size: 14px; color: var(--muted); }
+
+  /* Drawn illustrations of each system window (always left-to-right, like the systems themselves). */
+  figure { border-radius: 18px; padding: clamp(14px, 3vw, 28px); background: linear-gradient(135deg, #2a2140, #1d1730); border: 1px solid var(--line); overflow: hidden; }
+  figcaption { font-size: 13px; color: var(--muted); margin-top: 12px; }
+  .win { direction: ltr; text-align: left; font-family: "Segoe UI", system-ui, sans-serif; margin: 0 auto; max-width: 520px; border-radius: 8px; overflow: hidden; box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45); }
+  .win .t { font-size: 12px; padding: 8px 12px; display: flex; justify-content: space-between; }
+  .btn { display: inline-block; font-size: 13px; padding: 6px 18px; border-radius: 4px; border: 1px solid #8a8a8a; background: #fdfdfd; color: #111; }
+  .hit { outline: 3px solid var(--hit); outline-offset: 3px; position: relative; }
+  .hit::after { content: "👆"; position: absolute; inset-block-end: -30px; inset-inline-end: -14px; font-size: 22px; }
+
+  .smart { background: #0f5ea6; color: #fff; padding: 24px 26px 18px; }
+  .smart h4 { font-size: 24px; font-weight: 300; margin-bottom: 14px; }
+  .smart p { font-size: 13px; margin-bottom: 10px; }
+  .smart .link { text-decoration: underline; font-size: 13px; display: inline-block; }
+  .smart .row { display: flex; justify-content: flex-end; gap: 8px; margin-top: 22px; }
+  .smart .btn { background: transparent; color: #fff; border-color: #fff; }
+  .smart dl { font-size: 13px; display: grid; grid-template-columns: auto 1fr; gap: 2px 14px; }
+
+  .edge { background: #fff; color: #222; font-size: 13px; padding: 14px 16px; position: relative; }
+  .edge .file { display: flex; gap: 10px; align-items: flex-start; }
+  .edge .warn { color: #a4262c; font-weight: 600; }
+  .edge .menu { margin: 10px 0 0 auto; width: 170px; border: 1px solid #ddd; border-radius: 6px; box-shadow: 0 6px 18px rgba(0,0,0,.15); background: #fff; }
+  .edge .menu span { display: block; padding: 6px 12px; }
+
+  .uac { background: #fff; color: #111; }
+  .uac .head { background: #e8e8e8; padding: 12px 18px; font-size: 13px; }
+  .uac .body { padding: 16px 18px; font-size: 13px; }
+  .uac h4 { font-size: 18px; font-weight: 400; margin-bottom: 12px; }
+  .uac .row { display: flex; gap: 8px; padding: 12px 18px 16px; }
+  .uac .row .btn { flex: 1; text-align: center; }
+  .uac .yes { background: #0067c0; color: #fff; border-color: #0067c0; }
+
+  .nsis { background: #f3f3f3; color: #111; }
+  .nsis .t { background: #fff; border-bottom: 1px solid #ddd; }
+  .nsis .body { display: flex; min-height: 150px; }
+  .nsis .side { width: 120px; background: linear-gradient(160deg, #6035F5, #2a1a6e); display: grid; place-items: center; }
+  .nsis .side img { width: 56px; height: 56px; }
+  .nsis .main { flex: 1; padding: 16px; font-size: 13px; }
+  .nsis h4 { font-size: 16px; margin-bottom: 8px; }
+  .nsis .row { display: flex; justify-content: flex-end; gap: 8px; padding: 10px 14px; border-top: 1px solid #ddd; }
+
+  .mac { font-family: -apple-system, "SF Pro Text", system-ui, sans-serif; border-radius: 14px; }
+  .alert { max-width: 300px; background: #ececec; color: #111; padding: 22px 18px 16px; text-align: center; font-size: 12px; }
+  .alert img { width: 52px; height: 52px; margin-bottom: 10px; }
+  .alert h4 { font-size: 13px; margin-bottom: 6px; }
+  .alert .col { display: grid; gap: 8px; margin-top: 16px; }
+  .alert .btn { border-radius: 7px; border: 0; background: #fff; padding: 6px; }
+  .alert .blue { background: #2f7cf6; color: #fff; }
+  .settings { max-width: 560px; background: #f5f5f7; color: #111; display: flex; }
+  .settings .nav { width: 150px; background: #e9e8ec; padding: 34px 10px 14px; font-size: 12px; display: grid; gap: 4px; align-content: start; }
+  .settings .nav span { padding: 4px 8px; border-radius: 6px; }
+  .settings .nav .on { background: #2f7cf6; color: #fff; }
+  .settings .pane { flex: 1; padding: 18px; font-size: 12px; }
+  .settings h4 { font-size: 15px; margin-bottom: 14px; }
+  .settings .card { background: #fff; border-radius: 10px; padding: 12px; display: flex; gap: 12px; align-items: center; justify-content: space-between; }
+  .settings .btn { border-radius: 6px; border-color: #c9c9c9; padding: 4px 12px; font-size: 12px; white-space: nowrap; }
+  .toggle { width: 34px; height: 20px; border-radius: 999px; background: #34c759; position: relative; flex: none; }
+  .toggle::after { content: ""; position: absolute; top: 2px; right: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; }
+  .card + .card { margin-top: 8px; }
+
+  .foot { max-width: 860px; margin: 0 auto; padding: 24px 16px 48px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; display: flex; flex-wrap: wrap; gap: 16px; }
+  @media (max-width: 560px) {
+    .settings .nav { display: none; }
+    .nsis .side { width: 70px; }
+  }
+</style>
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="./"><img src="icon-68.png" alt="" width="30" height="30"><span>Cleanix</span></a>
+  <span class="grow"></span>
+  <button class="lang" id="lang" type="button">English</button>
+</header>
+
+<main>
+  <h1><span data-ar>خطوات التسطيب بالصور</span><span data-en>Install, step by step</span></h1>
+  <p class="lead">
+    <span data-ar>Cleanix مجاني ومش متسجّل عند Apple ولا Microsoft بشهادة مدفوعة، فالجهاز ممكن يحذّرك أول مرة. ده طبيعي. الخطوات دي بتوريك تعدّي التحذير إزاي.</span>
+    <span data-en>Cleanix is free and isn't signed with a paid Apple or Microsoft certificate, so your computer may warn you the first time. That's expected. These steps show how to get past it.</span>
+  </p>
+  <div class="jump">
+    <a href="#mac"><span data-ar>على الماك</span><span data-en>On Mac</span></a>
+    <a href="#windows"><span data-ar>على الويندوز</span><span data-en>On Windows</span></a>
+  </div>
+
+  <!-- ===================== Mac ===================== -->
+  <section id="mac" aria-labelledby="h-mac">
+    <h2 id="h-mac"><span data-ar>على الماك</span><span data-en>On Mac</span></h2>
+    <p class="why"><span data-ar>محتاج macOS 26 أو أحدث. حمّل الملف من <a href="https://github.com/moramadan91/cleanix/releases/latest/download/Cleanix.pkg">هنا</a> وافتحه.</span><span data-en>Needs macOS 26 or later. Download the file <a href="https://github.com/moramadan91/cleanix/releases/latest/download/Cleanix.pkg">here</a> and open it.</span></p>
+    <ol>
+      <li>
+        <h3><span data-ar>الماك هيقول إنه مش قادر يتأكد من الملف</span><span data-en>macOS says it can't verify the file</span></h3>
+        <p><span data-ar>دوس <b class="k">Done</b>. ما تدوسش Move to Trash.</span><span data-en>Click <b class="k">Done</b>. Don't click Move to Trash.</span></p>
+        <figure>
+          <div class="win mac alert">
+            <img src="icon-68.png" alt="">
+            <h4>“Cleanix.pkg” Not Opened</h4>
+            <p>Apple could not verify “Cleanix.pkg” is free of malware that may harm your Mac or compromise your privacy.</p>
+            <div class="col"><span class="btn blue hit">Done</span><span class="btn">Move to Trash</span></div>
+          </div>
+          <figcaption><span data-ar>رسم توضيحي. الشكل عندك ممكن يختلف شوية.</span><span data-en>Illustration. Yours may look slightly different.</span></figcaption>
+        </figure>
+      </li>
+      <li>
+        <h3><span data-ar>افتح الإعدادات ← الخصوصية والأمان</span><span data-en>Open System Settings → Privacy &amp; Security</span></h3>
+        <p><span data-ar>انزل لتحت لحد جزء Security، هتلاقي سطر بيقول إن Cleanix.pkg اتمنع. دوس <b class="k">Open Anyway</b> (أو «فتح على أي حال» لو الماك بالعربي).</span><span data-en>Scroll down to Security. You'll see that Cleanix.pkg was blocked. Click <b class="k">Open Anyway</b>.</span></p>
+        <figure>
+          <div class="win mac settings">
+            <div class="nav"><span>Wi‑Fi</span><span>General</span><span class="on">Privacy &amp; Security</span><span>Desktop &amp; Dock</span></div>
+            <div class="pane">
+              <h4>Privacy &amp; Security</h4>
+              <div class="card"><span>“Cleanix.pkg” was blocked to protect your Mac.</span><span class="btn hit">Open Anyway</span></div>
+            </div>
+          </div>
+        </figure>
+      </li>
+      <li>
+        <h3><span data-ar>أكّد إنك عايز تفتحه</span><span data-en>Confirm you want to open it</span></h3>
+        <p><span data-ar>دوس <b class="k">Open Anyway</b> تاني، واكتب باسورد الماك أو استخدم بصمتك. الخطوة دي بتتعمل مرة واحدة بس.</span><span data-en>Click <b class="k">Open Anyway</b> again, then enter your Mac password or use Touch ID. You only do this once.</span></p>
+        <figure>
+          <div class="win mac alert">
+            <img src="icon-68.png" alt="">
+            <h4>Open “Cleanix.pkg”?</h4>
+            <p>Apple is not able to verify that it is free from malware. Only open it if you trust its source.</p>
+            <div class="col"><span class="btn blue hit">Open Anyway</span><span class="btn">Move to Trash</span><span class="btn">Done</span></div>
+          </div>
+        </figure>
+      </li>
+      <li>
+        <h3><span data-ar>كمّل التسطيب</span><span data-en>Finish the installer</span></h3>
+        <p><span data-ar>دوس <b class="k">Continue</b> وبعدين <b class="k">Install</b>. البرنامج بيتحط في Applications، ولو عندك نسخة قديمة بتتبدّل.</span><span data-en>Click <b class="k">Continue</b>, then <b class="k">Install</b>. Cleanix goes to Applications and replaces any older copy.</span></p>
+      </li>
+      <li>
+        <h3><span data-ar>اديله صلاحية Full Disk Access</span><span data-en>Give it Full Disk Access</span></h3>
+        <p><span data-ar>عشان يقدر يشوف الكاش وسلة المحذوفات. البرنامج بيوريك زرار يفتحلك الصفحة دي على طول. شغّل المفتاح جنب Cleanix، وبعدين اقفل البرنامج وافتحه تاني.</span><span data-en>So it can see caches and the Trash. The app shows a button that opens this page. Turn on Cleanix, then quit and reopen the app.</span></p>
+        <figure>
+          <div class="win mac settings">
+            <div class="nav"><span>General</span><span class="on">Privacy &amp; Security</span></div>
+            <div class="pane">
+              <h4>Full Disk Access</h4>
+              <div class="card"><span>Terminal</span><span class="toggle" style="background:#d1d1d6"></span></div>
+              <div class="card"><span>Cleanix</span><span class="toggle hit"></span></div>
+            </div>
+          </div>
+        </figure>
+      </li>
+    </ol>
+  </section>
+
+  <!-- ===================== Windows ===================== -->
+  <section id="windows" aria-labelledby="h-win">
+    <h2 id="h-win"><span data-ar>على الويندوز</span><span data-en>On Windows</span></h2>
+    <p class="why"><span data-ar>ويندوز 10 أو 11 (64 بت). حمّل الملف من <a href="https://github.com/moramadan91/cleanix/releases/download/win-v0.1.0/Cleanix-Setup.exe">هنا</a>.</span><span data-en>Windows 10 or 11 (64-bit). Download the file <a href="https://github.com/moramadan91/cleanix/releases/download/win-v0.1.0/Cleanix-Setup.exe">here</a>.</span></p>
+    <ol>
+      <li>
+        <h3><span data-ar>المتصفح ممكن يقول إن الملف مش منتشر</span><span data-en>Your browser may say the file isn't commonly downloaded</span></h3>
+        <p><span data-ar>في Edge: دوس على النقط التلاتة <b class="k">…</b> جنب الملف، واختار <b class="k">Keep</b>، وبعدين <b class="k">Show more</b> ← <b class="k">Keep anyway</b>. في Chrome: دوس <b class="k">Keep</b>.</span><span data-en>In Edge: click the <b class="k">…</b> next to the file, choose <b class="k">Keep</b>, then <b class="k">Show more</b> → <b class="k">Keep anyway</b>. In Chrome: click <b class="k">Keep</b>.</span></p>
+        <figure>
+          <div class="win edge">
+            <div class="file"><span>⚠️</span><div><b>Cleanix-Setup.exe</b><br><span class="warn">Cleanix-Setup.exe isn't commonly downloaded. Make sure you trust Cleanix-Setup.exe before you open it.</span></div></div>
+            <div class="menu"><span>Delete</span><span class="hit">Keep</span><span>Report this file as safe</span></div>
+          </div>
+          <figcaption><span data-ar>رسم توضيحي. الشكل عندك ممكن يختلف شوية.</span><span data-en>Illustration. Yours may look slightly different.</span></figcaption>
+        </figure>
+      </li>
+      <li>
+        <h3><span data-ar>افتح الملف. هتطلعلك شاشة زرقا من SmartScreen</span><span data-en>Open the file. A blue SmartScreen window appears</span></h3>
+        <p><span data-ar>الشاشة دي بتطلع لأي برنامج جديد لسه مش معروف عند Microsoft. ما تدوسش Don't run. دوس على <b class="k">More info</b> (أو «مزيد من المعلومات»).</span><span data-en>It appears for any new app Microsoft doesn't know yet. Don't click Don't run. Click <b class="k">More info</b>.</span></p>
+        <figure>
+          <div class="win smart">
+            <h4>Windows protected your PC</h4>
+            <p>Microsoft Defender SmartScreen prevented an unrecognized app from starting. Running this app might put your PC at risk.</p>
+            <span class="link hit">More info</span>
+            <div class="row"><span class="btn">Don't run</span></div>
+          </div>
+        </figure>
+      </li>
+      <li>
+        <h3><span data-ar>دوس Run anyway</span><span data-en>Click Run anyway</span></h3>
+        <p><span data-ar>هيظهر زرار جديد: <b class="k">Run anyway</b> (أو «تشغيل على أي حال»). دوسه.</span><span data-en>A new button appears: <b class="k">Run anyway</b>. Click it.</span></p>
+        <figure>
+          <div class="win smart">
+            <h4>Windows protected your PC</h4>
+            <p>Microsoft Defender SmartScreen prevented an unrecognized app from starting. Running this app might put your PC at risk.</p>
+            <dl><dt>App:</dt><dd>Cleanix-Setup.exe</dd><dt>Publisher:</dt><dd>Unknown publisher</dd></dl>
+            <div class="row"><span class="btn hit">Run anyway</span><span class="btn">Don't run</span></div>
+          </div>
+        </figure>
+      </li>
+      <li>
+        <h3><span data-ar>وافق على الصلاحيات</span><span data-en>Allow it to make changes</span></h3>
+        <p><span data-ar>ويندوز هيسألك لو تسمح للبرنامج يعمل تغييرات. دوس <b class="k">Yes</b> (أو «نعم»).</span><span data-en>Windows asks whether to allow the app to make changes. Click <b class="k">Yes</b>.</span></p>
+        <figure>
+          <div class="win uac">
+            <div class="head">User Account Control</div>
+            <div class="body">
+              <h4>Do you want to allow this app from an unknown publisher to make changes to your device?</h4>
+              <p><b>Cleanix-Setup.exe</b><br>Publisher: Unknown<br>File origin: Hard drive on this computer</p>
+            </div>
+            <div class="row"><span class="btn yes hit">Yes</span><span class="btn">No</span></div>
+          </div>
+        </figure>
+      </li>
+      <li>
+        <h3><span data-ar>كمّل التسطيب وافتح Cleanix</span><span data-en>Finish setup and open Cleanix</span></h3>
+        <p><span data-ar>اختار اللغة، ودوس <b class="k">Next</b> وبعدين <b class="k">Install</b>، وفي الآخر <b class="k">Finish</b>. هتلاقي Cleanix في قايمة ابدأ.</span><span data-en>Pick a language, click <b class="k">Next</b>, then <b class="k">Install</b>, then <b class="k">Finish</b>. Cleanix is in the Start menu.</span></p>
+        <figure>
+          <div class="win nsis">
+            <div class="t"><span>Cleanix Setup</span><span>✕</span></div>
+            <div class="body">
+              <div class="side"><img src="icon-68.png" alt=""></div>
+              <div class="main"><h4>Choose Install Location</h4><p>Setup will install Cleanix in the following folder.</p></div>
+            </div>
+            <div class="row"><span class="btn">&lt; Back</span><span class="btn hit">Install</span><span class="btn">Cancel</span></div>
+          </div>
+        </figure>
+      </li>
+    </ol>
+    <p class="note" style="margin-top:32px"><span data-ar>كل حاجة Cleanix بيمسحها على ويندوز بتروح سلة المحذوفات، فتقدر ترجّعها. البرامج بتتشال ببرنامج الإزالة بتاعها هي.</span><span data-en>Everything Cleanix removes on Windows goes to the Recycle Bin, so you can restore it. Programs are removed with their own uninstaller.</span></p>
+  </section>
+</main>
+
+<footer class="foot">
+  <a href="./"><span data-ar>الصفحة الرئيسية</span><span data-en>Home</span></a>
+  <a href="https://github.com/moramadan91/cleanix">GitHub</a>
+  <a href="https://github.com/moramadan91/cleanix/releases"><span data-ar>كل الإصدارات</span><span data-en>All releases</span></a>
+</footer>
+
+<script>
+  var btn = document.getElementById('lang'), html = document.documentElement;
+  function apply(l) {
+    html.lang = l; html.dir = l === 'ar' ? 'rtl' : 'ltr';
+    btn.textContent = l === 'ar' ? 'English' : 'العربية';
+    document.title = l === 'ar' ? 'Cleanix — خطوات التسطيب' : 'Cleanix — Install guide';
+    try { localStorage.setItem('cleanix.lang', l); } catch (e) {}
+  }
+  apply(html.lang === 'en' ? 'en' : 'ar');
+  btn.addEventListener('click', function () { apply(html.lang === 'ar' ? 'en' : 'ar'); });
+</script>
+</body>
+</html>
