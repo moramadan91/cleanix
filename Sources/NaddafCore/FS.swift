@@ -2,7 +2,7 @@ import Foundation
 
 /// Small filesystem helpers shared by scanners. Sizes are logical file sizes and
 /// symlinks are never followed.
-enum FS {
+public enum FS {
     static func children(of url: URL) -> [URL] {
         (try? FileManager.default.contentsOfDirectory(at: url, includingPropertiesForKeys: nil, options: [])) ?? []
     }
@@ -11,7 +11,7 @@ enum FS {
         FileManager.default.fileExists(atPath: url.path)
     }
 
-    static func size(of url: URL) -> Int64 {
+    public static func size(of url: URL) -> Int64 {
         let keys: Set<URLResourceKey> = [.fileSizeKey, .isRegularFileKey]
         guard let values = try? url.resourceValues(forKeys: keys) else { return 0 }
         if values.isRegularFile == true { return Int64(values.fileSize ?? 0) }

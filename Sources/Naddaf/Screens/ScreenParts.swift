@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 import NaddafCore
 
 /// Spinner shown while a scan runs.
@@ -56,14 +57,37 @@ struct ActionButton: View {
     }
 }
 
+/// Wraps any async item source as a `Scanner`, so screens can reuse `ScanListView`.
+struct ClosureScanner: NaddafCore.Scanner {
+    let run: @Sendable () async throws -> [ScanItem]
+    func scan() async throws -> [ScanItem] { try await run() }
+}
+
+/// Catalog value for `<prefix>.<raw>`, or the raw text when the catalog has none.
+func localized(_ prefix: String, _ raw: String) -> String {
+    let key = "\(prefix).\(raw)"
+    let value = L(key)
+    return value == key ? raw : value
+}
+
+func revealInFinder(_ url: URL) {
+    NSWorkspace.shared.activateFileViewerSelecting([url])
+}
+
+/// Glass-free list row background used by every list screen.
+struct RowBackground: ViewModifier {
+    var highlighted = false
+    func body(content: Content) -> some View {
+        content
+            .padding(.horizontal, 16).padding(.vertical, 10)
+            .background(RoundedRectangle(cornerRadius: 16).fill(.white.opacity(highlighted ? 0.10 : 0.05)))
+    }
+}
+
 /// Path shown with the home folder as "~".
 func displayPath(_ url: URL) -> String {
     url.path(percentEncoded: false).replacingOccurrences(of: AppEnv.shared.home.path, with: "~")
 }
 
 /// Localized name of a scanner group ("Logs", "Developer"...), or the raw name if it has none.
-func groupTitle(_ group: String) -> String {
-    let key = "group.\(group)"
-    let value = L(key)
-    return value == key ? group : value
-}
+func groupTitle(_ group: String) -> String { localized("group", group) }

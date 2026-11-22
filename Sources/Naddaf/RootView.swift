@@ -94,12 +94,13 @@ private struct SidebarItem: View {
     }
 }
 
-/// Placeholder page for each section; the real screens replace the body in later tasks.
+/// One page per section: title on top, the section's tabs (if any), then the screen.
 private struct SectionPage: View {
     let section: AppSection
+    @State private var tabs: [AppSection: SectionTab] = [:]
 
     var body: some View {
-        // Title sits top-center, clear of the sidebar pills; the hero fills the middle.
+        // Title sits top-center, clear of the sidebar pills.
         VStack(spacing: 0) {
             VStack(spacing: 8) {
                 Text(section.title)
@@ -113,57 +114,33 @@ private struct SectionPage: View {
             .id("text-\(section.id)")
             .transition(.opacity)
 
-            if section == .cleanup {
-                TabStrip(selection: $cleanupTab).padding(.top, 18)
-                switch cleanupTab {
-                case .appCaches: AppCachesView(section: section)
-                case .sweep:
-                    ScanListView(section: section, mode: .clean(.quarantine)) { SweepScanner(home: env.home) }
-                        .id(CleanupTab.sweep)
-                case .trash:
-                    ScanListView(section: section, mode: .emptyTrash) {
-                        TrashScanner(trashRoots: [env.home.appendingPathComponent(".Trash")])
-                    }
-                    .id(CleanupTab.trash)
-                case .mail:
-                    ScanListView(section: section, mode: .clean(.trash)) {
-                        let lib = env.home.appendingPathComponent("Library")
-                        return MailAttachmentsScanner(mailDownloads: [
-                            lib.appendingPathComponent("Containers/com.apple.mail/Data/Library/Mail Downloads"),
-                            lib.appendingPathComponent("Mail Downloads")])
-                    }
-                    .id(CleanupTab.mail)
-                case .shredder: ShredderView()
-                }
-            } else {
-                IntroHero(section: section, soon: true) {}
+            let all = SectionTab.tabs(for: section)
+            let current = tabs[section] ?? all.first
+            if all.count > 1 {
+                TabStrip(tabs: all, selection: Binding(get: { current ?? all[0] }, set: { tabs[section] = $0 }))
+                    .padding(.top, 18)
             }
+            SectionContent(section: section, tab: current)
+                .id("\(section.id)-\(current?.rawValue ?? "")")
         }
         .frame(maxWidth: .infinity)
     }
-
-    @State private var cleanupTab = CleanupTab.appCaches
-    private var env: AppEnv { .shared }
-}
-
-enum CleanupTab: String, CaseIterable, Identifiable {
-    case sweep, appCaches, trash, mail, shredder
-    var id: String { rawValue }
-    var title: String { L("cleanup.tab.\(rawValue)") }
 }
 
 private struct TabStrip: View {
-    @Binding var selection: CleanupTab
+    let tabs: [SectionTab]
+    @Binding var selection: SectionTab
 
     var body: some View {
         HStack(spacing: 8) {
-            ForEach(CleanupTab.allCases) { tab in
+            ForEach(tabs) { tab in
                 Button { selection = tab } label: {
                     Text(tab.title)
                         .font(.system(size: 14, weight: .semibold))
                         .padding(.horizontal, 16).padding(.vertical, 8)
                         .foregroundStyle(selection == tab ? Color.black : Color.white.opacity(0.85))
                         .background(Capsule().fill(selection == tab ? Theme.accent : Color.white.opacity(0.08)))
+                        .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
             }
@@ -171,28 +148,28 @@ private struct TabStrip: View {
     }
 }
 
-/// Section intro: big hero in the middle and the Scan button at the bottom.
+/// Section intro: hero in the middle (shrinks to fit short windows) and the main button at the bottom.
 struct IntroHero: View {
     let section: AppSection
-    var soon = false
+    var title = L("common.scan")
     let action: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
-            Spacer(minLength: 0)
-            SectionHero(section: section)
-                .id("hero-\(section.id)")
-                .transition(.scale(scale: 0.86).combined(with: .opacity))
-            Spacer(minLength: 0)
-            if soon { Text(L("common.soon")).font(.callout).foregroundStyle(.secondary).padding(.bottom, 10) }
+            GeometryReader { geo in
+                SectionHero(section: section)
+                    .scaleEffect(min(1, geo.size.height / 470))
+                    .frame(width: geo.size.width, height: geo.size.height)
+            }
+            .id("hero-\(section.id)")
+            .transition(.scale(scale: 0.86).combined(with: .opacity))
             Button(action: action) {
-                Text(L("common.scan"))
+                Text(title)
                     .font(.system(size: 22, weight: .bold))
                     .frame(width: 220, height: 58)
             }
             .buttonStyle(.glassProminent)
             .tint(Theme.accent)
-            .disabled(soon)
             .padding(.bottom, 34)
         }
     }

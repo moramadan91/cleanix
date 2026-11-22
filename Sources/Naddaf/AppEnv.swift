@@ -24,14 +24,26 @@ final class AppEnv: Sendable {
             appDirs = [URL(fileURLWithPath: "/Applications"), URL(fileURLWithPath: "/System/Applications"),
                        home.appendingPathComponent("Applications")]
         }
-        let lib = home.appendingPathComponent("Library")
+        let base = home
+        let lib = base.appendingPathComponent("Library")
         quarantine = Quarantine(root: lib.appendingPathComponent("Application Support/Naddaf/Quarantine"))
         // Allowlist: only the folders the scanners report from. Everything else is refused by Cleaner.
         let roots = ["Caches", "HTTPStorages", "Containers", "Group Containers", "Application Support",
-                     "Logs", "Developer/Xcode/DerivedData", "Mail Downloads"].map { lib.appendingPathComponent($0) }
-            + [home.appendingPathComponent(".npm")]
+                     "Logs", "Developer/Xcode/DerivedData", "Mail Downloads", "Preferences",
+                     "Saved Application State", "Cookies", "Safari"].map { lib.appendingPathComponent($0) }
+            + AppEnv.userFolders.map { base.appendingPathComponent($0) }
+            + [base.appendingPathComponent(".npm")]
+            + AppEnv.userOnly(appDirs)
         cleaner = Cleaner(policy: PathPolicy(allowedRoots: roots), quarantine: quarantine)
     }
+
+    /// Personal folders the Clutter screens look in (and the only ones they may clean).
+    static let userFolders = ["Documents", "Desktop", "Downloads", "Pictures", "Movies", "Music"]
+
+    /// App folders the user installs into (never /System).
+    var userAppDirs: [URL] { AppEnv.userOnly(appDirs) }
+
+    private static func userOnly(_ dirs: [URL]) -> [URL] { dirs.filter { !$0.path.hasPrefix("/System") } }
 }
 
 func formatBytes(_ bytes: Int64) -> String {

@@ -5,7 +5,8 @@ import NaddafCore
 /// `.clean` goes through PreviewSheet and Cleaner; `.emptyTrash` asks a second, explicit confirmation
 /// because emptying is permanent.
 struct ScanListView: View {
-    enum Mode { case clean(Disposal), emptyTrash }
+    /// `.reveal` lists items for review only (no deletion), with a Show in Finder action.
+    enum Mode { case clean(Disposal), emptyTrash, reveal }
 
     let section: AppSection
     let mode: Mode
@@ -31,6 +32,7 @@ struct ScanListView: View {
         if case .emptyTrash = mode { return L("trash.action") }
         return L("common.clean")
     }
+    private var isReveal: Bool { if case .reveal = mode { true } else { false } }
 
     var body: some View {
         switch phase {
@@ -45,14 +47,18 @@ struct ScanListView: View {
 
     private var results: some View {
         VStack(spacing: 14) {
-            HStack(spacing: 12) {
-                Text(String(format: L("common.itemsSelected"), chosen.count, formatBytes(chosen.reduce(0) { $0 + $1.bytes })))
-                    .font(.system(size: 16, weight: .semibold)).monospacedDigit()
-                Spacer()
-                Button(L("common.selectAll")) { selected = Set(items.map(\.url)) }
-                Button(L("common.selectNone")) { selected = [] }
+            if isReveal {
+                Text(L("common.needsReview")).font(.system(size: 15)).foregroundStyle(.secondary)
+            } else {
+                HStack(spacing: 12) {
+                    Text(String(format: L("common.itemsSelected"), chosen.count, formatBytes(chosen.reduce(0) { $0 + $1.bytes })))
+                        .font(.system(size: 16, weight: .semibold)).monospacedDigit()
+                    Spacer()
+                    Button(L("common.selectAll")) { selected = Set(items.map(\.url)) }
+                    Button(L("common.selectNone")) { selected = [] }
+                }
+                .padding(.horizontal, 6)
             }
-            .padding(.horizontal, 6)
 
             if items.isEmpty {
                 Text(L("common.nothing")).foregroundStyle(.secondary).frame(maxHeight: .infinity)
@@ -70,8 +76,12 @@ struct ScanListView: View {
                 .scrollIndicators(.hidden)
             }
 
-            ActionButton(title: actionTitle, disabled: chosen.isEmpty) {
-                if case .emptyTrash = mode { confirmEmpty = true } else { showPreview = true }
+            if isReveal {
+                ActionButton(title: L("common.rescan")) { scan() }
+            } else {
+                ActionButton(title: actionTitle, disabled: chosen.isEmpty) {
+                    if case .emptyTrash = mode { confirmEmpty = true } else { showPreview = true }
+                }
             }
         }
         .padding(.horizontal, 40)
@@ -94,18 +104,21 @@ struct ScanListView: View {
             get: { selected.contains(item.url) },
             set: { if $0 { selected.insert(item.url) } else { selected.remove(item.url) } })
         return HStack(spacing: 12) {
-            Toggle("", isOn: isOn).labelsHidden().toggleStyle(.checkbox)
+            if !isReveal { Toggle("", isOn: isOn).labelsHidden().toggleStyle(.checkbox) }
             Image(nsImage: NSWorkspace.shared.icon(forFile: item.url.path)).resizable().frame(width: 28, height: 28)
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.url.lastPathComponent).font(.system(size: 15, weight: .semibold)).lineLimit(1)
-                Text(displayPath(item.url.deletingLastPathComponent()))
+                Text(isReveal ? localized("reason", item.reason) : displayPath(item.url.deletingLastPathComponent()))
                     .font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
             }
             Spacer()
-            Text(formatBytes(item.bytes)).font(.system(size: 15, weight: .medium)).monospacedDigit()
+            if isReveal {
+                Button(L("common.reveal")) { revealInFinder(item.url) }.buttonStyle(.glass)
+            } else {
+                Text(formatBytes(item.bytes)).font(.system(size: 15, weight: .medium)).monospacedDigit()
+            }
         }
-        .padding(.horizontal, 16).padding(.vertical, 10)
-        .background(RoundedRectangle(cornerRadius: 16).fill(.white.opacity(isOn.wrappedValue ? 0.10 : 0.05)))
+        .modifier(RowBackground(highlighted: isOn.wrappedValue && !isReveal))
     }
 
     private func scan() {

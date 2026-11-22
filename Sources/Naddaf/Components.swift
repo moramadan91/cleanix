@@ -48,6 +48,8 @@ struct SectionHero: View {
             icon
         }
         .frame(width: 460, height: 460)
+        // Purely decorative. Its glow is larger than its frame and used to swallow clicks on the tabs above.
+        .allowsHitTesting(false)
         .accessibilityHidden(true)
     }
 
