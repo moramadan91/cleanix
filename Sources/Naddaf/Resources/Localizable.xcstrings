@@ -977,6 +977,22 @@
         }
       }
     },
+    "overview.refresh": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تحديث"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh"
+          }
+        }
+      }
+    },
     "overview.used": {
       "localizations": {
         "ar": {

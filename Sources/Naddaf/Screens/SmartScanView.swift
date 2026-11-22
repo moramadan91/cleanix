@@ -103,6 +103,7 @@ struct OverviewView: View {
     @State private var total: Int64 = 0
     @State private var free: Int64 = 0
     @State private var tiles: [(key: String, bytes: Int64)] = []
+    @State private var loading = false
 
     var body: some View {
         VStack(spacing: 22) {
@@ -111,15 +112,26 @@ struct OverviewView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     Text(String(format: L("overview.used"), formatBytes(total - free), formatBytes(total)))
                         .font(.system(size: 20, weight: .semibold))
-                    GeometryReader { geo in
-                        ZStack(alignment: .leading) {
-                            Capsule().fill(.white.opacity(0.10))
-                            Capsule()
-                                .fill(LinearGradient(colors: [section.tint, Theme.accent], startPoint: .leading, endPoint: .trailing))
-                                .frame(width: geo.size.width * CGFloat(Double(total - free) / Double(total)))
+                    HStack(spacing: 12) {
+                        GeometryReader { geo in
+                            ZStack(alignment: .leading) {
+                                Capsule().fill(.white.opacity(0.10))
+                                Capsule()
+                                    .fill(LinearGradient(colors: [section.tint, Theme.accent], startPoint: .leading, endPoint: .trailing))
+                                    .frame(width: geo.size.width * CGFloat(Double(total - free) / Double(total)))
+                            }
                         }
+                        .frame(height: 22)
+                        // Reads the disk again; spins while it does, so the user sees it really refreshed.
+                        Button { Task { await load() } } label: {
+                            Image(systemName: "arrow.clockwise")
+                                .rotationEffect(.degrees(loading ? 360 : 0))
+                                .animation(loading ? .linear(duration: 0.8).repeatForever(autoreverses: false) : .default, value: loading)
+                        }
+                        .buttonStyle(.liquid(small: true))
+                        .disabled(loading)
+                        .accessibilityLabel(L("overview.refresh"))
                     }
-                    .frame(height: 22)
                     Text(String(format: L("overview.free"), formatBytes(free))).foregroundStyle(.secondary)
                 }
                 .padding(24)
@@ -146,6 +158,9 @@ struct OverviewView: View {
     }
 
     private func load() async {
+        loading = true
+        let started = Date()
+        defer { loading = false }
         let home = AppEnv.shared.home
         let values = try? home.resourceValues(forKeys: [.volumeTotalCapacityKey, .volumeAvailableCapacityForImportantUsageKey])
         total = Int64(values?.volumeTotalCapacity ?? 0)
@@ -162,5 +177,8 @@ struct OverviewView: View {
             return out
         }
         tiles = zip(places, sizes).map { (key: $0.0.0, bytes: $0.1) }
+        // Keep the spin visible a moment: a refresh that finishes in 0.3 s looks like nothing happened.
+        let left = 0.6 - Date().timeIntervalSince(started)
+        if left > 0 { try? await Task.sleep(for: .seconds(left)) }
     }
 }
