@@ -5,6 +5,7 @@ import NaddafCore
 /// One button for the safe stuff: system junk, app caches (apps that are not running) and browser caches.
 /// Everything goes to Quarantine, so it can be undone for 30 days.
 struct SmartScanView: View {
+    @Environment(\.screenStarted) private var screenStarted
     let section: AppSection
 
     private enum Phase { case intro, scanning, results, done }
@@ -56,6 +57,7 @@ struct SmartScanView: View {
 
     private func scan() {
         phase = .scanning
+        screenStarted()
         let env = AppEnv.shared
         let running = Set(NSWorkspace.shared.runningApplications.compactMap(\.bundleIdentifier))
         let caches = AppCacheScanner(home: env.home, appDirs: env.appDirs, runningBundleIDs: { running })

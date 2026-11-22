@@ -4,6 +4,7 @@ import NaddafCore
 
 /// Uninstall apps together with their leftover files. Everything goes to the Trash (restorable from there).
 struct UninstallView: View {
+    @Environment(\.screenStarted) private var screenStarted
     let section: AppSection
 
     private enum Phase { case intro, scanning, results, done }
@@ -75,6 +76,7 @@ struct UninstallView: View {
 
     private func load() {
         phase = .scanning
+        screenStarted()
         let remover = remover
         Task {
             apps = await Task.detached { await remover.apps() }.value.sorted { $0.bytes > $1.bytes }

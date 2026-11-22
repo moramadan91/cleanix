@@ -48,15 +48,17 @@ struct DoneView: View {
 struct LiquidButtonStyle: ButtonStyle {
     var prominent = false
     var big = false
+    /// Compact capsule for secondary bar actions (Select all, Start over).
+    var small = false
     @Environment(\.isEnabled) private var enabled
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: big ? 17 : 13, weight: big ? .bold : .semibold))
+            .font(.system(size: big ? 17 : small ? 11 : 13, weight: big ? .bold : .semibold))
             .foregroundStyle(.white)
             .frame(minWidth: big ? 150 : nil)
-            .padding(.horizontal, big ? 30 : 14)
-            .padding(.vertical, big ? 12 : 6)
+            .padding(.horizontal, big ? 30 : small ? 10 : 14)
+            .padding(.vertical, big ? 12 : small ? 4 : 6)
             // Clear glass, no tint: the button takes the colour of whatever is behind it.
             .glassEffect(.clear.interactive(), in: .capsule)
             .overlay(Capsule().strokeBorder(
@@ -118,8 +120,8 @@ extension View {
 }
 
 extension ButtonStyle where Self == LiquidButtonStyle {
-    static func liquid(prominent: Bool = false, big: Bool = false) -> LiquidButtonStyle {
-        LiquidButtonStyle(prominent: prominent, big: big)
+    static func liquid(prominent: Bool = false, big: Bool = false, small: Bool = false) -> LiquidButtonStyle {
+        LiquidButtonStyle(prominent: prominent, big: big, small: small)
     }
 }
 

@@ -5,6 +5,7 @@ import NaddafCore
 /// `.clean` goes through PreviewSheet and Cleaner; `.emptyTrash` asks a second, explicit confirmation
 /// because emptying is permanent.
 struct ScanListView: View {
+    @Environment(\.screenStarted) private var screenStarted
     /// `.reveal` lists items for review only (no deletion), with a Show in Finder action.
     enum Mode { case clean(Disposal), emptyTrash, reveal }
 
@@ -53,12 +54,13 @@ struct ScanListView: View {
             } else if !items.isEmpty {
                 HStack(spacing: 12) {
                     Text(String(format: L("common.itemsSelected"), chosen.count, formatBytes(chosen.reduce(0) { $0 + $1.bytes })))
-                        .font(.system(size: 16, weight: .semibold)).monospacedDigit()
+                        .font(.system(size: 14, weight: .semibold)).monospacedDigit()
                     Spacer()
-                    Button(L("common.selectAll")) { selected = Set(items.map(\.url)) }
-                    Button(L("common.selectNone")) { selected = [] }
+                    Button(L("common.selectAll")) { selected = Set(items.map(\.url)) }.buttonStyle(.liquid(small: true))
+                    Button(L("common.selectNone")) { selected = [] }.buttonStyle(.liquid(small: true))
                 }
                 .padding(.horizontal, 6)
+                .padding(.top, 12)
                 .frame(maxWidth: 560)
             }
 
@@ -127,6 +129,7 @@ struct ScanListView: View {
 
     private func scan() {
         phase = .scanning
+        screenStarted()
         let scanner = makeScanner()
         Task {
             let found = (try? await Task.detached { try await scanner.scan() }.value) ?? []

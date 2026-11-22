@@ -5,6 +5,7 @@ import NaddafCore
 /// Per-app cache cleaning: scan every app, the user ticks which apps to clear.
 /// Removed folders go to Quarantine, so a clean can be undone for 30 days.
 struct AppCachesView: View {
+    @Environment(\.screenStarted) private var screenStarted
     let section: AppSection
 
     private enum Phase { case intro, scanning, results, done }
@@ -42,13 +43,14 @@ struct AppCachesView: View {
         VStack(spacing: 14) {
             HStack(spacing: 12) {
                 Text(String(format: L("caches.selected"), chosen.count, formatBytes(chosenBytes)))
-                    .font(.system(size: 16, weight: .semibold)).monospacedDigit()
+                    .font(.system(size: 14, weight: .semibold)).monospacedDigit()
                 Spacer()
                 Toggle(L("caches.showSystem"), isOn: $showSystem).toggleStyle(.switch).controlSize(.small)
-                Button(L("common.selectAll")) { selected = Set(visible.map(\.id)) }
-                Button(L("common.selectNone")) { selected = [] }
+                Button(L("common.selectAll")) { selected = Set(visible.map(\.id)) }.buttonStyle(.liquid(small: true))
+                Button(L("common.selectNone")) { selected = [] }.buttonStyle(.liquid(small: true))
             }
             .padding(.horizontal, 6)
+            .padding(.top, 12)
 
             if visible.isEmpty {
                 Text(L("caches.empty")).foregroundStyle(.secondary).frame(maxHeight: .infinity)
@@ -119,6 +121,7 @@ struct AppCachesView: View {
 
     private func scan() {
         phase = .scanning
+        screenStarted()
         let env = AppEnv.shared
         let running = Set(NSWorkspace.shared.runningApplications.compactMap(\.bundleIdentifier))
         let scanner = AppCacheScanner(home: env.home, appDirs: env.appDirs, runningBundleIDs: { running })

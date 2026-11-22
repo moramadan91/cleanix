@@ -6,6 +6,7 @@ import NaddafCore
 /// next to a simple bubble view where size = area. Click to open a folder; tick and remove
 /// what is safe or reviewed. Entries marked "do not delete" cannot be ticked.
 struct DiskMapView: View {
+    @Environment(\.screenStarted) private var screenStarted
     let section: AppSection
 
     @State private var trail: [DiskNode] = []
@@ -141,6 +142,7 @@ struct DiskMapView: View {
 
     private func scan() {
         scanning = true
+        screenStarted()
         let home = home
         Task {
             if let root = try? await Task.detached(operation: { try await buildDiskTree(root: home, depth: 4) }).value {

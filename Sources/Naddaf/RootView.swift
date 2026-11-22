@@ -123,10 +123,26 @@ private struct SidebarItem: View {
     }
 }
 
+extension EnvironmentValues {
+    /// A screen calls this when its scan starts, so the page can offer Start over.
+    @Entry var screenStarted: @MainActor @Sendable () -> Void = {}
+}
+
+/// One screen: a section, plus its tab when the section has tabs.
+private struct ScreenKey: Hashable {
+    let section: AppSection
+    let tab: SectionTab?
+}
+
 /// One page per section: title on top, the section's tabs (if any), then the screen.
+/// Every screen you open stays alive behind the current one, so a scan keeps running while you
+/// look elsewhere and you come back to where you left it. Start over rebuilds that one screen.
 private struct SectionPage: View {
     let section: AppSection
     @State private var tabs: [AppSection: SectionTab] = [:]
+    @State private var visited: [ScreenKey] = []
+    @State private var started: Set<ScreenKey> = []
+    @State private var generation: [ScreenKey: Int] = [:]
 
     var body: some View {
         // Title sits top-center, clear of the sidebar pills.
@@ -149,12 +165,33 @@ private struct SectionPage: View {
                 TabStrip(tabs: all, selection: Binding(get: { current ?? all[0] }, set: { tabs[section] = $0 }))
                     .padding(.top, 18)
             }
-            SectionContent(section: section, tab: current)
-                .id("\(section.id)-\(current?.rawValue ?? "")")
-                // Short lists sit under the tabs; the title never drifts down with them.
-                .frame(maxHeight: .infinity, alignment: .top)
+            let now = ScreenKey(section: section, tab: current)
+            ZStack {
+                ForEach(visited.contains(now) ? visited : visited + [now], id: \.self) { key in
+                    SectionContent(section: key.section, tab: key.tab)
+                        .id(generation[key, default: 0])
+                        .environment(\.screenStarted) { started.insert(key) }
+                        // Short lists sit under the tabs; the title never drifts down with them.
+                        .frame(maxHeight: .infinity, alignment: .top)
+                        .opacity(key == now ? 1 : 0)
+                        .allowsHitTesting(key == now)
+                        .accessibilityHidden(key != now)
+                }
+            }
+            .onChange(of: now, initial: true) { if !visited.contains(now) { visited.append(now) } }
         }
         .frame(maxWidth: .infinity)
+        .overlay(alignment: .topTrailing) {
+            let now = ScreenKey(section: section, tab: tabs[section] ?? SectionTab.tabs(for: section).first)
+            if started.contains(now) {
+                Button(L("common.startOver")) {
+                    generation[now, default: 0] += 1
+                    started.remove(now)
+                }
+                .buttonStyle(.liquid(small: true))
+                .padding(.top, 52).padding(.horizontal, 28)
+            }
+        }
     }
 }
 

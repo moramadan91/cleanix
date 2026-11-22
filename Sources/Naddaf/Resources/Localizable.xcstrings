@@ -529,6 +529,22 @@
         }
       }
     },
+    "common.startOver": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ابدأ من جديد"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start over"
+          }
+        }
+      }
+    },
     "common.total": {
       "localizations": {
         "ar": {
