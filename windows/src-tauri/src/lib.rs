@@ -1,7 +1,9 @@
+mod apps;
 mod core;
 
 use core::{CleanResult, DiskNode, Offered, Places, ScanItem};
 use serde::Serialize;
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::time::SystemTime;
@@ -10,6 +12,8 @@ use std::time::SystemTime;
 struct AppState {
     places: Places,
     offered: Mutex<Offered>,
+    /// Program id -> its uninstall command, from the last listing (the UI only sends ids).
+    apps: Mutex<HashMap<String, String>>,
 }
 
 #[derive(Serialize)]
@@ -75,6 +79,20 @@ fn to_recycle_bin(path: &Path) -> Result<(), String> {
 #[cfg(not(windows))]
 fn to_recycle_bin(_: &Path) -> Result<(), String> {
     Err("removal runs on Windows only".into())
+}
+
+#[tauri::command]
+async fn list_apps(state: tauri::State<'_, AppState>) -> Result<Vec<apps::InstalledApp>, String> {
+    let list = blocking(apps::list).await?;
+    *state.apps.lock().unwrap() = list.iter().map(|a| (a.id.clone(), a.command.clone())).collect();
+    Ok(list)
+}
+
+/// Opens the program's own uninstaller; only for ids from the last listing.
+#[tauri::command]
+fn uninstall(id: String, state: tauri::State<'_, AppState>) -> Result<(), String> {
+    let cmd = state.apps.lock().unwrap().get(&id).cloned().ok_or("unknown program")?;
+    apps::launch(&cmd)
 }
 
 #[tauri::command]
@@ -176,7 +194,7 @@ mod win {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .manage(AppState { places: Places::from_env(), offered: Mutex::new(Offered::default()) })
+        .manage(AppState { places: Places::from_env(), offered: Mutex::new(Offered::default()), apps: Mutex::default() })
         .setup(|app| {
             #[cfg(windows)]
             {
@@ -199,7 +217,9 @@ pub fn run() {
             disk_info,
             recycle_info,
             empty_recycle,
-            reveal
+            reveal,
+            list_apps,
+            uninstall
         ])
         .run(tauri::generate_context!())
         .expect("error while running Cleanix");

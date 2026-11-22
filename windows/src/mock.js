@@ -32,6 +32,11 @@ export async function mockInvoke(cmd, args = {}) {
     }
     case 'clean': return { freed: args.paths.length * 50 * MB, removed: args.paths, failed: [] };
     case 'disk_info': return { total: 512 * 1024 * MB, free: 143 * 1024 * MB };
+    case 'list_apps': return [
+      ['Adobe Photoshop 2025', 'Adobe Inc.', '26.1', 4800], ['Google Chrome', 'Google LLC', '131.0', 620], ['Zoom Workplace', 'Zoom Communications', '6.2.5', 310],
+      ['7-Zip 24.08 (x64)', 'Igor Pavlov', '24.08', 5], ['Steam', 'Valve Corporation', '2.10', 0], ['Microsoft Teams', 'Microsoft Corporation', '24295', 740],
+    ].map(([name, publisher, version, mb], i) => ({ id: 'lm64\\app' + i, name, publisher, version, bytes: mb * MB }));
+    case 'uninstall': return null;
     case 'recycle_info': return { bytes: 1300 * MB, items: 214 };
     default: return null;
   }

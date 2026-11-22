@@ -8,6 +8,7 @@ const SECTIONS = [
   { id: 'overview', tint: '#7C5CFF', deep: '#3B2A8F', icon: 'M4 15a8 8 0 1 1 16 0M12 15l4-5' },
   { id: 'smartScan', tint: '#FFAA3D', deep: '#FF5A3D', icon: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 16l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z' },
   { id: 'cleanup', tint: '#2FD1A0', deep: '#0E7C6B', icon: 'M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6' },
+  { id: 'apps', tint: '#4C8DFF', deep: '#2230A8', icon: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z' },
   { id: 'clutter', tint: '#1FC8D6', deep: '#0D6B80', icon: 'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z' },
   { id: 'diskMap', tint: '#F5C542', deep: '#6E4A0C', icon: 'M12 3a9 9 0 1 0 9 9h-9zM15 3.5A9 9 0 0 1 20.5 9H15z' },
 ];
@@ -62,6 +63,7 @@ function render() {
   const main = $('#main');
   if (section === 'overview') main.innerHTML = overviewView();
   else if (section === 'diskMap') main.innerHTML = mapView();
+  else if (section === 'apps') main.innerHTML = appsView();
   else main.innerHTML = scanScreen();
 }
 
@@ -193,6 +195,7 @@ function overviewView() {
     ['cleanup', 'junk', t('overview.tipJunk')],
     ...(b && b.items ? [['cleanup', 'bin', t('overview.tipBin', fmt(b.bytes))]] : []),
     ['clutter', 'large', t('overview.tipLarge')],
+    ['apps', null, t('overview.tipApps')],
     ['diskMap', null, t('overview.tipMap')],
   ];
   return header() + `<div class="overview">
@@ -206,6 +209,40 @@ async function loadOverview() {
   const [disk, b] = await Promise.all([invoke('disk_info').catch(() => null), invoke('recycle_info').catch(() => null)]);
   overview = { disk, bin: b };
   if (section === 'overview') render();
+}
+
+/* ---------- Apps ---------- */
+
+const apps = { list: null, q: '', note: '' };
+
+function appsView() {
+  if (apps.list === null) { loadApps(); return header() + spinner(); }
+  if (!apps.list.length) return header() + `<div class="center"><p class="muted">${t('apps.none')}</p></div>`;
+  const total = apps.list.reduce((s, a) => s + a.bytes, 0);
+  return header() + `<div class="bar">
+      <input type="search" class="search" data-action="appSearch" value="${esc(apps.q)}" placeholder="${t('apps.search')}" aria-label="${t('apps.search')}">
+      <span class="grow"></span>${sortMenu()}
+      <button type="button" class="btn small" data-action="appsRefresh">${t('apps.refresh')}</button>
+    </div>
+    ${apps.note ? `<p class="note">${esc(apps.note)}</p>` : ''}
+    <div class="panel list" id="appList">${appRows()}</div>
+    <div class="actions split"><span class="muted">${t('apps.count', apps.list.length, fmt(total))}</span></div>`;
+}
+
+function appRows() {
+  const q = apps.q.trim().toLowerCase();
+  const found = sorted(apps.list.filter(a => !q || a.name.toLowerCase().includes(q) || a.publisher.toLowerCase().includes(q)));
+  if (!found.length) return `<p class="muted pad">${t('common.nothing')}</p>`;
+  return found.map(a => `<div class="row" data-app="${esc(a.id)}">
+      <div class="name"><b><bdi>${esc(a.name)}</bdi></b><small>${esc([a.publisher, a.version].filter(Boolean).join(' · '))}</small></div>
+      <span class="size">${a.bytes ? fmt(a.bytes) : '—'}</span>
+      <button type="button" class="btn small" data-action="appAsk">${t('apps.uninstall')}</button>
+    </div>`).join('');
+}
+
+async function loadApps() {
+  apps.list = await invoke('list_apps').catch(() => []);
+  if (section === 'apps') render();
 }
 
 /* ---------- Disk Map ---------- */
@@ -293,6 +330,7 @@ document.addEventListener('click', async e => {
 
   const path = el.closest('[data-path]')?.dataset.path;
   const v = views[scanKey()];
+  const app = apps.list?.find(a => a.id === el.closest('[data-app]')?.dataset.app);
   switch (el.dataset.action) {
     case 'scan': return scan();
     case 'tick': return; // handled on change
@@ -307,6 +345,18 @@ document.addEventListener('click', async e => {
       const cur = map.trail.at(-1);
       return askClean(cur.nodes.filter(n => map.selected.has(n.path)), () => { overview = null; reloadMap(); });
     }
+    case 'appsRefresh': apps.list = null; apps.note = ''; return render();
+    case 'appAsk':
+      modal(`<h2>${t('apps.confirmTitle', esc(app.name))}</h2><p>${t('apps.confirmBody', esc(app.name))}</p>
+        <div class="actions"><button type="button" class="btn" data-modal="cancel">${t('common.cancel')}</button>
+        <button type="button" class="btn danger" data-modal="ok">${t('apps.open')}</button></div>`);
+      pendingOk = async () => {
+        closeModal();
+        const ok = await invoke('uninstall', { id: app.id }).then(() => true, () => false);
+        apps.note = t(ok ? 'apps.launched' : 'apps.failed', app.name);
+        render();
+      };
+      return;
     case 'binAsk':
       modal(`<h2>${t('bin.confirmTitle')}</h2><p>${t('bin.confirmBody')}</p>
         <div class="actions"><button type="button" class="btn" data-modal="cancel">${t('common.cancel')}</button>
@@ -333,6 +383,13 @@ document.addEventListener('change', e => {
   if (!set || !path) return;
   el.checked ? set.add(path) : set.delete(path);
   render();
+});
+
+// Search updates only the list so the field keeps focus while typing.
+document.addEventListener('input', e => {
+  if (e.target.dataset.action !== 'appSearch') return;
+  apps.q = e.target.value;
+  $('#appList').innerHTML = appRows();
 });
 
 document.addEventListener('keydown', e => {
