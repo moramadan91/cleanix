@@ -173,9 +173,16 @@ func revealInFinder(_ url: URL) {
 
 /// Layered glass panel that holds a list (lists never sit straight on the background).
 struct GlassPanel: ViewModifier {
+    /// Height of the list inside; the panel hugs it instead of stretching over empty space.
+    @State private var contentHeight: CGFloat = .infinity
+
     func body(content: Content) -> some View {
         // Capped width and centred: keeps lists readable and clear of the sidebar's hover pills.
         content
+            .onScrollGeometryChange(for: CGFloat.self) { $0.contentSize.height } action: { _, h in
+                contentHeight = h
+            }
+            .frame(maxHeight: contentHeight)
             .padding(8)
             .glassEffect(.regular.tint(.white.opacity(0.04)), in: .rect(cornerRadius: 22))
             .frame(maxWidth: 560)

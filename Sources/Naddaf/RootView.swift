@@ -127,6 +127,8 @@ private struct SectionPage: View {
             }
             SectionContent(section: section, tab: current)
                 .id("\(section.id)-\(current?.rawValue ?? "")")
+                // Short lists sit under the tabs; the title never drifts down with them.
+                .frame(maxHeight: .infinity, alignment: .top)
         }
         .frame(maxWidth: .infinity)
     }
