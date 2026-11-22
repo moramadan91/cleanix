@@ -30,7 +30,7 @@ struct LocalizationTests {
     @Test func everyLiteralKeyUsedInCodeExists() throws {
         let strings = try Self.catalog()
         let sources = Self.root.appendingPathComponent("Sources/Naddaf")
-        let regex = try NSRegularExpression(pattern: #"\bL\("([^"\\]+)"\)"#)
+        let regex = try NSRegularExpression(pattern: #"\bL\("([^"\\]+)"\s*(?=[,)])"#)
         var missing: [String] = []
         let files = FileManager.default.enumerator(at: sources, includingPropertiesForKeys: nil)
         while let file = files?.nextObject() as? URL {

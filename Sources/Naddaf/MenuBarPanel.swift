@@ -17,9 +17,33 @@ func openCleanix(smartScan: Bool, openWindow: () -> Void) {
     if smartScan { NotificationCenter.default.post(name: .openSmartScan, object: nil) }
 }
 
+/// Keeps the scene binding in memory and persists changes to the existing preference.
+@MainActor
+@Observable
+final class MenuBarMonitor {
+    static let shared = MenuBarMonitor()
+
+    private static let defaultsKey = "menuBarEnabled"
+    private let defaults = UserDefaults.standard
+    private var enabled: Bool
+
+    private init() {
+        enabled = defaults.object(forKey: Self.defaultsKey) as? Bool ?? true
+    }
+
+    var isEnabled: Bool {
+        get { enabled }
+        set {
+            guard newValue != enabled else { return }
+            enabled = newValue
+            defaults.set(newValue, forKey: Self.defaultsKey)
+        }
+    }
+}
+
 struct MenuBarPanel: View {
     @Environment(\.openWindow) private var openWindow
-    @AppStorage("menuBarEnabled") private var menuBarEnabled = true
+    @Bindable var monitor: MenuBarMonitor
     @AppStorage(Lang.key) private var lang = Lang.current
     @State private var isVisible = false
     @State private var disk: (free: Int64, total: Int64)?
@@ -45,7 +69,7 @@ struct MenuBarPanel: View {
             }
             Divider()
             AlertToggles()
-            Toggle(L("monitor.enabled"), isOn: $menuBarEnabled)
+            Toggle(L("monitor.enabled"), isOn: $monitor.isEnabled)
                 .toggleStyle(.switch)
                 .controlSize(.small)
                 .font(.system(size: 12))

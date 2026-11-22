@@ -7,8 +7,7 @@ import Sparkle
 struct CleanixApp: App {
     static let mainWindowID = "main"
     @NSApplicationDelegateAdaptor(SplashDelegate.self) private var splash
-    @AppStorage("menuBarEnabled") private var menuBarEnabled = true
-    @AppStorage(Lang.key) private var lang = Lang.current
+    @Bindable private var monitor = MenuBarMonitor.shared
 
     var body: some Scene {
         WindowGroup(id: Self.mainWindowID) {
@@ -18,19 +17,44 @@ struct CleanixApp: App {
         .windowStyle(.hiddenTitleBar)
         .commands {
             CommandGroup(after: .appInfo) {
-                Button(L("update.check")) { splash.updater.checkForUpdates(nil) }
-                Button(L("monitor.show")) { menuBarEnabled = true }
-                    .disabled(menuBarEnabled)
-                    .id(lang)
+                CheckForUpdatesCommand { splash.updater.checkForUpdates(nil) }
+                ShowMonitorCommand(monitor: monitor)
             }
         }
-        MenuBarExtra(isInserted: $menuBarEnabled) {
-            MenuBarPanel()
+        MenuBarExtra(isInserted: $monitor.isEnabled) {
+            MenuBarPanel(monitor: monitor)
         } label: {
-            Image(systemName: "sparkles").renderingMode(.template)
-                .accessibilityLabel(L("app.name"))
+            MonitorMenuBarLabel()
         }
         .menuBarExtraStyle(.window)
+    }
+}
+
+private struct CheckForUpdatesCommand: View {
+    @AppStorage(Lang.key) private var lang = Lang.current
+    let action: () -> Void
+
+    var body: some View {
+        Button(L("update.check", language: lang), action: action)
+    }
+}
+
+private struct ShowMonitorCommand: View {
+    @AppStorage(Lang.key) private var lang = Lang.current
+    let monitor: MenuBarMonitor
+
+    var body: some View {
+        Button(L("monitor.show", language: lang)) { monitor.isEnabled = true }
+            .disabled(monitor.isEnabled)
+    }
+}
+
+private struct MonitorMenuBarLabel: View {
+    @AppStorage(Lang.key) private var lang = Lang.current
+
+    var body: some View {
+        Image(systemName: "sparkles").renderingMode(.template)
+            .accessibilityLabel(L("app.name", language: lang))
     }
 }
 

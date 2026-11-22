@@ -26,13 +26,13 @@ enum Lang {
     static var direction: LayoutDirection { isArabic ? .rightToLeft : .leftToRight }
     static var locale: Locale { Locale(identifier: current) }
     /// The ar.lproj / en.lproj inside the resource bundle (Foundation caches Bundle instances).
-    static var bundle: Bundle {
-        Bundle.module.path(forResource: current, ofType: "lproj").flatMap(Bundle.init(path:)) ?? .module
+    static func bundle(for language: String) -> Bundle {
+        Bundle.module.path(forResource: language, ofType: "lproj").flatMap(Bundle.init(path:)) ?? .module
     }
 }
 
-func L(_ key: String) -> String {
-    Lang.bundle.localizedString(forKey: key, value: nil, table: "Localizable")
+func L(_ key: String, language: String = Lang.current) -> String {
+    Lang.bundle(for: language).localizedString(forKey: key, value: nil, table: "Localizable")
 }
 
 /// Which built-in SF Symbols effect a section's icon plays.
