@@ -8,17 +8,25 @@ const SECTIONS = [
   { id: 'overview', tint: '#7C5CFF', deep: '#3B2A8F', icon: 'M4 15a8 8 0 1 1 16 0M12 15l4-5' },
   { id: 'smartScan', tint: '#FFAA3D', deep: '#FF5A3D', icon: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 16l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z' },
   { id: 'cleanup', tint: '#2FD1A0', deep: '#0E7C6B', icon: 'M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6' },
+  { id: 'protection', tint: '#FF5C8A', deep: '#8E1F5E', icon: 'M12 3l7 3v6c0 4.5-3 7.8-7 9-4-1.2-7-4.5-7-9V6z' },
+  { id: 'performance', tint: '#9BD12E', deep: '#2F6B12', icon: 'M13 3L5 14h6l-1 7 8-11h-6z' },
   { id: 'apps', tint: '#4C8DFF', deep: '#2230A8', icon: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z' },
   { id: 'clutter', tint: '#1FC8D6', deep: '#0D6B80', icon: 'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z' },
   { id: 'diskMap', tint: '#F5C542', deep: '#6E4A0C', icon: 'M12 3a9 9 0 1 0 9 9h-9zM15 3.5A9 9 0 0 1 20.5 9H15z' },
 ];
-const TABS = { cleanup: ['junk', 'caches', 'bin'], clutter: ['downloads', 'large'] };
+const TABS = {
+  cleanup: ['junk', 'caches', 'bin'],
+  protection: ['privacy', 'permissions', 'suspicious'],
+  performance: ['maintenance', 'startup'],
+  apps: ['uninstall', 'leftovers'],
+  clutter: ['downloads', 'large', 'duplicates'],
+};
 
 const store = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch { return null; } };
 
 let lang = store('cleanix.lang') || (navigator.language.startsWith('ar') ? 'ar' : 'en');
 let section = 'overview';
-const tab = { cleanup: 'junk', clutter: 'downloads' };
+const tab = Object.fromEntries(Object.entries(TABS).map(([k, v]) => [k, v[0]]));
 let sort = store('cleanix.sort') || 'largest';
 const views = {}; // per scan key: { phase, items, selected, result }
 const map = { trail: [], selected: new Set(), loading: false };
@@ -56,6 +64,8 @@ function renderShell() {
       ${icon(x.icon)}<span>${t(`section.${x.id}.title`)}</span>
     </button>`).join('');
   $('#lang').textContent = t('lang.switch');
+  $('#update').hidden = !updateTag;
+  if (updateTag) $('#update').textContent = t('update.available', updateTag.slice(5));
   render();
 }
 
@@ -63,7 +73,6 @@ function render() {
   const main = $('#main');
   if (section === 'overview') main.innerHTML = overviewView();
   else if (section === 'diskMap') main.innerHTML = mapView();
-  else if (section === 'apps') main.innerHTML = appsView();
   else main.innerHTML = scanScreen();
 }
 
@@ -86,7 +95,8 @@ const view = key => (views[key] ??= { phase: 'intro', items: [], selected: new S
 
 function scanScreen() {
   const key = scanKey();
-  if (key === 'bin') return header() + tabs() + binView();
+  const custom = { bin: binView, uninstall: appsView, permissions: accessView, suspicious: () => startupView(true), startup: () => startupView(false), maintenance: maintView };
+  if (custom[key]) return header() + tabs() + custom[key]();
   const v = view(key);
   let body;
   if (v.phase === 'intro') body = `<div class="hero"><div class="orb">${icon(SECTIONS.find(x => x.id === section).icon)}</div>
@@ -196,6 +206,7 @@ function overviewView() {
     ...(b && b.items ? [['cleanup', 'bin', t('overview.tipBin', fmt(b.bytes))]] : []),
     ['clutter', 'large', t('overview.tipLarge')],
     ['apps', null, t('overview.tipApps')],
+    ['performance', 'startup', t('overview.tipStartup')],
     ['diskMap', null, t('overview.tipMap')],
   ];
   return header() + `<div class="overview">
@@ -216,10 +227,10 @@ async function loadOverview() {
 const apps = { list: null, q: '', note: '' };
 
 function appsView() {
-  if (apps.list === null) { loadApps(); return header() + spinner(); }
-  if (!apps.list.length) return header() + `<div class="center"><p class="muted">${t('apps.none')}</p></div>`;
+  if (apps.list === null) { loadApps(); return spinner(); }
+  if (!apps.list.length) return `<div class="center"><p class="muted">${t('apps.none')}</p></div>`;
   const total = apps.list.reduce((s, a) => s + a.bytes, 0);
-  return header() + `<div class="bar">
+  return `<div class="bar">
       <input type="search" class="search" data-action="appSearch" value="${esc(apps.q)}" placeholder="${t('apps.search')}" aria-label="${t('apps.search')}">
       <span class="grow"></span>${sortMenu()}
       <button type="button" class="btn small" data-action="appsRefresh">${t('apps.refresh')}</button>
@@ -244,6 +255,86 @@ async function loadApps() {
   apps.list = await invoke('list_apps').catch(() => []);
   if (section === 'apps') render();
 }
+
+/* ---------- Start-up programs (Performance) and suspicious ones (Protection) ---------- */
+
+const boot = { list: null, note: '', admin: false };
+const toggleIcon = 'M5 12.5l4.5 4.5L19 7.5';
+
+function startupView(onlySuspicious) {
+  if (boot.list === null) { loadStartup(); return spinner(); }
+  const list = onlySuspicious ? boot.list.filter(i => i.suspicious) : boot.list;
+  if (!boot.list.length) return `<div class="center"><p class="muted">${t('startup.none')}</p></div>`;
+  if (!list.length) return `<div class="center"><div class="orb done">${icon(toggleIcon)}</div><p>${t('suspicious.clean')}</p></div>`;
+  const on = boot.list.filter(i => i.enabled).length;
+  return `<div class="bar"><strong>${onlySuspicious ? t('suspicious.found', list.length) : t('startup.count', on, boot.list.length)}</strong><span class="grow"></span>
+      <button type="button" class="btn small" data-action="startupRefresh">${t('apps.refresh')}</button></div>
+    ${onlySuspicious ? `<p class="note">${t('suspicious.why')}</p>` : ''}
+    ${boot.note ? `<p class="note">${esc(boot.note)}${boot.admin ? ` <button type="button" class="btn small" data-settings="startup">${t('common.openSettings')}</button>` : ''}</p>` : ''}
+    <div class="panel list">${sorted(list.map(i => ({ ...i, bytes: 0 }))).map(i => `<div class="row" data-boot="${esc(i.id)}">
+      <div class="name"><b><bdi>${esc(i.name)}</bdi> ${i.suspicious ? `<span class="badge risky">${t('suspicious.badge')}</span>` : ''}</b><small title="${esc(i.command)}">${esc(i.command)}</small></div>
+      <label class="switch"><input type="checkbox" role="switch" data-action="bootToggle" ${i.enabled ? 'checked' : ''} aria-label="${esc(i.name)}"><span aria-hidden="true"></span></label>
+    </div>`).join('')}</div>`;
+}
+
+async function loadStartup() {
+  boot.list = await invoke('startup_list').catch(() => []);
+  render();
+}
+
+/* ---------- Camera, microphone and location access (Protection) ---------- */
+
+let access = null;
+function accessView() {
+  if (access === null) { invoke('privacy_access').catch(() => []).then(a => { access = a; render(); }); return spinner(); }
+  if (!access.length) return `<div class="center"><p class="muted">${t('access.none')}</p></div>`;
+  const date = s => s ? new Date(s * 1000).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-GB') : t('access.never');
+  return `<p class="note">${t('access.why')}</p><div class="panel list">` + ['webcam', 'microphone', 'location'].map(cap => {
+    const rows = access.filter(a => a.capability === cap).sort((a, b) => b.last_used - a.last_used);
+    if (!rows.length) return '';
+    return `<h2>${t('access.' + cap)} <button type="button" class="btn small" data-settings="${cap}">${t('common.openSettings')}</button></h2>` +
+      rows.map(a => `<div class="row"><div class="name"><b><bdi>${esc(a.app)}</bdi></b><small>${t('access.lastUsed', date(a.last_used))}</small></div>
+        <span class="badge ${a.allowed ? 'review' : 'safe'}">${t(a.allowed ? 'access.allowed' : 'access.denied')}</span></div>`).join('');
+  }).join('') + '</div>';
+}
+
+/* ---------- Maintenance (Performance) ---------- */
+
+const TASKS = ['dns', 'explorer', 'diskCleanup', 'storageSense', 'defender'];
+const taskState = {};
+function maintView() {
+  return `<div class="tasks">${TASKS.map(id => `<div class="panel task">
+      <h2>${t('task.' + id)}</h2><p class="muted">${t('task.' + id + '.body')}</p>
+      <div class="task-end">${taskState[id] ? `<span class="${taskState[id] === 'fail' ? 'warn' : 'ok'}">${t('task.' + taskState[id])}</span>` : ''}
+        <button type="button" class="btn small primary" data-task="${id}" ${taskState[id] === 'run' ? 'disabled' : ''}>${t('task.run')}</button></div>
+    </div>`).join('')}</div>`;
+}
+
+async function runTask(id) {
+  taskState[id] = 'run'; render();
+  taskState[id] = await invoke('run_task', { id }).then(() => 'done', () => 'fail');
+  render();
+}
+
+/* ---------- Update notice ---------- */
+
+async function checkUpdate() {
+  const app = window.__TAURI__?.app;
+  if (!app) return;
+  try {
+    const current = await app.getVersion();
+    const list = await (await fetch('https://api.github.com/repos/moramadan91/cleanix/releases?per_page=30')).json();
+    const num = v => v.split('.').map(Number);
+    const newer = (a, b) => { const x = num(a), y = num(b); for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); return false; };
+    const rel = list.find(r => r.tag_name?.startsWith('win-v') && !r.draft && !r.prerelease);
+    if (rel && newer(rel.tag_name.slice(5), current)) {
+      updateTag = rel.tag_name;
+      renderShell();
+checkUpdate();
+    }
+  } catch { /* offline: no notice */ }
+}
+let updateTag = null;
 
 /* ---------- Disk Map ---------- */
 
@@ -319,8 +410,18 @@ let pendingOk = null;
 /* ---------- events ---------- */
 
 document.addEventListener('click', async e => {
-  const el = e.target.closest('[data-section],[data-tab],[data-action],[data-go],[data-crumb],[data-modal],[data-open],#lang');
+  const el = e.target.closest('[data-section],[data-tab],[data-action],[data-go],[data-crumb],[data-modal],[data-open],[data-settings],[data-task],#lang,#update');
   if (!el) return;
+  if (el.id === 'update') return invoke('open_release', { tag: updateTag }).catch(() => {});
+  if (el.dataset.settings) return invoke('open_settings', { page: el.dataset.settings }).catch(() => {});
+  if (el.dataset.task) {
+    if (el.dataset.task !== 'explorer') return runTask(el.dataset.task);
+    modal(`<h2>${t('task.explorer')}</h2><p>${t('task.explorer.confirm')}</p>
+      <div class="actions"><button type="button" class="btn" data-modal="cancel">${t('common.cancel')}</button>
+      <button type="button" class="btn primary" data-modal="ok">${t('task.run')}</button></div>`);
+    pendingOk = async () => { closeModal(); await runTask('explorer'); };
+    return;
+  }
   if (el.id === 'lang') { lang = lang === 'ar' ? 'en' : 'ar'; store('cleanix.lang', lang); return renderShell(); }
   if (el.dataset.section) { section = el.dataset.section; renderShell(); return $('#main').focus(); }
   if (el.dataset.tab) { tab[section] = el.dataset.tab; if (el.dataset.tab === 'bin') bin = null; return render(); }
@@ -345,6 +446,7 @@ document.addEventListener('click', async e => {
       const cur = map.trail.at(-1);
       return askClean(cur.nodes.filter(n => map.selected.has(n.path)), () => { overview = null; reloadMap(); });
     }
+    case 'startupRefresh': boot.list = null; boot.note = ''; return render();
     case 'appsRefresh': apps.list = null; apps.note = ''; return render();
     case 'appAsk':
       modal(`<h2>${t('apps.confirmTitle', esc(app.name))}</h2><p>${t('apps.confirmBody', esc(app.name))}</p>
@@ -378,6 +480,7 @@ async function reloadMap() {
 document.addEventListener('change', e => {
   const el = e.target;
   if (el.dataset.action === 'sort') { sort = el.value; store('cleanix.sort', sort); return render(); }
+  if (el.dataset.action === 'bootToggle') return toggleBoot(el);
   const path = el.closest('[data-path]')?.dataset.path;
   const set = el.dataset.action === 'mapTick' ? map.selected : el.dataset.action === 'tick' ? views[scanKey()].selected : null;
   if (!set || !path) return;
@@ -391,6 +494,15 @@ document.addEventListener('input', e => {
   apps.q = e.target.value;
   $('#appList').innerHTML = appRows();
 });
+
+async function toggleBoot(el) {
+  const item = boot.list.find(i => i.id === el.closest('[data-boot]').dataset.boot);
+  el.disabled = true;
+  const err = await invoke('startup_set', { id: item.id, enabled: el.checked }).then(() => null, e => String(e));
+  if (err === null) { item.enabled = el.checked; boot.note = ''; boot.admin = false; }
+  else { boot.admin = err === 'admin'; boot.note = t(boot.admin ? 'startup.admin' : 'startup.failed', item.name); }
+  render();
+}
 
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && !$('#modal').hidden) { closeModal(); pendingOk = null; }

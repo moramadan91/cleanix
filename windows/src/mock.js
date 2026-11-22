@@ -15,6 +15,9 @@ const DATA = {
     mk(H + '\\AppData\\Roaming\\discord\\Cache', 340 * MB, 'Discord'),
   ],
   downloads: [mk(H + '\\Downloads\\Windows11.iso', 5400 * MB, 'downloads', 'review'), mk(H + '\\Downloads\\old-project.zip', 230 * MB, 'downloads', 'review')],
+  privacy: [mk(H + '\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\History', 48 * MB, 'Chrome', 'review'), mk(H + '\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\Network\\Cookies', 3 * MB, 'Chrome', 'review')],
+  leftovers: [mk(H + '\\AppData\\Roaming\\OldGameStudio', 640 * MB, 'roaming', 'review'), mk(H + '\\AppData\\Local\\TrialEditor', 210 * MB, 'local', 'review')],
+  duplicates: [mk(H + '\\Documents\\report (1).pdf', 14 * MB, 'report.pdf', 'review'), mk(H + '\\Desktop\\IMG_2041 copy.jpg', 6 * MB, 'IMG_2041.jpg', 'review')],
   large: [mk(H + '\\Videos\\wedding.mp4', 3100 * MB, 'large', 'review')],
 };
 const dirs = {
@@ -37,6 +40,19 @@ export async function mockInvoke(cmd, args = {}) {
       ['7-Zip 24.08 (x64)', 'Igor Pavlov', '24.08', 5], ['Steam', 'Valve Corporation', '2.10', 0], ['Microsoft Teams', 'Microsoft Corporation', '24295', 740],
     ].map(([name, publisher, version, mb], i) => ({ id: 'lm64\\app' + i, name, publisher, version, bytes: mb * MB }));
     case 'uninstall': return null;
+    case 'startup_list': return [
+      ['cu|Spotify', 'Spotify', '"C:\\Users\\Demo\\AppData\\Roaming\\Spotify\\Spotify.exe" /minimized', true, false],
+      ['cu|Updater', 'Updater', 'C:\\Users\\Demo\\AppData\\Local\\Temp\\upd.exe', true, true],
+      ['lm64|SecurityHealth', 'SecurityHealth', '%windir%\\system32\\SecurityHealthSystray.exe', true, false],
+      ['fu|Zoom.lnk', 'Zoom', 'C:\\Users\\Demo\\...\\Startup\\Zoom.lnk', false, false],
+    ].map(([id, name, command, enabled, suspicious]) => ({ id, name, command, enabled, suspicious }));
+    case 'startup_set': if (args.id.startsWith('lm')) throw 'admin'; return null;
+    case 'privacy_access': return [
+      { capability: 'webcam', app: 'Zoom', allowed: true, last_used: 1795000000 },
+      { capability: 'microphone', app: 'Discord', allowed: true, last_used: 1795300000 },
+      { capability: 'location', app: 'WindowsMaps', allowed: false, last_used: 0 },
+    ];
+    case 'run_task': if (args.id === 'defender') throw 'x'; return null;
     case 'recycle_info': return { bytes: 1300 * MB, items: 214 };
     default: return null;
   }

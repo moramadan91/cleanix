@@ -222,9 +222,8 @@ pub fn scan_old_downloads(p: &Places, days: u64, now: SystemTime) -> Vec<ScanIte
         .collect()
 }
 
-/// Single files of at least `min` bytes in the user's folders (AppData is apps' business, skipped).
-pub fn scan_large(p: &Places, min: u64) -> Vec<ScanItem> {
-    let mut out = vec![];
+/// Every regular file in the user's own folders (AppData and dot-folders are apps' business, skipped).
+fn user_files(p: &Places, mut f: impl FnMut(PathBuf, &fs::Metadata)) {
     let mut stack = vec![p.home.clone()];
     while let Some(dir) = stack.pop() {
         for e in fs::read_dir(&dir).into_iter().flatten().flatten() {
@@ -238,8 +237,138 @@ pub fn scan_large(p: &Places, min: u64) -> Vec<ScanItem> {
                 if path != p.local && path != p.roaming && n != "AppData" && !n.starts_with('.') {
                     stack.push(path);
                 }
-            } else if md.len() >= min {
-                out.push(item(path, md.len(), "large", Safety::Review));
+            } else {
+                f(path, &md);
+            }
+        }
+    }
+}
+
+/// Single files of at least `min` bytes in the user's folders.
+pub fn scan_large(p: &Places, min: u64) -> Vec<ScanItem> {
+    let mut out = vec![];
+    user_files(p, |path, md| {
+        if md.len() >= min {
+            out.push(item(path, md.len(), "large", Safety::Review));
+        }
+    });
+    out
+}
+
+/// Exact copies (same size, then same content) of files of at least `min` bytes.
+/// The oldest copy stays off the list; the others are offered, grouped under the kept file's name.
+pub fn scan_duplicates(p: &Places, min: u64) -> Vec<ScanItem> {
+    use std::hash::{DefaultHasher, Hasher};
+    let mut by_size: HashMap<u64, Vec<(PathBuf, SystemTime)>> = HashMap::new();
+    user_files(p, |path, md| {
+        if md.len() >= min {
+            by_size.entry(md.len()).or_default().push((path, md.modified().unwrap_or(SystemTime::UNIX_EPOCH)));
+        }
+    });
+    let hash = |path: &Path| -> Option<u64> {
+        let mut f = fs::File::open(path).ok()?;
+        let mut h = DefaultHasher::new();
+        let mut buf = vec![0u8; 1 << 16];
+        loop {
+            let n = std::io::Read::read(&mut f, &mut buf).ok()?;
+            if n == 0 {
+                return Some(h.finish());
+            }
+            h.write(&buf[..n]);
+        }
+    };
+    let mut out = vec![];
+    for (size, files) in by_size {
+        if files.len() < 2 {
+            continue;
+        }
+        let mut by_hash: HashMap<u64, Vec<(PathBuf, SystemTime)>> = HashMap::new();
+        for (path, t) in files {
+            if let Some(h) = hash(&path) {
+                by_hash.entry(h).or_default().push((path, t));
+            }
+        }
+        for (_, mut same) in by_hash {
+            if same.len() < 2 {
+                continue;
+            }
+            same.sort_by(|a, b| a.1.cmp(&b.1).then_with(|| a.0.cmp(&b.0)));
+            let keep = name_of(&same[0].0);
+            out.extend(same.into_iter().skip(1).map(|(path, _)| item(path, size, &keep, Safety::Review)));
+        }
+    }
+    out
+}
+
+/// Browser history and cookies. Removing cookies signs you out of sites, so both need the user's eye.
+pub fn scan_privacy(p: &Places) -> Vec<ScanItem> {
+    let mut out = vec![];
+    let chromium = [
+        ("Chrome", p.local.join("Google/Chrome/User Data")),
+        ("Edge", p.local.join("Microsoft/Edge/User Data")),
+        ("Brave", p.local.join("BraveSoftware/Brave-Browser/User Data")),
+        ("Vivaldi", p.local.join("Vivaldi/User Data")),
+    ];
+    for (name, data) in chromium {
+        for profile in children(&data) {
+            let n = name_of(&profile);
+            if n != "Default" && !n.starts_with("Profile ") {
+                continue;
+            }
+            for f in ["History", "Network/Cookies", "Cookies"] {
+                let path = profile.join(f);
+                if let Ok(md) = fs::metadata(&path) {
+                    out.push(item(path, md.len(), name, Safety::Review));
+                }
+            }
+        }
+    }
+    // Firefox keeps bookmarks in places.sqlite, so only its cookies are offered.
+    for profile in children(&p.roaming.join("Mozilla/Firefox/Profiles")) {
+        let path = profile.join("cookies.sqlite");
+        if let Ok(md) = fs::metadata(&path) {
+            out.push(item(path, md.len(), "Firefox", Safety::Review));
+        }
+    }
+    out
+}
+
+/// Lowercase letters and digits only, for loose name matching.
+fn squash(s: &str) -> String {
+    s.chars().filter(|c| c.is_alphanumeric()).flat_map(char::to_lowercase).collect()
+}
+
+/// Folders Windows and common runtimes own; never called leftovers.
+const KEEP_DIRS: &[&str] = &[
+    "microsoft", "packages", "temp", "programs", "crashdumps", "connecteddevicesplatform", "comms", "d3dscache",
+    "virtualstore", "publishers", "history", "packagecache", "windows", "nvidia", "amd", "intel", "pip", "npmcache",
+    "npm", "fontcache", "identityservices", "peernetworking", "elevateddiagnostics", "placeholdertilelogofolder",
+    "squirreltemp", "mozilla", "google", "apple", "adobe", "java", "sun", "oracle",
+];
+
+/// A folder name that matches no installed program's name or publisher (and is not Windows' own).
+pub fn is_leftover(folder: &str, installed: &[String]) -> bool {
+    let f = squash(folder);
+    if f.len() < 3 || KEEP_DIRS.contains(&f.as_str()) {
+        return false;
+    }
+    !installed.iter().map(|n| squash(n)).any(|n| n.len() >= 3 && (n.contains(&f) || f.contains(&n)))
+}
+
+/// AppData folders untouched for `days` that belong to no installed program.
+pub fn scan_leftovers(p: &Places, installed: &[String], days: u64, now: SystemTime) -> Vec<ScanItem> {
+    let limit = Duration::from_secs(days * 86_400);
+    let mut out = vec![];
+    for (group, base) in [("local", &p.local), ("roaming", &p.roaming)] {
+        for dir in children(base) {
+            let Ok(md) = fs::symlink_metadata(&dir) else { continue };
+            let old = md.modified().map(|t| now.duration_since(t).unwrap_or_default() >= limit).unwrap_or(false);
+            if !md.is_dir() || is_link(&md) || !old || !is_leftover(&name_of(&dir), installed) {
+                continue;
+            }
+            let bytes = size_of(&dir);
+            if bytes > 0 {
+                out.push(item(dir, bytes, group, Safety::Review));
             }
         }
     }
@@ -464,4 +593,55 @@ mod tests {
         assert_eq!(nodes[0].name, "Videos");
         assert!(nodes[0].dir);
     }
+    #[test]
+    fn duplicates_keep_the_oldest_copy() {
+        let t = tempfile::tempdir().unwrap();
+        let p = places(t.path());
+        fs::create_dir_all(p.home.join("Docs")).unwrap();
+        fs::write(p.home.join("Docs/a.bin"), b"same content here").unwrap();
+        std::thread::sleep(Duration::from_millis(20));
+        fs::write(p.home.join("Docs/b.bin"), b"same content here").unwrap();
+        fs::write(p.home.join("Docs/c.bin"), b"diff content here").unwrap();
+        write(&p.local.join("x/a.bin"), 17); // AppData is skipped
+        let items = scan_duplicates(&p, 1);
+        assert_eq!(items.len(), 1);
+        assert!(items[0].path.ends_with("b.bin"));
+        assert_eq!(items[0].group, "a.bin");
+    }
+
+    #[test]
+    fn privacy_finds_history_and_cookies_not_bookmarks() {
+        let t = tempfile::tempdir().unwrap();
+        let p = places(t.path());
+        write(&p.local.join("Google/Chrome/User Data/Default/History"), 30);
+        write(&p.local.join("Google/Chrome/User Data/Default/Network/Cookies"), 20);
+        write(&p.local.join("Google/Chrome/User Data/System Profile/History"), 9);
+        write(&p.roaming.join("Mozilla/Firefox/Profiles/x.default/places.sqlite"), 9);
+        write(&p.roaming.join("Mozilla/Firefox/Profiles/x.default/cookies.sqlite"), 5);
+        let items = scan_privacy(&p);
+        assert_eq!(items.iter().map(|i| i.bytes).sum::<u64>(), 55);
+        assert!(items.iter().all(|i| i.safety == Safety::Review));
+    }
+
+    #[test]
+    fn leftovers_skip_installed_windows_and_recent() {
+        let installed = vec!["Zoom Workplace".to_string(), "Valve Corporation".to_string(), "Spotify".to_string()];
+        assert!(!is_leftover("Zoom", &installed));
+        assert!(!is_leftover("Valve", &installed));
+        assert!(!is_leftover("Microsoft", &installed));
+        assert!(!is_leftover("ab", &installed));
+        assert!(is_leftover("OldGameStudio", &installed));
+
+        let t = tempfile::tempdir().unwrap();
+        let p = places(t.path());
+        write(&p.roaming.join("OldGameStudio/save.dat"), 40);
+        write(&p.local.join("Spotify/x"), 40);
+        let now = SystemTime::now();
+        assert!(scan_leftovers(&p, &installed, 30, now).is_empty(), "fresh folders are not leftovers");
+        let later = now + Duration::from_secs(40 * 86_400);
+        let items = scan_leftovers(&p, &installed, 30, later);
+        assert_eq!(items.len(), 1);
+        assert!(items[0].path.ends_with("OldGameStudio"));
+    }
+
 }

@@ -1,9 +1,11 @@
 mod apps;
 mod core;
+mod startup;
+mod system;
 
 use core::{CleanResult, DiskNode, Offered, Places, ScanItem};
 use serde::Serialize;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::time::SystemTime;
@@ -14,6 +16,8 @@ struct AppState {
     offered: Mutex<Offered>,
     /// Program id -> its uninstall command, from the last listing (the UI only sends ids).
     apps: Mutex<HashMap<String, String>>,
+    /// Start-up entry ids from the last listing.
+    startup: Mutex<HashSet<String>>,
 }
 
 #[derive(Serialize)]
@@ -41,6 +45,12 @@ async fn scan(kind: String, state: tauri::State<'_, AppState>) -> Result<Vec<Sca
         "caches" => core::scan_caches(&p),
         "downloads" => core::scan_old_downloads(&p, 90, SystemTime::now()),
         "large" => core::scan_large(&p, 500 * 1024 * 1024),
+        "duplicates" => core::scan_duplicates(&p, 1024 * 1024),
+        "privacy" => core::scan_privacy(&p),
+        "leftovers" => {
+            let names: Vec<String> = apps::list().into_iter().flat_map(|a| [a.name, a.publisher]).collect();
+            core::scan_leftovers(&p, &names, 30, SystemTime::now())
+        }
         _ => vec![],
     })
     .await?;
@@ -93,6 +103,47 @@ async fn list_apps(state: tauri::State<'_, AppState>) -> Result<Vec<apps::Instal
 fn uninstall(id: String, state: tauri::State<'_, AppState>) -> Result<(), String> {
     let cmd = state.apps.lock().unwrap().get(&id).cloned().ok_or("unknown program")?;
     apps::launch(&cmd)
+}
+
+#[tauri::command]
+async fn startup_list(state: tauri::State<'_, AppState>) -> Result<Vec<startup::StartupItem>, String> {
+    let p = state.places.clone();
+    let list = blocking(move || startup::list(&p)).await?;
+    *state.startup.lock().unwrap() = list.iter().map(|i| i.id.clone()).collect();
+    Ok(list)
+}
+
+/// Switches a start-up entry on or off (reversible); only ids from the last listing.
+#[tauri::command]
+fn startup_set(id: String, enabled: bool, state: tauri::State<'_, AppState>) -> Result<(), String> {
+    if !state.startup.lock().unwrap().contains(&id) {
+        return Err("unknown entry".into());
+    }
+    startup::set_enabled(&id, enabled)
+}
+
+#[tauri::command]
+async fn privacy_access() -> Result<Vec<system::Access>, String> {
+    blocking(system::access).await
+}
+
+#[tauri::command]
+async fn run_task(id: String) -> Result<(), String> {
+    blocking(move || system::run_task(&id)).await?
+}
+
+#[tauri::command]
+fn open_settings(page: String) -> Result<(), String> {
+    apps::launch(system::settings_page(&page).ok_or("unknown page")?)
+}
+
+/// Opens a Cleanix for Windows release page in the browser (update notice); nothing else.
+#[tauri::command]
+fn open_release(tag: String) -> Result<(), String> {
+    if !tag.starts_with("win-v") || !tag[5..].chars().all(|c| c.is_ascii_digit() || c == '.') {
+        return Err("bad tag".into());
+    }
+    apps::launch(&format!("https://github.com/moramadan91/cleanix/releases/tag/{tag}"))
 }
 
 #[tauri::command]
@@ -194,7 +245,7 @@ mod win {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .manage(AppState { places: Places::from_env(), offered: Mutex::new(Offered::default()), apps: Mutex::default() })
+        .manage(AppState { places: Places::from_env(), offered: Mutex::new(Offered::default()), apps: Mutex::default(), startup: Mutex::default() })
         .setup(|app| {
             #[cfg(windows)]
             {
@@ -219,7 +270,13 @@ pub fn run() {
             empty_recycle,
             reveal,
             list_apps,
-            uninstall
+            uninstall,
+            startup_list,
+            startup_set,
+            privacy_access,
+            run_task,
+            open_settings,
+            open_release
         ])
         .run(tauri::generate_context!())
         .expect("error while running Cleanix");
