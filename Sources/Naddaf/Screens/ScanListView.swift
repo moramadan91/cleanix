@@ -49,6 +49,7 @@ struct ScanListView: View {
         VStack(spacing: 14) {
             if isReveal {
                 Text(L("common.needsReview")).font(.system(size: 15)).foregroundStyle(.secondary)
+                    .padding(.top, 8)
             } else {
                 HStack(spacing: 12) {
                     Text(String(format: L("common.itemsSelected"), chosen.count, formatBytes(chosen.reduce(0) { $0 + $1.bytes })))
