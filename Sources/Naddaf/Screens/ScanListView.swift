@@ -74,6 +74,7 @@ struct ScanListView: View {
                     .padding(.bottom, 8)
                 }
                 .scrollIndicators(.hidden)
+                .glassPanel()
             }
 
             if isReveal {

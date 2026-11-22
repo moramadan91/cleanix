@@ -54,6 +54,7 @@ struct CloudView: View {
                         }
                     }
                     .scrollIndicators(.hidden)
+                .glassPanel()
                 }
                 if let message { Text(message).font(.callout).foregroundStyle(Theme.accent) }
                 Text(L("cloud.note")).font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center)

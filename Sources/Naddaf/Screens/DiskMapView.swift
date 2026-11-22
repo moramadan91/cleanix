@@ -47,6 +47,7 @@ struct DiskMapView: View {
                     }
                 }
                 .scrollIndicators(.hidden)
+                .glassPanel()
                 .frame(maxWidth: .infinity)
 
                 BubbleChart(nodes: Array(list.prefix(8)), tint: section.tint, deep: section.tint2) { node in
@@ -192,7 +193,8 @@ private struct BubbleChart: View {
             let big = side * 0.22
             let maxBytes = Double(max(center?.bytes ?? 1, 1))
             ZStack {
-                Circle().fill(.white.opacity(0.05)).frame(width: side * 0.98, height: side * 0.98)
+                Circle().fill(RadialGradient(colors: [deep.opacity(0.45), .clear], center: .center, startRadius: 0, endRadius: side * 0.5))
+                    .frame(width: side * 0.98, height: side * 0.98)
                 if let center { bubble(center, radius: big) }
                 ForEach(Array(rest.enumerated()), id: \.offset) { index, node in
                     let r = max(side * 0.06, min(big * 0.62, big * sqrt(Double(node.bytes) / maxBytes)))
@@ -208,10 +210,8 @@ private struct BubbleChart: View {
     }
 
     private func bubble(_ node: DiskNode, radius: CGFloat) -> some View {
-        Circle()
-            .fill(RadialGradient(colors: [tint.opacity(0.85), deep.opacity(0.75)], center: .topLeading,
-                                 startRadius: 0, endRadius: radius * 2))
-            .overlay(Circle().strokeBorder(.white.opacity(0.25), lineWidth: 1))
+        Color.clear
+            .glassEffect(.regular.tint(tint.opacity(0.30)), in: .circle)
             .overlay {
                 VStack(spacing: 2) {
                     Image(nsImage: NSWorkspace.shared.icon(forFile: node.url.path))

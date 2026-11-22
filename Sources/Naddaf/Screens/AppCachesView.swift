@@ -60,6 +60,7 @@ struct AppCachesView: View {
                     .padding(.bottom, 8)
                 }
                 .scrollIndicators(.hidden)
+                .glassPanel()
             }
 
             ActionButton(title: L("common.clean"), disabled: chosen.isEmpty) { showPreview = true }

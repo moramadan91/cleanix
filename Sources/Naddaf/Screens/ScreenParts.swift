@@ -74,13 +74,26 @@ func revealInFinder(_ url: URL) {
     NSWorkspace.shared.activateFileViewerSelecting([url])
 }
 
+/// Layered glass panel that holds a list (lists never sit straight on the background).
+struct GlassPanel: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .padding(12)
+            .glassEffect(.regular.tint(.white.opacity(0.04)), in: .rect(cornerRadius: 26))
+    }
+}
+
+extension View {
+    func glassPanel() -> some View { modifier(GlassPanel()) }
+}
+
 /// Glass-free list row background used by every list screen.
 struct RowBackground: ViewModifier {
     var highlighted = false
     func body(content: Content) -> some View {
         content
             .padding(.horizontal, 16).padding(.vertical, 10)
-            .background(RoundedRectangle(cornerRadius: 16).fill(.white.opacity(highlighted ? 0.10 : 0.05)))
+            .background(RoundedRectangle(cornerRadius: 14).fill(.white.opacity(highlighted ? 0.12 : 0.04)))
     }
 }
 

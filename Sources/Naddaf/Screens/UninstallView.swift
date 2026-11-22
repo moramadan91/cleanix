@@ -64,6 +64,7 @@ struct UninstallView: View {
                 }
             }
             .scrollIndicators(.hidden)
+                .glassPanel()
             ActionButton(title: L("apps.uninstall"), disabled: selected.isEmpty) { review() }
         }
         .padding(.horizontal, 40)

@@ -145,6 +145,8 @@ private struct TabStrip: View {
                 .buttonStyle(.plain)
             }
         }
+        .padding(6)
+        .glassEffect(.regular.tint(.white.opacity(0.04)), in: .capsule)
     }
 }
 

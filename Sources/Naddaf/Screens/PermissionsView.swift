@@ -47,6 +47,7 @@ struct PermissionsView: View {
                     }
                 }
                 .scrollIndicators(.hidden)
+                .glassPanel()
                 Text(L("perm.readOnly")).font(.callout).foregroundStyle(.secondary)
             }
         }

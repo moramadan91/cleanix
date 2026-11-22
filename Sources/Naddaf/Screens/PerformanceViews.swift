@@ -35,6 +35,7 @@ struct MaintenanceView: View {
                 }
             }
             .scrollIndicators(.hidden)
+                .glassPanel()
             Text(L("task.adminNote")).font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center)
             if running {
                 ProgressView().controlSize(.large).frame(height: 52)
@@ -98,6 +99,7 @@ struct LoginItemsView: View {
                     }
                 }
                 .scrollIndicators(.hidden)
+                .glassPanel()
             }
             if let error { Text(error).font(.callout).foregroundStyle(Theme.accent) }
             Text(L("login.note")).font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center)
