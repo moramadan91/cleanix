@@ -111,7 +111,8 @@ extension View {
     func glassField() -> some View {
         textFieldStyle(.plain)
             .padding(.horizontal, 14).padding(.vertical, 7)
-            .glassEffect(.clear, in: .capsule)
+            // Not glassEffect: a focused field's blinking caret made the glass re-render (~30% idle CPU).
+            .background(Capsule().fill(.white.opacity(0.08)))
             .overlay(Capsule().strokeBorder(.white.opacity(0.25), lineWidth: 1))
     }
 }
