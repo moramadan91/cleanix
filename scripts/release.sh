@@ -11,6 +11,7 @@ NOTES=${1:-"Cleanix $V"}
 [[ -z $(git status --porcelain) ]] || { echo "Commit your changes first."; exit 1; }
 
 ./scripts/make_dmg.sh
+./scripts/make_pkg.sh
 ZIP=build/Cleanix-$V.zip
 rm -f "$ZIP"
 ditto -c -k --keepParent build/Cleanix.app "$ZIP"
@@ -37,8 +38,9 @@ XML
 
 git tag "v$V"
 git push origin HEAD "v$V"
-# Cleanix.dmg (no version) keeps one stable download link: releases/latest/download/Cleanix.dmg
+# Cleanix.pkg / Cleanix.dmg (no version) keep stable download links: releases/latest/download/Cleanix.pkg
 cp "build/Cleanix-$V.dmg" build/Cleanix.dmg
+cp "build/Cleanix-$V.pkg" build/Cleanix.pkg
 gh release create "v$V" -R "$REPO" --title "Cleanix $V" --notes "$NOTES" \
-  "build/Cleanix-$V.dmg" build/Cleanix.dmg "$ZIP" build/appcast.xml
+  "build/Cleanix-$V.pkg" build/Cleanix.pkg "build/Cleanix-$V.dmg" build/Cleanix.dmg "$ZIP" build/appcast.xml
 echo "Released v$V"
