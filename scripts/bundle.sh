@@ -45,4 +45,9 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 PLIST
 chmod +x "$APP/Contents/MacOS/Cleanix"
 codesign --force --deep -s - "$APP"
+# Ad-hoc signatures are matched by their hash, which changes every build, so macOS forgot folder and
+# Full Disk Access approvals after each update and asked again. Re-sign the app itself with a fixed
+# requirement (its bundle ID) so an approval given once carries over to later versions.
+# shortcut: any app claiming this bundle ID would match; a Developer ID signature removes that.
+codesign --force -s - -r='designated => identifier "local.naddaf.app"' "$APP"
 echo "Built $APP"
