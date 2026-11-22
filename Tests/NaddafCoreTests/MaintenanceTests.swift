@@ -58,6 +58,23 @@ private let noHome = URL(fileURLWithPath: "/nonexistent-naddaf-home")
     #expect(!isFailure(results[.flushDNS]))
 }
 
+@Test func maintenanceBatchIsOneScriptFromTheAllowlistOnly() throws {
+    let tasks = [MaintenanceTask.freeRAM, .flushDNS].map { $0.commands(home: noHome) }
+    let script = try AdminPromptRunner.batchScript(tasks)
+    #expect(script.contains("'/usr/sbin/purge'"))
+    #expect(script.contains("'/usr/bin/dscacheutil' '-flushcache' && '/usr/bin/killall' '-HUP' 'mDNSResponder'"))
+    #expect(script.contains("__cleanix_task_0=$?") && script.contains("__cleanix_task_1=$?"))
+    #expect(throws: NaddafError.notAllowed) { _ = try AdminPromptRunner.batchScript([[["/usr/sbin/purge"]], [["/bin/rm", "-rf", "/"]]]) }
+}
+
+@Test func maintenanceBatchOutputSplitsPerTask() {
+    let out = "purged\n__cleanix_task_0=0\nflush failed\n__cleanix_task_1=1\n"
+    let results = AdminPromptRunner.parseBatch(out, count: 2)
+    if case .success(let text) = results[0] { #expect(text == "purged\n") } else { Issue.record("task 0 should succeed") }
+    #expect(isFailure(results[1]))
+    #expect(isFailure(AdminPromptRunner.parseBatch("", count: 1)[0])) // no marker: never reported as done
+}
+
 @Test func maintenanceNeverRunsArbitraryArgv() async {
     await #expect(throws: NaddafError.notAllowed) {
         _ = try await AdminPromptRunner().run(["/bin/rm", "-rf", "/"])

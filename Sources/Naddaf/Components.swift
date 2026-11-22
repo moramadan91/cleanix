@@ -117,6 +117,10 @@ final class SymbolHostView: NSView {
 
     required init?(coder: NSCoder) { fatalError("not used") }
 
+    /// Decorative only. SwiftUI's allowsHitTesting(false) does not reach an AppKit view, so say it here,
+    /// or the icon (also those of screens kept alive behind the current one) can take a click.
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
     private var tint = NSColor.white
     private var deep = NSColor.gray
 

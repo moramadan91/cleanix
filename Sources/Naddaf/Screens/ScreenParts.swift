@@ -60,7 +60,10 @@ struct LiquidButtonStyle: ButtonStyle {
             .padding(.horizontal, big ? 30 : small ? 10 : 14)
             .padding(.vertical, big ? 12 : small ? 4 : 6)
             // Clear glass, no tint: the button takes the colour of whatever is behind it.
-            .glassEffect(.clear.interactive(), in: .capsule)
+            // Not .interactive(): that glass runs its own press handling, which competed with the
+            // Button for the click so some clicks were lost. The press scale below gives the feedback.
+            .glassEffect(.clear, in: .capsule)
+            .contentShape(Capsule())
             .overlay(Capsule().strokeBorder(
                 LinearGradient(colors: [.white.opacity(prominent ? 0.45 : 0.3), .white.opacity(0.05)],
                                startPoint: .top, endPoint: .bottom), lineWidth: 1))
