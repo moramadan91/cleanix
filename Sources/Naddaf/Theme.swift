@@ -6,7 +6,8 @@ extension Color {
     }
 }
 
-/// Amber Dusk: dusk-violet base, amber accent for controls, rose only as a soft glow in the background.
+/// Amber Dusk: dusk-violet base, amber accent for controls. Each section adds its own vivid pair of hues
+/// to the background only; buttons and selection stay amber.
 enum Theme {
     static let bg = Color(hex: 0x14101C)
     static let accent = Color(hex: 0xFFB04A)
@@ -17,6 +18,9 @@ enum Theme {
 func L(_ key: String) -> String {
     String(localized: String.LocalizationValue(key), bundle: .module)
 }
+
+/// Which built-in SF Symbols effect a section's icon plays.
+enum SymbolMotion { case wiggle, bounce, pulse, variable }
 
 enum AppSection: String, CaseIterable, Identifiable {
     case overview, smartScan, cleanup, protection, performance, apps, clutter, diskMap, cloud
@@ -37,18 +41,42 @@ enum AppSection: String, CaseIterable, Identifiable {
         }
     }
 
-    /// Low-saturation tint per section, derived from the dusk family. Used for the background only.
+    var motion: SymbolMotion {
+        switch self {
+        case .overview, .smartScan: .variable
+        case .cleanup, .apps, .cloud: .bounce
+        case .protection, .clutter: .wiggle
+        case .performance, .diskMap: .pulse
+        }
+    }
+
+    /// Main hue of the section (top of the background, glass tint).
     var tint: Color {
         switch self {
-        case .overview: Color(hex: 0x8E7CC3)
-        case .smartScan: Color(hex: 0xE09F45)
-        case .cleanup: Color(hex: 0x6FB59B)
-        case .protection: Color(hex: 0xC77D9B)
-        case .performance: Color(hex: 0xD99058)
-        case .apps: Color(hex: 0x7C9BD1)
-        case .clutter: Color(hex: 0x5FB0B7)
-        case .diskMap: Color(hex: 0x9A8FD6)
-        case .cloud: Color(hex: 0x6FA3D9)
+        case .overview: Color(hex: 0x7C5CFF)
+        case .smartScan: Color(hex: 0xFFAA3D)
+        case .cleanup: Color(hex: 0x2FD1A0)
+        case .protection: Color(hex: 0xFF5C8A)
+        case .performance: Color(hex: 0xFF8A3D)
+        case .apps: Color(hex: 0x4C8DFF)
+        case .clutter: Color(hex: 0x1FC8D6)
+        case .diskMap: Color(hex: 0xB26BFF)
+        case .cloud: Color(hex: 0x5AB8FF)
+        }
+    }
+
+    /// Deeper second hue (bottom glow).
+    var tint2: Color {
+        switch self {
+        case .overview: Color(hex: 0x3B2A8F)
+        case .smartScan: Color(hex: 0xFF5A3D)
+        case .cleanup: Color(hex: 0x0E7C6B)
+        case .protection: Color(hex: 0x8E1F5E)
+        case .performance: Color(hex: 0xB2401A)
+        case .apps: Color(hex: 0x2230A8)
+        case .clutter: Color(hex: 0x0D6B80)
+        case .diskMap: Color(hex: 0x5A22B8)
+        case .cloud: Color(hex: 0x1E5FB5)
         }
     }
 

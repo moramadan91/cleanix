@@ -5,14 +5,14 @@ struct RootView: View {
 
     var body: some View {
         ZStack {
-            AuroraBackground(tint: selection.tint)
-                .animation(.easeInOut(duration: 0.4), value: selection)
+            AuroraBackground(section: selection)
             HStack(spacing: 0) {
                 Sidebar(selection: $selection)
                 SectionPage(section: selection)
             }
         }
-        .frame(minWidth: 960, minHeight: 620)
+        .animation(.spring(duration: 0.5, bounce: 0.2), value: selection)
+        .frame(minWidth: 1060, minHeight: 680)
     }
 }
 
@@ -20,25 +20,57 @@ private struct Sidebar: View {
     @Binding var selection: AppSection
 
     var body: some View {
-        GlassEffectContainer(spacing: 10) {
-            VStack(spacing: 10) {
+        GlassEffectContainer(spacing: 14) {
+            VStack(spacing: 14) {
                 ForEach(AppSection.allCases) { section in
-                    Button { selection = section } label: {
-                        Image(systemName: section.symbol)
-                            .font(.system(size: 18, weight: .medium))
-                            .frame(width: 44, height: 44)
-                            .foregroundStyle(selection == section ? Theme.accent : .white.opacity(0.85))
-                    }
-                    .buttonStyle(.plain)
-                    .glassEffect(selection == section ? .regular.tint(Theme.accent.opacity(0.25)).interactive() : .regular.interactive(),
-                                 in: .rect(cornerRadius: 14))
-                    .help(section.title)
-                    .accessibilityLabel(section.title)
+                    SidebarItem(section: section, isSelected: selection == section) { selection = section }
                 }
             }
         }
-        .padding(14)
+        .padding(.horizontal, 18)
+        .padding(.top, 44)
         .frame(maxHeight: .infinity, alignment: .top)
+    }
+}
+
+/// Icon button that grows into a glass pill showing the full name while the pointer is over it.
+private struct SidebarItem: View {
+    let section: AppSection
+    let isSelected: Bool
+    let action: () -> Void
+    @State private var hovering = false
+
+    private var glass: Glass {
+        if hovering { return .regular.tint(section.tint.opacity(0.85)).interactive() }
+        if isSelected { return .regular.tint(Theme.accent.opacity(0.32)).interactive() }
+        return .regular.interactive()
+    }
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: section.symbol)
+                    .font(.system(size: 26, weight: .semibold))
+                    .frame(width: 62, height: 62)
+                if hovering {
+                    Text(section.title)
+                        .font(.system(size: 19, weight: .semibold))
+                        .lineLimit(1)
+                        .fixedSize()
+                        .transition(.opacity.combined(with: .move(edge: .leading)))
+                    Spacer(minLength: 0)
+                }
+            }
+            .foregroundStyle(hovering ? Color.white : (isSelected ? Theme.accent : Color.white.opacity(0.92)))
+            .frame(width: hovering ? 240 : 62, height: 62, alignment: .leading)
+        }
+        .buttonStyle(.plain)
+        .glassEffect(glass, in: .capsule)
+        .onHover { hovering = $0 }
+        .animation(.spring(duration: 0.3, bounce: 0.18), value: hovering)
+        .frame(width: 62, height: 62, alignment: .leading)
+        .zIndex(hovering ? 1 : 0)
+        .accessibilityLabel(section.title)
     }
 }
 
@@ -48,47 +80,43 @@ private struct SectionPage: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            HStack(spacing: 40) {
-                VStack(alignment: .leading, spacing: 20) {
+            HStack(spacing: 30) {
+                VStack(alignment: .leading, spacing: 22) {
                     Text(section.title)
-                        .font(.system(size: 46, weight: .semibold))
+                        .font(.system(size: 58, weight: .bold))
                     Text(section.subtitle)
-                        .font(.title3)
-                        .foregroundStyle(.secondary)
+                        .font(.system(size: 22, weight: .regular))
+                        .foregroundStyle(.white.opacity(0.75))
                     VStack(alignment: .leading, spacing: 12) {
                         ForEach(section.features, id: \.self) { feature in
-                            Label(feature, systemImage: "checkmark.circle")
-                                .labelStyle(FeatureLabelStyle(tint: section.tint))
+                            Label(feature, systemImage: "checkmark")
+                                .font(.system(size: 18, weight: .semibold))
+                                .padding(.horizontal, 20)
+                                .padding(.vertical, 12)
+                                .glassEffect(.regular.tint(section.tint.opacity(0.30)), in: .capsule)
                         }
                     }
-                    .padding(.top, 8)
+                    .padding(.top, 6)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .id("text-\(section.id)")
+                .transition(.opacity)
                 SectionHero(section: section)
                     .frame(maxWidth: .infinity)
+                    .id("hero-\(section.id)")
+                    .transition(.scale(scale: 0.86).combined(with: .opacity))
             }
-            .padding(.horizontal, 48)
+            .padding(.horizontal, 40)
             .frame(maxHeight: .infinity)
 
             Button {} label: {
                 Text(L("common.scan"))
-                    .font(.title3.weight(.semibold))
-                    .frame(width: 150, height: 44)
+                    .font(.system(size: 22, weight: .bold))
+                    .frame(width: 220, height: 58)
             }
             .buttonStyle(.glassProminent)
             .tint(Theme.accent)
-            .controlSize(.large)
-            .padding(.bottom, 36)
-        }
-    }
-}
-
-private struct FeatureLabelStyle: LabelStyle {
-    let tint: Color
-    func makeBody(configuration: Configuration) -> some View {
-        HStack(spacing: 12) {
-            configuration.icon.foregroundStyle(tint)
-            configuration.title.font(.title3.weight(.medium))
+            .padding(.bottom, 34)
         }
     }
 }
