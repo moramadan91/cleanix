@@ -13,9 +13,11 @@ struct UninstallView: View {
     @State private var apps: [AppInfo] = []
     @State private var selected: Set<String> = []
     @State private var search = ""
-    @State private var preview: [ScanItem] = []
-    @State private var showPreview = false
+    /// Set together with opening the sheet, so the sheet gets the items with it (an isPresented sheet
+    /// could be built before the items landed and stay empty).
+    @State private var preview: PreviewBatch?
     @State private var result = CleanResult()
+    @State private var reviewing = false
 
     private var remover: RemoverScanner { RemoverScanner(appDirs: AppEnv.shared.userAppDirs, home: AppEnv.shared.home) }
     private var shown: [AppInfo] {
@@ -65,12 +67,13 @@ struct UninstallView: View {
             }
             .scrollIndicators(.hidden)
                 .glassPanel()
-            ActionButton(title: L("apps.uninstall"), disabled: selected.isEmpty) { review() }
+            ActionButton(title: reviewing ? L("common.scanning") : L("apps.uninstall"),
+                         disabled: selected.isEmpty || reviewing) { review() }
         }
         .padding(.horizontal, 40)
         .padding(.bottom, 28)
-        .sheet(isPresented: $showPreview) {
-            PreviewSheet(section: section, items: preview, disposal: .trash) { clean($0) }
+        .sheet(item: $preview) { batch in
+            PreviewSheet(section: section, items: batch.items, disposal: .trash) { clean($0) }
         }
     }
 
@@ -86,13 +89,33 @@ struct UninstallView: View {
     }
 
     /// The app bundle plus every leftover file, so the preview shows exactly what goes.
+    /// Leftovers are found off the main thread, all chosen apps at once, so the window never freezes.
     private func review() {
+        reviewing = true
         let remover = remover
-        preview = apps.filter { selected.contains($0.bundleID) }.flatMap { app in
-            [ScanItem(url: app.url, bytes: app.bytes, reason: "App", safety: .review, group: app.name)]
-                + remover.leftovers(for: app)
+        let chosen = apps.filter { selected.contains($0.bundleID) }
+        Task {
+            let items = await Task.detached {
+                await withTaskGroup(of: (Int, [ScanItem]).self) { group in
+                    for (i, app) in chosen.enumerated() {
+                        group.addTask {
+                            (i, [ScanItem(url: app.url, bytes: app.bytes, reason: "App", safety: .review, group: app.name)]
+                                + remover.leftovers(for: app))
+                        }
+                    }
+                    var out = [[ScanItem]](repeating: [], count: chosen.count)
+                    for await (i, list) in group { out[i] = list }
+                    return out.flatMap { $0 }
+                }
+            }.value
+            reviewing = false
+            preview = PreviewBatch(items: items)
         }
-        showPreview = true
+    }
+
+    struct PreviewBatch: Identifiable {
+        let id = UUID()
+        let items: [ScanItem]
     }
 
     private func clean(_ items: [ScanItem]) {
