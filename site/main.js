@@ -6,6 +6,7 @@ gsap.registerPlugin(ScrollTrigger);
 const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const motionOK = matchMedia('(prefers-reduced-motion: no-preference)').matches;
 const html = document.documentElement;
+const arabicDigits = new Intl.NumberFormat('ar-EG', { numberingSystem: 'arab' });
 
 /* Seeded noise (mulberry32): the junk lands in the same places on every visit. */
 function rng(seed) {
@@ -46,8 +47,8 @@ langBtn.addEventListener('click', () => {
 
 /* ---------- ticker words follow the language ---------- */
 const TICK = {
-  ar: [['فحص شامل', 'كاش', 'بقايا برامج', 'صور متشابهة', 'سلة المهملات'], ['خريطة القرص', 'الفرّامة', 'المكرر', 'التنزيلات', 'الخصوصية']],
-  en: [['Smart Scan', 'Caches', 'Leftovers', 'Similar photos', 'Trash'], ['Disk Map', 'Shredder', 'Duplicates', 'Downloads', 'Privacy']],
+  ar: [['فحص شامل', 'كاش', 'بقايا برامج', 'صور متشابهة', 'سلة المهملات', 'تسريع فوري', 'حالة الماك'], ['خريطة القرص', 'الفرّامة', 'المكرر', 'التنزيلات', 'الخصوصية', 'إضافات المتصفح', 'التطبيقات التقيلة']],
+  en: [['Smart Scan', 'Caches', 'Leftovers', 'Similar photos', 'Trash', 'Quick Boost', 'Mac health'], ['Disk Map', 'Shredder', 'Duplicates', 'Downloads', 'Privacy', 'Extensions', 'Heavy apps']],
 };
 function fillTicker() {
   const set = TICK[html.lang === 'en' ? 'en' : 'ar'];
@@ -177,7 +178,9 @@ function buildMess() {
 /* ---------- 2. scenes ---------- */
 function splitWords(h) {
   $$('span[data-ar], span[data-en]', h).forEach(s => {
-    s.innerHTML = s.textContent.trim().split(/\s+/).map(w => `<span class="w">${w}</span>`).join(' ');
+    // The space lives inside each word: between inline-blocks Chrome drops most spaces in Arabic.
+    const words = s.textContent.trim().split(/\s+/);
+    s.innerHTML = words.map((w, i) => `<span class="w">${w}${i < words.length - 1 ? ' ' : ''}</span>`).join('');
   });
 }
 function buildScene(sec) {
@@ -194,8 +197,8 @@ function buildScene(sec) {
     // the icon opens into the real screen
     .to(screen, { clipPath: 'circle(80% at 50% 50%)', duration: 0.2, ease: 'power3.inOut' }, 0.3)
     .to(orb, { scale: 3.2, opacity: 0, duration: 0.18, ease: 'power2.in' }, 0.3)
-    .to(imgs, { opacity: 1, duration: 0.1 }, 0.4)
     .fromTo(stage, { y: 60 }, { y: -30, duration: 1, ease: 'none' }, 0);
+  if (imgs.length) tl.to(imgs, { opacity: 1, duration: 0.1 }, 0.4);
 
   const kind = sec.dataset.scene;
   if (kind === 'scan') {
@@ -243,6 +246,44 @@ function buildScene(sec) {
     tl.fromTo(arcs, { opacity: 0, scale: 0.3, rotation: -200, svgOrigin: '0 0' },
       { opacity: 1, scale: 1, rotation: 0, svgOrigin: '0 0', duration: 0.18, ease: 'back.out(1.4)', stagger: 0.02 }, 0.5)
       .to(arcs, { scale: i => 1.3 + i * 0.12, opacity: 0, rotation: i => (i % 2 ? 60 : -60), svgOrigin: '0 0', duration: 0.16, ease: 'power2.in', stagger: 0.01 }, 0.78);
+  }
+  if (kind === 'health') {
+    const ring = $('.health-ring', sec), arc = $('.health-progress', ring), score = $('text', ring);
+    const health = { value: 0 };
+    tl.to(ring, { opacity: 1, duration: 0.04 }, 0.5)
+      .to(health, {
+        value: 100, duration: 0.24, ease: 'none',
+        onUpdate() {
+          const value = Math.round(health.value);
+          arc.setAttribute('stroke-dashoffset', 100 - health.value);
+          score.textContent = html.lang === 'ar' ? arabicDigits.format(value) : String(value);
+        },
+      }, 0.5)
+      .to(ring, { scale: 1.25, opacity: 0, duration: 0.1, ease: 'power2.in' }, 0.74);
+  }
+  if (kind === 'menubar') {
+    const button = $('.boost-button', sec), confirm = $('.boost-confirm', sec), result = $('.boost-result', sec);
+    const ramAr = $('[data-ar] .boost-ram', sec), ramEn = $('[data-en] .boost-ram', sec);
+    const cpuAr = $('[data-ar] .boost-cpu', sec), cpuEn = $('[data-en] .boost-cpu', sec);
+    const memoryBar = $('.boost-memory-bar', sec), cpuBar = $('.boost-cpu-bar', sec);
+    const usage = { ram: 78, cpu: 41 };
+    tl.to(button, { scale: 0.92, duration: 0.035, ease: 'power2.in' }, 0.5)
+      .to(button, { scale: 1, duration: 0.055, ease: 'power2.out' }, 0.535)
+      .to(confirm, { opacity: 1, duration: 0.04 }, 0.57)
+      .to(confirm, { opacity: 0, duration: 0.04 }, 0.67)
+      .to(result, { opacity: 1, duration: 0.05 }, 0.71)
+      .to(usage, {
+        ram: 61, cpu: 12, duration: 0.13, ease: 'none',
+        onUpdate() {
+          const ram = Math.round(usage.ram), cpu = Math.round(usage.cpu);
+          ramAr.textContent = arabicDigits.format(ram);
+          cpuAr.textContent = arabicDigits.format(cpu);
+          ramEn.textContent = String(ram);
+          cpuEn.textContent = String(cpu);
+          memoryBar.style.width = `${usage.ram}%`;
+          cpuBar.style.width = `${usage.cpu}%`;
+        },
+      }, 0.71);
   }
   tl.to(stage, { scale: 0.9, opacity: 0.3, rotationX: 12, transformPerspective: 900, duration: 0.1 }, 0.88)
     .to($('.scene-copy', sec), { opacity: 0, y: -30, duration: 0.08 }, 0.88);

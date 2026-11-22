@@ -26,7 +26,16 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=9">
+<link rel="stylesheet" href="style.css?v=11">
+<noscript><style>
+  .mess, .scene, .safety { height: auto; }
+  .scene + .scene { margin-top: 0; }
+  .mess-pin, .scene-pin, .safety-pin { position: relative; height: auto; min-height: 100vh; }
+  .scene-pin, .safety-pin { padding-block: 120px; }
+  .junk, .vortex, .counter, .scroll-hint, .t-after, .orb, .ring, .ticker { display: none; }
+  .screen { clip-path: none; }
+  .screen img, .undo { opacity: 1; }
+</style></noscript>
 </head>
 <body>
 <a class="skip" href="#main"><span data-ar>انتقل للمحتوى</span><span data-en>Skip to content</span></a>
@@ -154,6 +163,54 @@
         </div>
       </div>
     </section>
+
+    <section class="scene" data-scene="health" style="--c1:#3DDC97;--c2:#0E6B4A" aria-labelledby="h-health">
+      <div class="scene-pin">
+        <div class="scene-copy">
+          <p class="scene-no">05</p>
+          <h2 id="h-health" class="split"><span data-ar>اعرف حالة جهازك في نظرة.</span><span data-en>Your Mac's health at a glance.</span></h2>
+          <p><span data-ar>رقم من 100 بيقولك جهازك عامل إيه: المساحة، الرام، البرامج اللي بتفتح مع التشغيل، والكراكيب. ومعاه صحة البطارية وعدد مرات الشحن.</span><span data-en>One score out of 100 tells you how your Mac is doing: free space, memory, login items and junk. Plus battery health and charge cycles.</span></p>
+        </div>
+        <div class="stage">
+          <div class="screen"><img data-ar src="shots/ar-health.webp" alt="شاشة نظرة عامة وحالة الماك" loading="lazy" decoding="async" width="1400" height="896"><img data-en src="shots/en-health.webp" alt="The Overview screen with the Mac health score" loading="lazy" decoding="async" width="1400" height="896"></div>
+          <div class="orb"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 39 10 25c-10-10 4-22 14-11 10-11 24 1 14 11Z"/><path d="M12 26h6l3-6 4 10 3-4h8"/></svg></div>
+          <svg class="ring health-ring" viewBox="-60 -60 120 120" aria-hidden="true">
+            <circle class="health-track" r="50"/>
+            <circle class="health-progress" r="50" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100" transform="rotate(-90)"/>
+            <text text-anchor="middle" y="11">0</text>
+          </svg>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene" data-scene="menubar" style="--c1:#9B7BFF;--c2:#3A2A8C" aria-labelledby="h-menubar">
+      <div class="scene-pin">
+        <div class="scene-copy">
+          <p class="scene-no">06</p>
+          <h2 id="h-menubar" class="split"><span data-ar>الرام والمعالج قدامك، وتسريع بضغطة.</span><span data-en>RAM and CPU in your menu bar. Boost in one click.</span></h2>
+          <p><span data-ar>أرقام الرام والمعالج في شريط المنيو طول الوقت. ولو الجهاز تقل، «تسريع فوري» بينضّف الملفات المؤقتة ويفضّي الرام، والباسورد بيتطلب مرة واحدة بس.</span><span data-en>Live RAM and CPU numbers in the menu bar. When things slow down, Quick Boost clears caches and frees memory, and it asks for your password only once.</span></p>
+        </div>
+        <div class="stage">
+          <div class="screen menubar-screen" aria-hidden="true">
+            <div class="menubar-strip">
+              <svg viewBox="0 0 48 48"><path d="M26 8c1.5 8 4.5 11 12 12.5C30.5 22 27.5 25 26 33c-1.5-8-4.5-11-12-12.5C21.5 19 24.5 16 26 8Z"/><path d="M13 28c.8 3.6 2.2 5 5.8 5.8-3.6.8-5 2.2-5.8 5.8-.8-3.6-2.2-5-5.8-5.8 3.6-.8 5-2.2 5.8-5.8Z"/></svg>
+              <span data-ar>الرام <span class="boost-ram">٧٨</span>٪ · المعالج <span class="boost-cpu">٤١</span>٪</span><span data-en>RAM <span class="boost-ram">78</span>% · CPU <span class="boost-cpu">41</span>%</span>
+            </div>
+            <div class="boost-panel">
+              <div class="boost-button"><span data-ar>تسريع فوري</span><span data-en>Quick Boost</span></div>
+              <div class="boost-metric"><span><span data-ar>المساحة الفاضية</span><span data-en>Free disk</span></span><span class="boost-track"><i class="boost-disk-bar"></i></span></div>
+              <div class="boost-metric"><span><span data-ar>الرام</span><span data-en>Memory</span></span><span class="boost-track"><i class="boost-memory-bar"></i></span></div>
+              <div class="boost-metric"><span><span data-ar>المعالج</span><span data-en>CPU</span></span><span class="boost-track"><i class="boost-cpu-bar"></i></span></div>
+              <div class="boost-status">
+                <p class="boost-confirm"><span data-ar>نفضّي الرام وننضّف ٣١٢ م.ب من الملفات المؤقتة؟</span><span data-en>Free memory and clean 312 MB of caches?</span></p>
+                <p class="boost-result"><span data-ar>اتفضّى ٣١٢ م.ب · الرام من ٧٨٪ لـ ٦١٪</span><span data-en>Freed 312 MB · memory 78% → 61%</span></p>
+              </div>
+            </div>
+          </div>
+          <div class="orb"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M26 8 12 27h11l-1 13 14-19H25Z"/></svg></div>
+        </div>
+      </div>
+    </section>
   </div>
 
   <!-- 3. Everything else, as a running strip. -->
@@ -167,6 +224,14 @@
       <li><b><span data-ar>السحابة</span><span data-en>Cloud</span></b><span data-ar>فضّي نسخ iCloud المحلية.</span><span data-en>Free local iCloud copies.</span></li>
       <li><b><span data-ar>المرفقات</span><span data-en>Mail attachments</span></b><span data-ar>مرفقات البريد اللي اتنزلت.</span><span data-en>Downloaded mail attachments.</span></li>
       <li><b><span data-ar>تحديثات لوحدها</span><span data-en>Auto updates</span></b><span data-ar>موقّعة، وبيسألك الأول.</span><span data-en>Signed, and it asks first.</span></li>
+      <li><b><span data-ar>التطبيقات التقيلة</span><span data-en>Heavy apps</span></b><span data-ar>شوف مين واكل الرام والمعالج واقفله.</span><span data-en>See what is eating memory and CPU, and quit it.</span></li>
+      <li><b><span data-ar>إضافات المتصفح</span><span data-en>Browser extensions</span></b><span data-ar>كل الإضافات في كروم وبريف وإيدج وسفاري.</span><span data-en>Every extension in Chrome, Brave, Edge and Safari.</span></li>
+      <li><b><span data-ar>تحديثات البرامج</span><span data-en>App updates</span></b><span data-ar>يقولك أنهي برامج ليها نسخة جديدة.</span><span data-en>Tells you which apps have a new version.</span></li>
+      <li><b><span data-ar>ريسيت لبرنامج</span><span data-en>Reset an app</span></b><span data-ar>امسح إعدادات وكاش برنامج واحد.</span><span data-en>Clear one app's settings and cache.</span></li>
+      <li><b><span data-ar>الآيفون والآيباد</span><span data-en>iPhone and iPad</span></b><span data-ar>نسخ احتياطي قديمة وملفات تحديث iOS.</span><span data-en>Old backups and iOS update files.</span></li>
+      <li><b><span data-ar>للمطوّرين</span><span data-en>For developers</span></b><span data-ar>كاش Xcode والمحاكي وpip وYarn وCocoaPods.</span><span data-en>Xcode, Simulator, pip, Yarn and CocoaPods caches.</span></li>
+      <li><b><span data-ar>التنبيهات</span><span data-en>Alerts</span></b><span data-ar>لما المساحة تقل، وتذكير أسبوعي. مقفولة لحد ما تفتحها.</span><span data-en>Low space and a weekly reminder. Off until you turn them on.</span></li>
+      <li><b><span data-ar>يفتح مع الجهاز</span><span data-en>Open at login</span></b><span data-ar>يشتغل في شريط المنيو من غير ما يفتح شباك.</span><span data-en>Starts quietly in the menu bar.</span></li>
     </ul>
   </section>
 
@@ -230,6 +295,6 @@
 </footer>
 
 <div class="cut" id="cut" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
-<script type="module" src="main.js?v=7"></script>
+<script type="module" src="main.js?v=9"></script>
 </body>
 </html>

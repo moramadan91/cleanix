@@ -140,7 +140,7 @@ html[lang="en"] img[data-en], html[lang="en"] div[data-en] { display: block !imp
 .scene-copy { position: relative; z-index: 3; }
 .scene-no { font-size: 15px; font-weight: 600; color: var(--c1); margin-bottom: 14px; }
 .scene-copy h2 { font-size: clamp(30px, 4.2vw, 60px); line-height: 1.1; font-weight: 700; }
-.scene-copy h2 .w { display: inline-block; }
+.scene-copy h2 .w { display: inline-block; white-space: pre; }
 .scene-copy p:last-child { margin-top: 20px; color: var(--muted); font-size: 17px; max-width: 40ch; }
 
 .stage { position: relative; aspect-ratio: 1112 / 712; width: 100%; max-width: 900px; justify-self: center; }
@@ -167,6 +167,42 @@ html[lang="en"] img[data-en], html[lang="en"] div[data-en] { display: block !imp
 }
 .ring { position: absolute; left: 50%; top: 50%; width: 70%; translate: -50% -50%; z-index: 3; overflow: visible; pointer-events: none; }
 .ring circle { fill: none; stroke-width: 9; }
+.health-ring { width: min(62%, 360px); opacity: 0; }
+.health-ring .health-track { fill: rgba(15, 11, 23, 0.88); stroke: var(--line); }
+.health-progress { stroke: var(--c1); }
+.health-ring text { fill: var(--white); font-size: 31px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+[data-scene="menubar"] .stage { min-height: 216px; }
+.menubar-screen { display: grid; grid-template-rows: auto 1fr; background: var(--ink); border: 1px solid var(--line); container-type: size; }
+.menubar-strip {
+  display: flex; justify-content: flex-end; align-items: center; gap: 6px; padding: clamp(5px, 0.9cqw, 9px) clamp(12px, 2cqw, 20px);
+  background: var(--charcoal); border-bottom: 1px solid var(--line);
+  color: var(--lavender); font-size: clamp(12px, 1.7cqw, 16px); font-variant-numeric: tabular-nums;
+}
+.menubar-strip svg { width: clamp(17px, 2.2cqw, 22px); fill: none; stroke: var(--c1); stroke-width: 3; stroke-linejoin: round; }
+.boost-panel {
+  place-self: center; width: min(48cqw, calc(100% - 24px)); min-width: min(300px, calc(100% - 24px)); display: grid;
+  gap: clamp(7px, 1.4cqw, 14px); padding: clamp(10px, 2cqw, 20px) clamp(14px, 2.4cqw, 24px);
+  border: 1px solid var(--line); border-radius: clamp(12px, 1.8cqw, 18px); background: var(--charcoal);
+}
+.boost-button {
+  padding: clamp(7px, 1.2cqw, 12px) 12px; border-radius: clamp(8px, 1.2cqw, 12px); background: var(--violet); color: var(--white);
+  text-align: center; font-size: clamp(15px, 2.2cqw, 20px); font-weight: 600; line-height: 1.35;
+}
+.boost-metric {
+  display: grid; grid-template-columns: minmax(86px, auto) 1fr; align-items: center; gap: 10px;
+  color: var(--muted); font-size: clamp(11px, 1.6cqw, 15px); line-height: 1.35;
+}
+.boost-track, .boost-track i { display: block; height: clamp(5px, 0.8cqw, 8px); border-radius: 5px; }
+.boost-track { background: var(--line); }
+.boost-track i { background: var(--c1); }
+.boost-disk-bar { width: 56%; }
+.boost-memory-bar { width: 78%; }
+.boost-cpu-bar { width: 41%; }
+.boost-status { display: grid; text-align: center; font-size: clamp(11px, 1.6cqw, 15px); line-height: 1.35; }
+.boost-status p { grid-area: 1 / 1; opacity: 0; }
+.boost-confirm { color: var(--muted); }
+.boost-result { color: var(--lavender); }
 
 /* ---------- 3. more ---------- */
 .more { padding: 120px 0; overflow: hidden; }
