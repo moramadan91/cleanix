@@ -1,6 +1,7 @@
 import SwiftUI
 import AppKit
 import NaddafCore
+import Sparkle
 
 @main
 struct NaddafApp: App {
@@ -12,6 +13,11 @@ struct NaddafApp: App {
                 .preferredColorScheme(.dark)
         }
         .windowStyle(.hiddenTitleBar)
+        .commands {
+            CommandGroup(after: .appInfo) {
+                Button(L("update.check")) { splash.updater.checkForUpdates(nil) }
+            }
+        }
     }
 }
 
@@ -19,6 +25,9 @@ struct NaddafApp: App {
 /// invisible until the logo starts to leave, then fades the window in.
 @MainActor
 final class SplashDelegate: NSObject, NSApplicationDelegate {
+    /// Signed updates from GitHub Releases (feed and public key in Info.plist, see scripts/release.sh).
+    /// Checks on launch once a day and asks before installing.
+    let updater = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
     private var panel: NSPanel?
     private var observers: [Any] = []
     private var splashing = false

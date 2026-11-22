@@ -2880,6 +2880,22 @@
           }
         }
       }
+    },
+    "update.check": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "البحث عن تحديثات…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check for Updates…"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

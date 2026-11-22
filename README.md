@@ -37,6 +37,8 @@ Switch between Arabic and English from the button in the bottom corner.
 
 Requires macOS 26 or later.
 
+Updates arrive on their own: Cleanix checks once a day when you open it, asks you, then downloads, installs and restarts. Every update is signed, and the app refuses one that is not. You can also check from the **Cleanix** menu → **Check for Updates…**.
+
 ## Build from source
 
 ```bash
@@ -44,6 +46,8 @@ swift test                 # run the tests
 ./scripts/bundle.sh        # build/Cleanix.app
 ./scripts/make_dmg.sh      # build/Cleanix-<version>.dmg
 ```
+
+Publish a release: bump `VERSION`, commit, then run `./scripts/release.sh "What changed"`. It signs the update with the Sparkle key in your Keychain and uploads the DMG, the zip and `appcast.xml` to GitHub Releases.
 
 Try every screen on fake files, without touching your own:
 

@@ -6,8 +6,12 @@ swift build -c release
 BIN=$(swift build -c release --show-bin-path)
 APP=build/Cleanix.app
 rm -rf "$APP"
-mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Frameworks"
 cp "$BIN/Naddaf" "$APP/Contents/MacOS/Cleanix"
+# Sparkle (auto-updates) is a dynamic framework: embed it and point the binary at it.
+cp -R "$BIN/Sparkle.framework" "$APP/Contents/Frameworks/"
+install_name_tool -add_rpath @executable_path/../Frameworks "$APP/Contents/MacOS/Cleanix" 2>/dev/null || true
+VERSION=$(cat VERSION)
 for b in "$BIN"/*.bundle; do [ -e "$b" ] && cp -R "$b" "$APP/Contents/Resources/"; done
 # App icon: Resources/AppIcon.png (from scripts/make_icon.swift) -> AppIcon.icns
 SET=$(mktemp -d)/AppIcon.iconset
@@ -17,7 +21,7 @@ for s in 16 32 128 256 512; do
   sips -z $((s*2)) $((s*2)) Resources/AppIcon.png --out "$SET/icon_${s}x${s}@2x.png" >/dev/null
 done
 iconutil -c icns "$SET" -o "$APP/Contents/Resources/AppIcon.icns"
-cat > "$APP/Contents/Info.plist" <<'PLIST'
+cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
@@ -27,11 +31,15 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 <key>CFBundleIconFile</key><string>AppIcon</string>
 <key>CFBundleDisplayName</key><string>Cleanix</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>0.1.0</string>
-<key>CFBundleVersion</key><string>1</string>
+<key>CFBundleShortVersionString</key><string>$VERSION</string>
+<key>CFBundleVersion</key><string>$VERSION</string>
 <key>LSMinimumSystemVersion</key><string>26.0</string>
 <key>CFBundleDevelopmentRegion</key><string>en</string>
 <key>CFBundleLocalizations</key><array><string>en</string><string>ar</string></array>
+<key>SUFeedURL</key><string>https://github.com/moramadan91/cleanix/releases/latest/download/appcast.xml</string>
+<key>SUPublicEDKey</key><string>xUBexQj6bLRJB5xMC9Fgm/ThBfHbsX0QA1YYwUOyggw=</string>
+<key>SUEnableAutomaticChecks</key><true/>
+<key>SUScheduledCheckInterval</key><integer>86400</integer>
 <key>NSPrincipalClass</key><string>NSApplication</string>
 </dict></plist>
 PLIST
