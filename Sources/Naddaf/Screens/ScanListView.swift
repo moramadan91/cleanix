@@ -50,7 +50,7 @@ struct ScanListView: View {
             if isReveal {
                 Text(L("common.needsReview")).font(.system(size: 15)).foregroundStyle(.secondary)
                     .padding(.top, 8)
-            } else {
+            } else if !items.isEmpty {
                 HStack(spacing: 12) {
                     Text(String(format: L("common.itemsSelected"), chosen.count, formatBytes(chosen.reduce(0) { $0 + $1.bytes })))
                         .font(.system(size: 16, weight: .semibold)).monospacedDigit()
@@ -59,6 +59,7 @@ struct ScanListView: View {
                     Button(L("common.selectNone")) { selected = [] }
                 }
                 .padding(.horizontal, 6)
+                .frame(maxWidth: 560)
             }
 
             if items.isEmpty {
@@ -78,7 +79,8 @@ struct ScanListView: View {
                 .glassPanel()
             }
 
-            if isReveal {
+            // Nothing found: offer a rescan instead of a disabled Clean button.
+            if isReveal || items.isEmpty {
                 ActionButton(title: L("common.rescan")) { scan() }
             } else {
                 ActionButton(title: actionTitle, disabled: chosen.isEmpty) {

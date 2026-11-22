@@ -38,6 +38,7 @@ struct UninstallView: View {
                 Spacer()
                 TextField(L("common.search"), text: $search).glassField().frame(width: 220)
             }
+            .frame(maxWidth: 560)
             ScrollView {
                 LazyVStack(spacing: 8) {
                     ForEach(shown, id: \.bundleID) { app in
