@@ -78,12 +78,13 @@ private struct SidebarItem: View {
                     .opacity(hovering ? 1 : 0)
                 Spacer(minLength: 0)
             }
-            .foregroundStyle(hovering ? Color.white : (isSelected ? Theme.accent : Color.white.opacity(0.92)))
+            .foregroundStyle(Color.white.opacity(hovering || isSelected ? 1 : 0.92))
             .frame(width: hovering ? 240 : size, height: size, alignment: .leading)
             .background {
                 Capsule()
-                    .fill(LinearGradient(colors: [section.tint, section.tint2], startPoint: .leading, endPoint: .trailing))
-                    .overlay(Capsule().strokeBorder(.white.opacity(0.25), lineWidth: 1))
+                    .fill(.ultraThinMaterial)
+                    .overlay(Capsule().fill(.white.opacity(0.08)))
+                    .overlay(Capsule().strokeBorder(.white.opacity(0.35), lineWidth: 1))
                     .opacity(hovering ? 1 : 0)
             }
             .clipShape(Capsule())

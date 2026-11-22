@@ -36,7 +36,7 @@ struct UninstallView: View {
             HStack(spacing: 12) {
                 Text(String(format: L("apps.selected"), selected.count)).font(.system(size: 16, weight: .semibold))
                 Spacer()
-                TextField(L("common.search"), text: $search).textFieldStyle(.roundedBorder).frame(width: 220)
+                TextField(L("common.search"), text: $search).glassField().frame(width: 220)
             }
             ScrollView {
                 LazyVStack(spacing: 8) {
@@ -45,16 +45,14 @@ struct UninstallView: View {
                             get: { selected.contains(app.bundleID) },
                             set: { if $0 { selected.insert(app.bundleID) } else { selected.remove(app.bundleID) } })
                         HStack(spacing: 12) {
-                            Toggle("", isOn: isOn).labelsHidden().toggleStyle(.checkbox)
+                            Toggle("", isOn: isOn).labelsHidden().toggleStyle(.glassCheck)
                             Image(nsImage: NSWorkspace.shared.icon(forFile: app.url.path)).resizable().frame(width: 32, height: 32)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(app.name).font(.system(size: 15, weight: .semibold)).lineLimit(1)
                                 Text(app.vendor).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1)
                             }
                             if running.contains(app.bundleID) {
-                                Text(L("caches.quitFirst")).font(.system(size: 12, weight: .semibold))
-                                    .padding(.horizontal, 10).padding(.vertical, 4)
-                                    .background(Capsule().fill(Theme.accent.opacity(0.22))).foregroundStyle(Theme.accent)
+                                Text(L("caches.quitFirst")).modifier(GlassBadge())
                             }
                             Spacer()
                             Text(formatBytes(app.bytes)).font(.system(size: 15, weight: .medium)).monospacedDigit()

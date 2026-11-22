@@ -19,7 +19,7 @@ struct MaintenanceView: View {
                             get: { chosen.contains(task) },
                             set: { if $0 { chosen.insert(task) } else { chosen.remove(task) } })
                         HStack(spacing: 12) {
-                            Toggle("", isOn: isOn).labelsHidden().toggleStyle(.checkbox)
+                            Toggle("", isOn: isOn).labelsHidden().toggleStyle(.glassCheck)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(L("task.\(task)")).font(.system(size: 15, weight: .semibold))
                                 Text(L("task.\(task).note")).font(.system(size: 12)).foregroundStyle(.secondary)
@@ -27,7 +27,7 @@ struct MaintenanceView: View {
                             Spacer()
                             if let ok = results[task] {
                                 Image(systemName: ok ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                    .foregroundStyle(ok ? Theme.accent : .secondary)
+                                    .foregroundStyle(ok ? Color.white : .secondary)
                             }
                         }
                         .modifier(RowBackground(highlighted: isOn.wrappedValue))

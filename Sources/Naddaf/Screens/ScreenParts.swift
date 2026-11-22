@@ -24,7 +24,11 @@ struct DoneView: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            Image(systemName: "checkmark.circle.fill").font(.system(size: 72)).foregroundStyle(Theme.accent)
+            Image(systemName: "checkmark")
+                .font(.system(size: 40, weight: .bold))
+                .foregroundStyle(LinearGradient(colors: [.white, .white.opacity(0.6)], startPoint: .top, endPoint: .bottom))
+                .frame(width: 96, height: 96)
+                .glassEffect(.clear, in: .circle)
             Text(String(format: L("common.cleaned"), formatBytes(result.freedBytes)))
                 .font(.system(size: 28, weight: .bold))
             if undoable { Text(L("preview.undo")).foregroundStyle(.secondary) }
@@ -61,6 +65,54 @@ struct LiquidButtonStyle: ButtonStyle {
             .opacity(enabled ? 1 : 0.5)
             .scaleEffect(configuration.isPressed ? 0.96 : 1)
             .animation(.snappy(duration: 0.15), value: configuration.isPressed)
+    }
+}
+
+/// Clear glass tick box: a frosted rounded square with a white tick, no system blue.
+struct GlassCheckStyle: ToggleStyle {
+    @Environment(\.isEnabled) private var enabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        Button { configuration.isOn.toggle() } label: {
+            RoundedRectangle(cornerRadius: 6)
+                .fill(.white.opacity(configuration.isOn ? 0.3 : 0.06))
+                .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(.white.opacity(configuration.isOn ? 0.6 : 0.3), lineWidth: 1))
+                .overlay {
+                    if configuration.isOn {
+                        Image(systemName: "checkmark").font(.system(size: 11, weight: .heavy)).foregroundStyle(.white)
+                    }
+                }
+                .frame(width: 20, height: 20)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .opacity(enabled ? 1 : 0.4)
+        .accessibilityAddTraits(configuration.isOn ? .isSelected : [])
+    }
+}
+
+extension ToggleStyle where Self == GlassCheckStyle {
+    static var glassCheck: GlassCheckStyle { GlassCheckStyle() }
+}
+
+/// Small clear-glass capsule label (e.g. "quit the app first").
+struct GlassBadge: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 10).padding(.vertical, 4)
+            .glassEffect(.clear, in: .capsule)
+    }
+}
+
+extension View {
+    /// Search field drawn as a clear glass capsule.
+    func glassField() -> some View {
+        textFieldStyle(.plain)
+            .padding(.horizontal, 14).padding(.vertical, 7)
+            .glassEffect(.clear, in: .capsule)
+            .overlay(Capsule().strokeBorder(.white.opacity(0.25), lineWidth: 1))
     }
 }
 

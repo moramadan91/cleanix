@@ -40,7 +40,7 @@ struct PermissionsView: View {
                                 }
                                 Spacer()
                                 Image(systemName: entry.allowed ? "checkmark.circle.fill" : "minus.circle")
-                                    .foregroundStyle(entry.allowed ? Theme.accent : .secondary)
+                                    .foregroundStyle(entry.allowed ? Color.white : .secondary)
                             }
                             .modifier(RowBackground())
                         }

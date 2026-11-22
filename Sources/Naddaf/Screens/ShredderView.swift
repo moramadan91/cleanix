@@ -60,10 +60,11 @@ struct ShredderView: View {
             Button(L("shred.choose")) { picking = true }.buttonStyle(.liquid())
         }
         .frame(maxWidth: .infinity, minHeight: 200, maxHeight: .infinity)
-        .background(
+        .glassEffect(targeted ? .regular : .clear, in: .rect(cornerRadius: 28))
+        .overlay(
             RoundedRectangle(cornerRadius: 28)
-                .strokeBorder(style: StrokeStyle(lineWidth: 2, dash: [8, 8]))
-                .foregroundStyle(targeted ? Theme.accent : .white.opacity(0.3))
+                .strokeBorder(style: StrokeStyle(lineWidth: 1.5, dash: [8, 8]))
+                .foregroundStyle(.white.opacity(targeted ? 0.7 : 0.3))
         )
         .dropDestination(for: URL.self) { dropped, _ in
             add(dropped)

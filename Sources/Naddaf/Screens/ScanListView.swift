@@ -105,7 +105,7 @@ struct ScanListView: View {
             get: { selected.contains(item.url) },
             set: { if $0 { selected.insert(item.url) } else { selected.remove(item.url) } })
         return HStack(spacing: 12) {
-            if !isReveal { Toggle("", isOn: isOn).labelsHidden().toggleStyle(.checkbox) }
+            if !isReveal { Toggle("", isOn: isOn).labelsHidden().toggleStyle(.glassCheck) }
             Image(nsImage: NSWorkspace.shared.icon(forFile: item.url.path)).resizable().frame(width: 28, height: 28)
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.url.lastPathComponent).font(.system(size: 15, weight: .semibold)).lineLimit(1)

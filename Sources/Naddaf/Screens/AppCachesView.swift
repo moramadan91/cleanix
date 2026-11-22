@@ -79,15 +79,11 @@ struct AppCachesView: View {
         let isOpen = expanded.contains(group.id)
         return VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 12) {
-                Toggle("", isOn: isOn).labelsHidden().toggleStyle(.checkbox)
+                Toggle("", isOn: isOn).labelsHidden().toggleStyle(.glassCheck)
                 Image(nsImage: icon(for: group)).resizable().frame(width: 32, height: 32)
                 Text(group.appName).font(.system(size: 16, weight: .semibold)).lineLimit(1)
                 if group.isRunning {
-                    Text(L("caches.quitFirst"))
-                        .font(.system(size: 12, weight: .semibold))
-                        .padding(.horizontal, 10).padding(.vertical, 4)
-                        .background(Capsule().fill(Theme.accent.opacity(0.22)))
-                        .foregroundStyle(Theme.accent)
+                    Text(L("caches.quitFirst")).modifier(GlassBadge())
                 }
                 Spacer()
                 Text(formatBytes(group.bytes)).font(.system(size: 15, weight: .medium)).monospacedDigit()

@@ -111,7 +111,7 @@ struct DiskMapView: View {
             get: { selected.contains(node.url) },
             set: { if $0 { selected.insert(node.url) } else { selected.remove(node.url) } })
         return HStack(spacing: 12) {
-            Toggle("", isOn: isOn).labelsHidden().toggleStyle(.checkbox).disabled(!canTick).opacity(canTick ? 1 : 0.3)
+            Toggle("", isOn: isOn).labelsHidden().toggleStyle(.glassCheck).disabled(!canTick).opacity(canTick ? 1 : 0.3)
             Image(nsImage: other ? NSWorkspace.shared.icon(for: .folder) : NSWorkspace.shared.icon(forFile: node.url.path))
                 .resizable().frame(width: 34, height: 34)
             VStack(alignment: .leading, spacing: 4) {
