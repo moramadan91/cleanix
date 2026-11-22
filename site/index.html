@@ -4,198 +4,199 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Cleanix — نضّف الماك ببلاش</title>
-<meta name="description" content="Cleanix: free, open-source Mac cleaner in Arabic and English.">
-<meta property="og:title" content="Cleanix">
+<meta name="description" content="Cleanix: a free, open-source Mac cleaner in Arabic and English. Native, safe, and it shows you everything before it removes it.">
+<meta property="og:title" content="Cleanix — Clean your Mac, free">
 <meta property="og:description" content="برنامج مجاني ومفتوح المصدر لتنضيف الماك، بالعربي والإنجليزي.">
-<meta property="og:image" content="icon.png">
+<meta property="og:image" content="https://cleanixapp.vercel.app/icon.png">
+<meta name="theme-color" content="#171222">
 <link rel="icon" href="favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@400;600;700&display=swap" rel="stylesheet">
-<style>
-  :root {
-    --violet: #6035F5;
-    --lavender: #EAE4FF;
-    --charcoal: #171222;
-    --white: #FFFFFF;
-    --muted: #B9B0D6;
-    --line: rgba(234, 228, 255, 0.14);
-  }
-  * { box-sizing: border-box; margin: 0; }
-  html { -webkit-text-size-adjust: 100%; }
-  body {
-    background: var(--charcoal);
-    color: var(--white);
-    font-family: "Readex Pro", system-ui, sans-serif;
-    line-height: 1.6;
-  }
-  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 24px; }
-  header { display: flex; justify-content: space-between; align-items: center; padding: 24px 0; }
-  .brand { display: flex; align-items: center; gap: 10px; }
-  .brand img { width: 36px; height: 36px; }
-  .brand span { font-weight: 700; font-size: 20px; }
-  .lang {
-    background: none; color: var(--lavender); border: 1px solid var(--line);
-    border-radius: 999px; padding: 6px 16px; font: inherit; cursor: pointer;
-  }
-  .lang:focus-visible, .cta:focus-visible, a:focus-visible { outline: 3px solid var(--lavender); outline-offset: 3px; }
-
-  .hero { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 48px; align-items: center; padding: 56px 0 80px; }
-  h1 { font-size: clamp(36px, 6vw, 64px); line-height: 1.15; font-weight: 700; }
-  .lead { color: var(--muted); font-size: 19px; margin-top: 18px; max-width: 34ch; }
-  .actions { margin-top: 32px; display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
-  .cta {
-    display: inline-flex; align-items: center; gap: 10px;
-    background: var(--violet); color: var(--white); text-decoration: none;
-    font-weight: 600; font-size: 18px; padding: 16px 30px; border-radius: 999px;
-    transition: transform 120ms ease;
-  }
-  .cta:hover { transform: translateY(-2px); }
-  .cta svg { width: 20px; height: 20px; }
-  .meta { color: var(--muted); font-size: 14px; }
-  .ghost { color: var(--lavender); font-size: 15px; }
-
-  /* The logo, tinted from the white cut-outs, with a one-time glitch on load. */
-  .logo { display: grid; justify-items: center; gap: 28px; }
-  .piece { background: var(--violet); -webkit-mask: var(--src) center / contain no-repeat; mask: var(--src) center / contain no-repeat; }
-  .mark { width: min(300px, 70vw); aspect-ratio: 1173 / 895; position: relative; --src: url(mark.png); }
-  .mark::before, .mark::after {
-    content: ""; position: absolute; inset: 0;
-    -webkit-mask: url(mark.png) center / contain no-repeat; mask: url(mark.png) center / contain no-repeat;
-    opacity: 0;
-  }
-  .mark::before { background: #3CF2FF; }
-  .mark::after { background: #FF4FD8; }
-  .word { width: min(250px, 58vw); aspect-ratio: 1545 / 379; --src: url(wordmark.png); }
-
-  @media (prefers-reduced-motion: no-preference) {
-    .mark { animation: tear 0.9s steps(1) both; }
-    .mark::before { animation: splitA 0.9s steps(1) both; }
-    .mark::after { animation: splitB 0.9s steps(1) both; }
-    .word { animation: build 0.6s 0.7s cubic-bezier(.2,.8,.2,1) both; }
-  }
-  @keyframes tear {
-    0% { opacity: 0; } 8% { opacity: 1; clip-path: inset(0 0 60% 0); transform: translateX(-18px); }
-    16% { clip-path: inset(30% 0 20% 0); transform: translateX(14px); }
-    26% { clip-path: inset(0); transform: translateX(-6px); }
-    40% { transform: translateX(3px); } 55%, 100% { transform: none; clip-path: inset(0); opacity: 1; }
-  }
-  @keyframes splitA { 0%, 50% { opacity: .85; transform: translate(-12px, 2px); } 30% { transform: translate(-6px, 0); } 51%, 100% { opacity: 0; } }
-  @keyframes splitB { 0%, 50% { opacity: .85; transform: translate(12px, -2px); } 30% { transform: translate(6px, 0); } 51%, 100% { opacity: 0; } }
-  @keyframes build { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
-  [dir="rtl"] .word { animation-name: build; }
-
-  section { padding: 64px 0; border-top: 1px solid var(--line); }
-  h2 { font-size: clamp(26px, 3.5vw, 36px); font-weight: 700; margin-bottom: 28px; }
-  .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 28px 40px; }
-  .features h3 { font-size: 18px; font-weight: 600; color: var(--lavender); }
-  .features p { color: var(--muted); font-size: 15px; margin-top: 4px; }
-
-  ol.steps { list-style: none; padding: 0; display: grid; gap: 18px; counter-reset: s; max-width: 680px; }
-  ol.steps li { counter-increment: s; display: grid; grid-template-columns: 40px 1fr; gap: 14px; align-items: start; }
-  ol.steps li::before {
-    content: counter(s); width: 32px; height: 32px; border-radius: 50%;
-    background: var(--lavender); color: var(--charcoal); font-weight: 700;
-    display: grid; place-items: center;
-  }
-  ol.steps b { color: var(--white); }
-  ol.steps span { color: var(--muted); }
-
-  footer { padding: 40px 0 56px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; display: flex; flex-wrap: wrap; gap: 8px 24px; }
-  footer a { color: var(--lavender); }
-
-  [data-en] { display: none; }
-  html[lang="en"] [data-ar] { display: none; }
-  html[lang="en"] [data-en] { display: revert; }
-
-  @media (max-width: 760px) {
-    .hero { grid-template-columns: 1fr; padding-top: 24px; gap: 40px; }
-    .logo { order: -1; }
-    .wrap { padding: 0 16px; }
-  }
-</style>
+<link href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css?v=2">
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <div class="brand"><img src="icon.png" alt=""><span>Cleanix</span></div>
-    <button class="lang" id="lang" type="button">English</button>
-  </header>
+<a class="skip" href="#main"><span data-ar>انتقل للمحتوى</span><span data-en>Skip to content</span></a>
 
-  <main>
-    <div class="hero">
-      <div>
-        <h1 data-ar>نضّف الماك بتاعك ببلاش.</h1>
-        <h1 data-en>Clean your Mac, free.</h1>
-        <p class="lead" data-ar>برنامج مفتوح المصدر، بالعربي والإنجليزي. بيلاقي الملفات اللي مالهاش لازمة ويوريك كل حاجة قبل ما يمسحها.</p>
-        <p class="lead" data-en>Open source, in Arabic and English. It finds the files you don't need and shows you every one before it removes anything.</p>
-        <div class="actions">
-          <a class="cta" href="https://github.com/moramadan91/cleanix/releases/latest/download/Cleanix.dmg">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12m0 0l-5-5m5 5l5-5M5 20h14"/></svg>
-            <span data-ar>حمّل للماك</span><span data-en>Download for Mac</span>
-          </a>
-          <span class="meta"><span id="ver"></span> <span data-ar>· macOS 26 أو أحدث</span><span data-en>· macOS 26 or later</span></span>
-        </div>
-      </div>
-      <div class="logo" aria-label="Cleanix">
-        <div class="piece mark"></div>
-        <div class="piece word"></div>
+<header class="bar">
+  <a class="brand" href="#top" aria-label="Cleanix">
+    <img src="icon.png" alt="" width="34" height="34"><span>Cleanix</span>
+  </a>
+  <nav class="bar-links" aria-label="Main">
+    <a href="#features"><span data-ar>المميزات</span><span data-en>Features</span></a>
+    <a href="#safety"><span data-ar>الأمان</span><span data-en>Safety</span></a>
+    <a href="#get"><span data-ar>التسطيب</span><span data-en>Install</span></a>
+  </nav>
+  <div class="bar-end">
+    <button class="lang" id="lang" type="button">English</button>
+    <a class="pill" href="https://github.com/moramadan91/cleanix/releases/latest/download/Cleanix.dmg">
+      <span data-ar>حمّل</span><span data-en>Download</span>
+    </a>
+  </div>
+</header>
+
+<main id="main">
+
+  <!-- 1. The mess, then the clean-up: the logo pulls every file into itself as you scroll. -->
+  <section class="mess" id="top" aria-labelledby="h-hero">
+    <div class="mess-pin">
+      <div class="junk" id="junk" aria-hidden="true"></div>
+      <svg class="vortex" viewBox="-100 -100 200 200" aria-hidden="true">
+        <circle r="62" class="v1"/><circle r="76" class="v2"/><circle r="90" class="v3"/>
+      </svg>
+      <div class="core">
+        <div class="glitch mark-wrap" id="heroMark"><div class="piece mark"></div></div>
+        <h1 id="h-hero" class="hero-title">
+          <span class="t-before"><span data-ar>ماكك مليان كراكيب.</span><span data-en>Your Mac is full of junk.</span></span>
+          <span class="t-after"><span data-ar>اتنضّف.</span><span data-en>Clean.</span></span>
+        </h1>
+        <p class="counter" aria-live="off"><b id="count">0</b> <span data-ar>ملف اتشفط</span><span data-en>files swept</span></p>
+        <p class="scroll-hint"><span data-ar>انزل لتحت ونضّف</span><span data-en>Scroll to clean it</span></p>
       </div>
     </div>
+  </section>
 
-    <section>
-      <h2 data-ar>بيعمل إيه</h2><h2 data-en>What it does</h2>
-      <div class="features">
-        <div><h3 data-ar>فحص شامل</h3><h3 data-en>Smart Scan</h3>
-          <p data-ar>ضغطة واحدة: ملفات النظام والكاش والمتصفحات.</p><p data-en>One click: system junk, app and browser caches.</p></div>
-        <div><h3 data-ar>إزالة البرامج</h3><h3 data-en>Uninstall apps</h3>
-          <p data-ar>يشيل البرنامج ومعاه البقايا اللي سايبها.</p><p data-en>Removes an app and everything it left behind.</p></div>
-        <div><h3 data-ar>الملفات الكبيرة والمكررة</h3><h3 data-en>Large and duplicate files</h3>
-          <p data-ar>والصور المتشابهة والتنزيلات القديمة.</p><p data-en>Plus similar photos and old downloads.</p></div>
-        <div><h3 data-ar>خريطة القرص</h3><h3 data-en>Disk Map</h3>
-          <p data-ar>تشوف إيه اللي واخد المساحة، ومتعلم آمن ولا لأ.</p><p data-en>See what takes space, marked safe or not.</p></div>
-        <div><h3 data-ar>الخصوصية والأداء</h3><h3 data-en>Privacy and performance</h3>
-          <p data-ar>بيانات المتصفح، الصيانة، وبرامج بدء التشغيل.</p><p data-en>Browser data, maintenance, login items.</p></div>
-        <div><h3 data-ar>بأمان</h3><h3 data-en>Safe by design</h3>
-          <p data-ar>اللي بيتمسح بيستنى 30 يوم وتقدر ترجّعه.</p><p data-en>Removed items wait 30 days and can be restored.</p></div>
+  <section class="intro" aria-labelledby="h-intro">
+    <div class="piece word big-word" aria-hidden="true"></div>
+    <h2 id="h-intro" class="intro-title">
+      <span data-ar>منضّف ماك مجاني ومفتوح المصدر، بالعربي والإنجليزي.</span>
+      <span data-en>A free, open-source Mac cleaner, in Arabic and English.</span>
+    </h2>
+    <div class="cta-row">
+      <a class="cta" href="https://github.com/moramadan91/cleanix/releases/latest/download/Cleanix.dmg">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v12m0 0-5-5m5 5 5-5M5 20h14"/></svg>
+        <span data-ar>حمّل للماك</span><span data-en>Download for Mac</span>
+      </a>
+      <span class="meta"><span class="ver"></span><span data-ar>macOS 26 أو أحدث</span><span data-en>macOS 26 or later</span></span>
+    </div>
+  </section>
+
+  <!-- 2. Features: each one starts as its icon and opens into the real screen. -->
+  <div id="features">
+    <section class="scene" data-scene="scan" style="--c1:#FFAA3D;--c2:#FF5A3D" aria-labelledby="h-scan">
+      <div class="scene-pin">
+        <div class="scene-copy">
+          <p class="scene-no">01</p>
+          <h2 id="h-scan" class="split"><span data-ar>ضغطة واحدة. كل الكراكيب.</span><span data-en>One click. All the junk.</span></h2>
+          <p><span data-ar>الفحص الشامل بيدوّر على ملفات النظام وكاش البرامج والمتصفحات مرة واحدة، ويوريك قد إيه ممكن يتنضف بأمان.</span><span data-en>Smart Scan checks system junk, app caches and browser caches at once, and tells you how much is safe to clean.</span></p>
+        </div>
+        <div class="stage">
+          <div class="screen"><img data-ar src="shots/ar-scan.webp" alt="شاشة الفحص الشامل في Cleanix" loading="lazy"><img data-en src="shots/en-scan.webp" alt="The Smart Scan screen in Cleanix" loading="lazy"></div>
+          <div class="orb"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M26 8c1.5 8 4.5 11 12 12.5C30.5 22 27.5 25 26 33c-1.5-8-4.5-11-12-12.5C21.5 19 24.5 16 26 8Z"/><path d="M13 28c.8 3.6 2.2 5 5.8 5.8-3.6.8-5 2.2-5.8 5.8-.8-3.6-2.2-5-5.8-5.8 3.6-.8 5-2.2 5.8-5.8Z"/></svg></div>
+          <div class="beam" aria-hidden="true"></div>
+        </div>
       </div>
     </section>
 
-    <section>
-      <h2 data-ar>التسطيب</h2><h2 data-en>Install</h2>
-      <ol class="steps">
-        <li data-ar><div><b>افتح الملف واسحب Cleanix على Applications.</b></div></li>
-        <li data-en><div><b>Open the file and drag Cleanix to Applications.</b></div></li>
-        <li data-ar><div><b>أول مرة: كليك يمين على البرنامج واختار Open.</b><br><span>البرنامج لسه مش موثّق من Apple، فالماك هيسألك مرة واحدة.</span></div></li>
-        <li data-en><div><b>The first time: right-click the app and choose Open.</b><br><span>It is not notarized by Apple yet, so macOS asks once.</span></div></li>
-        <li data-ar><div><b>اديله Full Disk Access.</b><br><span>البرنامج بيوريك زرار يفتحلك الصفحة الصح في الإعدادات.</span></div></li>
-        <li data-en><div><b>Give it Full Disk Access.</b><br><span>The app shows a button that opens the right settings page.</span></div></li>
-        <li data-ar><div><b>التحديثات بتوصل لوحدها.</b><br><span>البرنامج بيسألك قبل ما يسطّب أي نسخة جديدة.</span></div></li>
-        <li data-en><div><b>Updates arrive on their own.</b><br><span>The app asks you before it installs a new version.</span></div></li>
-      </ol>
+    <section class="scene" data-scene="apps" style="--c1:#4C8DFF;--c2:#2230A8" aria-labelledby="h-apps">
+      <div class="scene-pin">
+        <div class="scene-copy">
+          <p class="scene-no">02</p>
+          <h2 id="h-apps" class="split"><span data-ar>شيل البرنامج، وبقاياه معاه.</span><span data-en>Remove the app, and what it left.</span></h2>
+          <p><span data-ar>لما تمسح برنامج بالسحب للسلة بيفضل وراه كاش وإعدادات. Cleanix بيلاقيها ويشيلها معاه، ويوريك البرامج اللي مابتفتحهاش.</span><span data-en>Dragging an app to the Trash leaves caches and settings behind. Cleanix finds them and removes them too, and shows the apps you never open.</span></p>
+        </div>
+        <div class="stage">
+          <div class="screen"><img data-ar src="shots/ar-apps.webp" alt="شاشة إزالة البرامج" loading="lazy"><img data-en src="shots/en-apps.webp" alt="The Uninstall screen" loading="lazy"></div>
+          <div class="orb"><svg viewBox="0 0 48 48" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="3"/><rect x="27" y="9" width="12" height="12" rx="3"/><rect x="9" y="27" width="12" height="12" rx="3"/><rect x="27" y="27" width="12" height="12" rx="3"/></svg></div>
+          <div class="shards" aria-hidden="true"></div>
+        </div>
+      </div>
     </section>
-  </main>
 
-  <footer>
-    <span data-ar>مجاني ومفتوح المصدر (MIT)</span><span data-en>Free and open source (MIT)</span>
-    <a href="https://github.com/moramadan91/cleanix">GitHub</a>
-  </footer>
-</div>
-<script>
-  const html = document.documentElement, btn = document.getElementById('lang');
-  function setLang(l) {
-    html.lang = l; html.dir = l === 'ar' ? 'rtl' : 'ltr';
-    btn.textContent = l === 'ar' ? 'English' : 'العربية';
-    try { localStorage.setItem('cleanix.lang', l); } catch (e) {}
-  }
-  let saved = null;
-  try { saved = localStorage.getItem('cleanix.lang'); } catch (e) {}
-  setLang(saved || (navigator.language.startsWith('ar') ? 'ar' : 'en'));
-  btn.addEventListener('click', () => setLang(html.lang === 'ar' ? 'en' : 'ar'));
-  fetch('https://api.github.com/repos/moramadan91/cleanix/releases/latest')
-    .then(r => r.ok ? r.json() : null)
-    .then(j => { if (j && j.tag_name) document.getElementById('ver').textContent = j.tag_name; })
-    .catch(() => {});
-</script>
+    <section class="scene" data-scene="clutter" style="--c1:#1FC8D6;--c2:#0D6B80" aria-labelledby="h-clutter">
+      <div class="scene-pin">
+        <div class="scene-copy">
+          <p class="scene-no">03</p>
+          <h2 id="h-clutter" class="split"><span data-ar>خمس نسخ؟ خليها واحدة.</span><span data-en>Five copies? Keep one.</span></h2>
+          <p><span data-ar>الملفات الكبيرة والقديمة، المكرر، الصور المتشابهة، والتنزيلات اللي نسيتها. كله في مكان واحد وانت اللي بتختار.</span><span data-en>Large and old files, duplicates, similar photos and forgotten downloads. All in one place, and you choose.</span></p>
+        </div>
+        <div class="stage">
+          <div class="screen"><img data-ar src="shots/ar-clutter.webp" alt="شاشة الفوضى" loading="lazy"><img data-en src="shots/en-clutter.webp" alt="The Clutter screen" loading="lazy"></div>
+          <div class="orb"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M7 15a3 3 0 0 1 3-3h9l4 4h15a3 3 0 0 1 3 3v15a3 3 0 0 1-3 3H10a3 3 0 0 1-3-3Z"/><path d="M7 21h34"/></svg></div>
+          <div class="dupes" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene" data-scene="disk" style="--c1:#F5C542;--c2:#6E4A0C" aria-labelledby="h-disk">
+      <div class="scene-pin">
+        <div class="scene-copy">
+          <p class="scene-no">04</p>
+          <h2 id="h-disk" class="split"><span data-ar>شوف مين واكل المساحة.</span><span data-en>See what ate your disk.</span></h2>
+          <p><span data-ar>خريطة القرص بتوريك كل فولدر وحجمه، ومتعلّم عليه: آمن تمسحه، راجعه الأول، أو ما تقربش.</span><span data-en>Disk Map shows every folder and its size, marked safe to delete, review first, or do not touch.</span></p>
+        </div>
+        <div class="stage">
+          <div class="screen"><img data-ar src="shots/ar-disk.webp" alt="شاشة خريطة القرص" loading="lazy"><img data-en src="shots/en-disk.webp" alt="The Disk Map screen" loading="lazy"></div>
+          <div class="orb"><svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="15"/><path d="M24 9v15l11 10"/></svg></div>
+          <svg class="ring" viewBox="-60 -60 120 120" aria-hidden="true"></svg>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- 3. Everything else, as a running strip. -->
+  <section class="more" aria-labelledby="h-more">
+    <h2 id="h-more" class="sr"><span data-ar>وكمان</span><span data-en>And also</span></h2>
+    <div class="ticker" aria-hidden="true"><div class="ticker-row" id="tick1"></div><div class="ticker-row rev" id="tick2"></div></div>
+    <ul class="more-list">
+      <li><b><span data-ar>الخصوصية</span><span data-en>Privacy</span></b><span data-ar>امسح بيانات المتصفحات.</span><span data-en>Clear browser data.</span></li>
+      <li><b><span data-ar>الفرّامة</span><span data-en>Shredder</span></b><span data-ar>امسح ملف بحيث ما يرجعش.</span><span data-en>Erase a file for good.</span></li>
+      <li><b><span data-ar>الأداء</span><span data-en>Performance</span></b><span data-ar>صيانة وبرامج بدء التشغيل.</span><span data-en>Maintenance and login items.</span></li>
+      <li><b><span data-ar>السحابة</span><span data-en>Cloud</span></b><span data-ar>فضّي نسخ iCloud المحلية.</span><span data-en>Free local iCloud copies.</span></li>
+      <li><b><span data-ar>المرفقات</span><span data-en>Mail attachments</span></b><span data-ar>مرفقات البريد اللي اتنزلت.</span><span data-en>Downloaded mail attachments.</span></li>
+      <li><b><span data-ar>تحديثات لوحدها</span><span data-en>Auto updates</span></b><span data-ar>موقّعة، وبيسألك الأول.</span><span data-en>Signed, and it asks first.</span></li>
+    </ul>
+  </section>
+
+  <!-- 4. Safety: a file goes to quarantine, waits, and comes back with Undo. -->
+  <section class="safety" id="safety" aria-labelledby="h-safe">
+    <div class="safety-pin">
+      <div class="safety-copy">
+        <h2 id="h-safe"><span data-ar>ولا حاجة بتتمسح من غير ما تشوفها.</span><span data-en>Nothing goes without you seeing it.</span></h2>
+        <p><span data-ar>قبل أي تنضيف بتشوف لستة بكل ملف. اللي بيتنضف بيروح الحجر الصحي 30 يوم، وتقدر ترجّعه بزرار. والمسح بيعدي على لستة فولدرات مسموح بيها بس.</span><span data-en>Before any clean-up you see a list of every file. Cleaned items go to quarantine for 30 days and come back with one button. And deletion only ever touches an allowlist of folders.</span></p>
+      </div>
+      <div class="vault" aria-hidden="true">
+        <div class="file-chip travel"><svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6Z"/><path d="M14 3v4h4"/></svg><span>old-video.mov</span></div>
+        <div class="box">
+          <p class="box-label"><span data-ar>الحجر الصحي</span><span data-en>Quarantine</span></p>
+          <p class="days"><b id="days">30</b> <span data-ar>يوم</span><span data-en>days</span></p>
+        </div>
+        <div class="undo"><svg viewBox="0 0 24 24"><path d="M9 7 4 12l5 5"/><path d="M4 12h10a6 6 0 0 1 0 12h-2"/></svg><span data-ar>رجّع</span><span data-en>Undo</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. Download and install. -->
+  <section class="get" id="get" aria-labelledby="h-get">
+    <div class="piece word huge-word" aria-hidden="true"></div>
+    <h2 id="h-get"><span data-ar>نضّف ماكك النهارده.</span><span data-en>Clean your Mac today.</span></h2>
+    <div class="cta-row">
+      <a class="cta" href="https://github.com/moramadan91/cleanix/releases/latest/download/Cleanix.dmg">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v12m0 0-5-5m5 5 5-5M5 20h14"/></svg>
+        <span data-ar>حمّل للماك</span><span data-en>Download for Mac</span>
+      </a>
+      <span class="meta"><span class="ver"></span><span data-ar>مجاني · macOS 26 أو أحدث</span><span data-en>Free · macOS 26 or later</span></span>
+    </div>
+    <ol class="steps">
+      <li><b><span data-ar>اسحب Cleanix على Applications</span><span data-en>Drag Cleanix to Applications</span></b>
+        <span data-ar>افتح الملف اللي نزل واسحب البرنامج.</span><span data-en>Open the file you downloaded and drag the app.</span></li>
+      <li><b><span data-ar>افتحه أول مرة</span><span data-en>Open it the first time</span></b>
+        <span data-ar>لو الماك قال إنه مش متأكد من المطوّر، دوس Done، وروح System Settings ← Privacy &amp; Security ← Open Anyway.</span><span data-en>If macOS can't verify the developer, click Done, then System Settings → Privacy &amp; Security → Open Anyway.</span></li>
+      <li><b><span data-ar>اديله Full Disk Access</span><span data-en>Give it Full Disk Access</span></b>
+        <span data-ar>البرنامج بيوريك زرار يفتحلك الصفحة الصح.</span><span data-en>The app shows a button that opens the right page.</span></li>
+      <li><b><span data-ar>وخلاص</span><span data-en>That's it</span></b>
+        <span data-ar>التحديثات بتوصل لوحدها وبيسألك قبل ما يسطّب.</span><span data-en>Updates arrive on their own, and it asks before installing.</span></li>
+    </ol>
+  </section>
+</main>
+
+<footer class="foot">
+  <span data-ar>Cleanix مجاني ومفتوح المصدر برخصة MIT.</span><span data-en>Cleanix is free and open source under the MIT license.</span>
+  <a href="https://github.com/moramadan91/cleanix">GitHub</a>
+  <a href="https://github.com/moramadan91/cleanix/releases"><span data-ar>كل الإصدارات</span><span data-en>All releases</span></a>
+</footer>
+
+<div class="cut" id="cut" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+<script type="module" src="main.js?v=3"></script>
 </body>
 </html>
