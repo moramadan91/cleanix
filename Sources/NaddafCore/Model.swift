@@ -9,8 +9,11 @@ public struct ScanItem: Identifiable, Hashable, Sendable {
     public let reason: String
     public let safety: Safety
     public let group: String
+    /// Name shown instead of the file name (e.g. an extension's name for its id folder).
+    public let title: String?
 
-    public init(url: URL, bytes: Int64, reason: String, safety: Safety, group: String) {
+    public init(url: URL, bytes: Int64, reason: String, safety: Safety, group: String, title: String? = nil) {
+        self.title = title
         self.url = url
         self.bytes = bytes
         self.reason = reason
