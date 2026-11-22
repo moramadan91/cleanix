@@ -51,33 +51,39 @@ private struct SidebarItem: View {
     @State private var hovering = false
 
     private var glass: Glass {
-        if hovering { return .regular.tint(section.tint.opacity(0.85)).interactive() }
-        if isSelected { return .regular.tint(Theme.accent.opacity(0.32)).interactive() }
-        return .regular.interactive()
+        isSelected ? .regular.tint(Theme.accent.opacity(0.32)) : .regular
     }
 
     var body: some View {
+        // The glass circle never changes size (resizing glass every frame is what made the pill stutter).
+        // The pill is a plain capsule fill that grows behind it, which the GPU animates cheaply.
         Button(action: action) {
             HStack(spacing: 6) {
                 Image(systemName: section.symbol)
                     .font(.system(size: size * 0.42, weight: .semibold))
                     .frame(width: size, height: size)
-                if hovering {
-                    Text(section.title)
-                        .font(.system(size: 19, weight: .semibold))
-                        .lineLimit(1)
-                        .fixedSize()
-                        .transition(.opacity.combined(with: .move(edge: .leading)))
-                    Spacer(minLength: 0)
-                }
+                    .glassEffect(glass, in: .circle)
+                Text(section.title)
+                    .font(.system(size: 19, weight: .semibold))
+                    .lineLimit(1)
+                    .fixedSize()
+                    .opacity(hovering ? 1 : 0)
+                Spacer(minLength: 0)
             }
             .foregroundStyle(hovering ? Color.white : (isSelected ? Theme.accent : Color.white.opacity(0.92)))
             .frame(width: hovering ? 240 : size, height: size, alignment: .leading)
+            .background {
+                Capsule()
+                    .fill(LinearGradient(colors: [section.tint, section.tint2], startPoint: .leading, endPoint: .trailing))
+                    .overlay(Capsule().strokeBorder(.white.opacity(0.25), lineWidth: 1))
+                    .opacity(hovering ? 1 : 0)
+            }
+            .clipShape(Capsule())
+            .contentShape(Capsule())
         }
         .buttonStyle(.plain)
-        .glassEffect(glass, in: .capsule)
         .onHover { hovering = $0 }
-        .animation(.spring(duration: 0.3, bounce: 0.18), value: hovering)
+        .animation(.snappy(duration: 0.22), value: hovering)
         .frame(width: size, height: size, alignment: .leading)
         .zIndex(hovering ? 1 : 0)
         .accessibilityLabel(section.title)
@@ -89,35 +95,25 @@ private struct SectionPage: View {
     let section: AppSection
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            HStack(spacing: 30) {
-                VStack(alignment: .leading, spacing: 22) {
-                    Text(section.title)
-                        .font(.system(size: 58, weight: .bold))
-                    Text(section.subtitle)
-                        .font(.system(size: 22, weight: .regular))
-                        .foregroundStyle(.white.opacity(0.75))
-                    VStack(alignment: .leading, spacing: 12) {
-                        ForEach(section.features, id: \.self) { feature in
-                            Label(feature, systemImage: "checkmark")
-                                .font(.system(size: 18, weight: .semibold))
-                                .padding(.horizontal, 20)
-                                .padding(.vertical, 12)
-                                .glassEffect(.regular.tint(section.tint.opacity(0.30)), in: .capsule)
-                        }
-                    }
-                    .padding(.top, 6)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .id("text-\(section.id)")
-                .transition(.opacity)
-                SectionHero(section: section)
-                    .frame(maxWidth: .infinity)
-                    .id("hero-\(section.id)")
-                    .transition(.scale(scale: 0.86).combined(with: .opacity))
+        // Title sits top-center, clear of the sidebar pills; the hero fills the middle.
+        VStack(spacing: 0) {
+            VStack(spacing: 8) {
+                Text(section.title)
+                    .font(.system(size: 34, weight: .bold))
+                Text(section.subtitle)
+                    .font(.system(size: 16, weight: .regular))
+                    .foregroundStyle(.white.opacity(0.75))
             }
-            .padding(.horizontal, 40)
-            .frame(maxHeight: .infinity)
+            .multilineTextAlignment(.center)
+            .padding(.top, 40)
+            .id("text-\(section.id)")
+            .transition(.opacity)
+
+            Spacer(minLength: 0)
+            SectionHero(section: section)
+                .id("hero-\(section.id)")
+                .transition(.scale(scale: 0.86).combined(with: .opacity))
+            Spacer(minLength: 0)
 
             Button {} label: {
                 Text(L("common.scan"))
@@ -128,5 +124,6 @@ private struct SectionPage: View {
             .tint(Theme.accent)
             .padding(.bottom, 34)
         }
+        .frame(maxWidth: .infinity)
     }
 }
