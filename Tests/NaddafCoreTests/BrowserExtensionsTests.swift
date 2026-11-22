@@ -32,3 +32,16 @@ import Foundation
     let urls = BrowserExtensionsScanner.parsePluginkit(out)
     #expect(urls.map(\.lastPathComponent) == ["Acme Blocker.appex", "Other.appex"])
 }
+
+@Test func chromiumPicksNewestVersionFolder() async throws {
+    try await withTempDirAsync { home in
+        let ext = home.appendingPathComponent("Library/Application Support/Google/Chrome/Default/Extensions/abc")
+        for (folder, name) in [("1.9_0", "Old"), ("1.10_0", "New")] {
+            let dir = ext.appendingPathComponent(folder)
+            try makeFile(dir.appendingPathComponent("manifest.json"))
+            try #"{"name":"\#(name)"}"#.write(to: dir.appendingPathComponent("manifest.json"), atomically: true, encoding: .utf8)
+        }
+        let items = try await BrowserExtensionsScanner(home: home, safariLister: { [] }).scan()
+        #expect(items.map(\.title) == ["New"])
+    }
+}

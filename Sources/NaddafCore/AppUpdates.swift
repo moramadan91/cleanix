@@ -77,12 +77,18 @@ public struct UpdateChecker: Sendable {
 
     private func update(for app: AppInfo) async -> AppUpdate? {
         let plist = NSDictionary(contentsOf: app.url.appendingPathComponent("Contents/Info.plist"))
-        guard let installed = (plist?["CFBundleShortVersionString"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !installed.isEmpty else { return nil }
+        func installedVersion(for key: String) -> String? {
+            guard let value = (plist?[key] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  !value.isEmpty else { return nil }
+            return value
+        }
 
+        let short = installedVersion(for: "CFBundleShortVersionString")
+        let installed: String?
         let latest: String
         let storeURL: URL?
         if app.source == .appStore {
+            guard let short else { return nil }
             var lookup = URLComponents()
             lookup.scheme = "https"
             lookup.host = "itunes.apple.com"
@@ -90,17 +96,25 @@ public struct UpdateChecker: Sendable {
             lookup.queryItems = [URLQueryItem(name: "bundleId", value: app.bundleID)]
             guard let url = lookup.url, let data = try? await fetchWithTimeout(url),
                   let result = Self.storeResult(in: data) else { return nil }
+            installed = short
             latest = result.version
             storeURL = result.storeURL
         } else {
             guard let feed = plist?["SUFeedURL"] as? String, let url = Self.httpsURL(feed),
                   let data = try? await fetchWithTimeout(url),
                   let version = Self.appcastVersion(in: data) else { return nil }
-            latest = version
+            switch version {
+            case .short(let value):
+                installed = short
+                latest = value
+            case .build(let value):
+                installed = installedVersion(for: "CFBundleVersion")
+                latest = value
+            }
             storeURL = nil
         }
-        guard compareVersions(latest, installed) == .orderedDescending else { return nil }
-        return AppUpdate(app: app, installed: installed, latest: latest, storeURL: storeURL)
+        guard let installed, compareVersions(latest, installed) == .orderedDescending else { return nil }
+        return AppUpdate(app: app, installed: short ?? installed, latest: latest, storeURL: storeURL)
     }
 
     private func fetchWithTimeout(_ url: URL) async throws -> Data {
@@ -116,7 +130,12 @@ public struct UpdateChecker: Sendable {
         }
     }
 
-    static func appcastVersion(in data: Data) -> String? {
+    enum AppcastVersion: Equatable {
+        case short(String)
+        case build(String)
+    }
+
+    static func appcastVersion(in data: Data) -> AppcastVersion? {
         let parser = XMLParser(data: data)
         let appcast = AppcastParser()
         parser.delegate = appcast
@@ -130,7 +149,11 @@ public struct UpdateChecker: Sendable {
               let rawVersion = result["version"] as? String else { return nil }
         let version = rawVersion.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !version.isEmpty else { return nil }
-        let storeURL = (result["trackViewUrl"] as? String).flatMap { URL(string: $0) }
+        let storeURL = (result["trackViewUrl"] as? String).flatMap(httpsURL).map { url in
+            var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+            components?.scheme = "macappstore"
+            return components?.url ?? url
+        }
         return (version, storeURL)
     }
 
@@ -151,7 +174,10 @@ private final class AppcastParser: NSObject, XMLParserDelegate {
     private var versions: [Field: String] = [:]
     private var field: Field?
     private var text = ""
-    var latest: String? { versions[.short] ?? versions[.build] }
+    var latest: UpdateChecker.AppcastVersion? {
+        versions[.short].map(UpdateChecker.AppcastVersion.short)
+            ?? versions[.build].map(UpdateChecker.AppcastVersion.build)
+    }
 
     func parser(_ parser: XMLParser, didStartElement name: String, namespaceURI: String?,
                 qualifiedName: String?, attributes: [String: String]) {

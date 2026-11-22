@@ -3,6 +3,7 @@ import AppKit
 import NaddafCore
 
 struct RootView: View {
+    @Environment(\.openWindow) private var openWindow
     /// Sparkle's check: shows the new version if there is one, or says the app is up to date.
     var checkForUpdates: () -> Void = {}
     @State var selection: AppSection = .smartScan
@@ -26,6 +27,13 @@ struct RootView: View {
             }
         }
         .id(lang)
+        .onAppear {
+            let open = openWindow
+            Alerts.shared.reopenMainWindow = { open(id: CleanixApp.mainWindowID) }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .openSmartScan)) { _ in
+            selection = .smartScan
+        }
         // Coming back from System Settings: check again so the banner goes away by itself.
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             hasDiskAccess = RootView.checkDiskAccess()
@@ -113,6 +121,7 @@ private struct SidebarItem: View {
 }
 
 extension EnvironmentValues {
+    @Entry var screenIsVisible = true
     /// A screen calls this when its scan starts, so the page can offer Start over.
     @Entry var screenStarted: @MainActor @Sendable () -> Void = {}
     /// Colour of the current section, for the ring around the round main button.
@@ -164,6 +173,7 @@ private struct SectionPage: View {
                         .id(generation[key, default: 0])
                         .environment(\.screenStarted) { started.insert(key) }
                         .environment(\.sectionTint, key.section.tint)
+                        .environment(\.screenIsVisible, key == now)
                         // Short lists sit under the tabs; the title never drifts down with them.
                         .frame(maxHeight: .infinity, alignment: .top)
                         .opacity(key == now ? 1 : 0)

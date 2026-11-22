@@ -81,6 +81,7 @@ struct SmartScanView: View {
             try? await Task.sleep(for: .seconds(LensScanView.duration))
             sections = await found
             UserDefaults.standard.set(sections.reduce(0) { $0 + $1.bytes }, forKey: "lastSmartScanBytes")
+            UserDefaults.standard.set(Date(), forKey: "lastSmartScanDate")
             phase = .results
         }
     }
@@ -106,16 +107,23 @@ struct SmartScanView: View {
 
 /// Storage at a glance plus the biggest easy wins. Read-only: cleaning happens in the other sections.
 struct OverviewView: View {
+    @Environment(\.screenIsVisible) private var isVisible
     let section: AppSection
+    let loginItems: LoginItemsReader
 
     @State private var total: Int64 = 0
     @State private var free: Int64 = 0
     @State private var tiles: [(key: String, bytes: Int64)] = []
     @State private var loading = false
+    @State private var refresh = 0
+    @State private var health: HealthScore?
+    @State private var battery: BatteryHealth?
+    @AppStorage("lastSmartScanBytes") private var lastScanBytes = 0
 
     var body: some View {
-        VStack(spacing: 22) {
+        VStack(spacing: 16) {
             Spacer(minLength: 0)
+            if let health { healthCard(health) }
             if total > 0 {
                 VStack(alignment: .leading, spacing: 10) {
                     Text(String(format: L("overview.used"), formatBytes(total - free), formatBytes(total)))
@@ -131,7 +139,7 @@ struct OverviewView: View {
                         }
                         .frame(height: 22)
                         // Reads the disk again; spins while it does, so the user sees it really refreshed.
-                        Button { Task { await load() } } label: {
+                        Button { refresh += 1 } label: {
                             Image(systemName: "arrow.clockwise")
                                 .rotationEffect(.degrees(loading ? 360 : 0))
                                 .animation(loading ? .linear(duration: 0.8).repeatForever(autoreverses: false) : .default, value: loading)
@@ -151,28 +159,78 @@ struct OverviewView: View {
                         Text(L(tile.key)).font(.system(size: 15, weight: .semibold))
                         Text(formatBytes(tile.bytes)).font(.system(size: 22, weight: .bold)).monospacedDigit()
                     }
-                    .frame(width: 170, height: 100)
+                    .frame(maxWidth: 170, minHeight: 100)
+                    .depthGlass(RoundedRectangle(cornerRadius: 22), lift: 0.8)
+                }
+                if let battery {
+                    VStack(spacing: 8) {
+                        Text(L("overview.battery")).font(.system(size: 15, weight: .semibold))
+                        Text(String(format: L("overview.batteryDetail"),
+                                    (Double(battery.percent) / 100).formatted(.percent.locale(Lang.locale)),
+                                    battery.cycles.formatted(.number.locale(Lang.locale))))
+                            .font(.system(size: 15, weight: .semibold))
+                            .monospacedDigit()
+                    }
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 170, minHeight: 100)
                     .depthGlass(RoundedRectangle(cornerRadius: 22), lift: 0.8)
                 }
             }
-            if let last = UserDefaults.standard.object(forKey: "lastSmartScanBytes") as? Int64, last > 0 {
-                Text(String(format: L("overview.lastSmart"), formatBytes(last))).foregroundStyle(.secondary)
+            AlertToggles(horizontal: true)
+            if lastScanBytes > 0 {
+                Text(String(format: L("overview.lastSmart"), formatBytes(Int64(lastScanBytes)))).foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 40)
         .padding(.bottom, 28)
-        .task { await load() }
+        .task(id: isVisible ? refresh : nil) { if isVisible { await load() } }
+    }
+
+    private func healthCard(_ health: HealthScore) -> some View {
+        HStack(spacing: 18) {
+            ZStack {
+                Circle().strokeBorder(.white.opacity(0.14), lineWidth: 7)
+                Circle().inset(by: 3.5)
+                    .trim(from: 0, to: Double(health.score) / 100)
+                    .stroke(section.tint, style: StrokeStyle(lineWidth: 7, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                Text(health.score.formatted(.number.locale(Lang.locale)))
+                    .font(.system(size: 26, weight: .bold))
+                    .monospacedDigit()
+            }
+            .frame(width: 76, height: 76)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(L("health.title"))
+            .accessibilityValue(health.score.formatted(.number.locale(Lang.locale)))
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(L("health.title")).font(.system(size: 13)).foregroundStyle(.secondary).accessibilityHidden(true)
+                Text(health.score >= 80 ? L("health.good") : health.score >= 50 ? L("health.fair") : L("health.poor"))
+                    .font(.system(size: 20, weight: .semibold))
+                ForEach(health.issues.prefix(3), id: \.self) { issue in
+                    Text(L(issue)).font(.system(size: 13)).foregroundStyle(.secondary)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(20)
+        .depthGlass(RoundedRectangle(cornerRadius: 26))
     }
 
     private func load() async {
+        guard !Task.isCancelled else { return }
         loading = true
         let started = Date()
-        defer { loading = false }
+        defer { if !Task.isCancelled { loading = false } }
         let home = AppEnv.shared.home
         let values = try? home.resourceValues(forKeys: [.volumeTotalCapacityKey, .volumeAvailableCapacityForImportantUsageKey])
         total = Int64(values?.volumeTotalCapacity ?? 0)
-        free = values?.volumeAvailableCapacityForImportantUsage ?? 0
+        free = min(total, max(0, values?.volumeAvailableCapacityForImportantUsage ?? 0))
+        health = healthScore(HealthInputs(freeBytes: free, totalBytes: total,
+                                         memoryPressure: SystemMetrics.memoryUsed() ?? 0,
+                                         loginItems: loginItems.items().count, junkBytes: Int64(lastScanBytes)))
+        battery = BatteryHealth.read()
         let places = [("tab.trash", ".Trash"), ("tab.downloads", "Downloads"),
                       ("tab.appCaches", "Library/Caches"), ("group.Logs", "Library/Logs")]
         // The four folders are sized at the same time (warm cache: ~0.58 s one by one, ~0.35 s together).
@@ -184,6 +242,7 @@ struct OverviewView: View {
             for await (i, bytes) in group { out[i] = bytes }
             return out
         }
+        guard !Task.isCancelled else { return }
         tiles = zip(places, sizes).map { (key: $0.0.0, bytes: $0.1) }
         // Keep the spin visible a moment: a refresh that finishes in 0.3 s looks like nothing happened.
         let left = 0.6 - Date().timeIntervalSince(started)

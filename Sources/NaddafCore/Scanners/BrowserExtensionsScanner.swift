@@ -21,8 +21,10 @@ public struct BrowserExtensionsScanner: Scanner {
             for profile in FS.children(of: support.appendingPathComponent(folder)) {
                 for ext in FS.children(of: profile.appendingPathComponent("Extensions")) {
                     try Task.checkCancellation()
-                    // Newest version folder holds the manifest.
-                    guard let version = FS.children(of: ext).sorted(by: { $0.lastPathComponent < $1.lastPathComponent }).last,
+                    // Newest version folder with a manifest ("1.10_0" is newer than "1.9_0").
+                    guard let version = FS.children(of: ext)
+                        .filter({ FileManager.default.fileExists(atPath: $0.appendingPathComponent("manifest.json").path) })
+                        .max(by: { compareVersions($0.lastPathComponent, $1.lastPathComponent) == .orderedAscending }),
                           let name = Self.name(inExtension: version) else { continue }
                     items.append(ScanItem(url: ext, bytes: FS.size(of: ext), reason: "Browser extension",
                                           safety: .review, group: browser, title: name))

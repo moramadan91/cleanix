@@ -5,10 +5,13 @@ import Sparkle
 
 @main
 struct CleanixApp: App {
+    static let mainWindowID = "main"
     @NSApplicationDelegateAdaptor(SplashDelegate.self) private var splash
+    @AppStorage("menuBarEnabled") private var menuBarEnabled = true
+    @AppStorage(Lang.key) private var lang = Lang.current
 
     var body: some Scene {
-        WindowGroup {
+        WindowGroup(id: Self.mainWindowID) {
             RootView(checkForUpdates: { splash.updater.checkForUpdates(nil) })
                 .preferredColorScheme(.dark)
         }
@@ -16,8 +19,18 @@ struct CleanixApp: App {
         .commands {
             CommandGroup(after: .appInfo) {
                 Button(L("update.check")) { splash.updater.checkForUpdates(nil) }
+                Button(L("monitor.show")) { menuBarEnabled = true }
+                    .disabled(menuBarEnabled)
+                    .id(lang)
             }
         }
+        MenuBarExtra(isInserted: $menuBarEnabled) {
+            MenuBarPanel()
+        } label: {
+            Image(systemName: "sparkles").renderingMode(.template)
+                .accessibilityLabel(L("app.name"))
+        }
+        .menuBarExtraStyle(.window)
     }
 }
 
@@ -33,6 +46,7 @@ final class SplashDelegate: NSObject, NSApplicationDelegate {
     private var splashing = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        Alerts.shared.registerDelegate()
         let side: CGFloat = 560
         let screen = (NSScreen.main ?? NSScreen.screens[0]).visibleFrame
         let panel = NSPanel(contentRect: NSRect(x: screen.midX - side / 2, y: screen.midY - side / 2, width: side, height: side),
@@ -82,6 +96,7 @@ final class SplashDelegate: NSObject, NSApplicationDelegate {
                 w.animator().alphaValue = 1
             }
         }
+        Alerts.shared.start()
         Task { @MainActor [weak self] in
             try? await Task.sleep(for: .milliseconds(500))
             self?.panel?.orderOut(nil)

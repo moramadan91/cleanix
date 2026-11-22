@@ -37,10 +37,14 @@ struct SectionContent: View {
         env.isDemo ? [lib.appendingPathComponent("LaunchAgents")]
             : [lib.appendingPathComponent("LaunchAgents"), URL(fileURLWithPath: "/Library/LaunchAgents")]
     }
+    private var daemonDirs: [URL] {
+        env.isDemo ? [] : [URL(fileURLWithPath: "/Library/LaunchDaemons")]
+    }
 
     var body: some View {
         switch (section, tab) {
-        case (.overview, _): OverviewView(section: section)
+        case (.overview, _):
+            OverviewView(section: section, loginItems: LoginItemsReader(agentDirs: agentDirs, daemonDirs: daemonDirs))
         case (.smartScan, _): SmartScanView(section: section)
         case (.diskMap, _): DiskMapView(section: section)
         case (.cloud, _): CloudView(section: section)
@@ -71,8 +75,7 @@ struct SectionContent: View {
         case (_, .maintenance?): MaintenanceView()
         case (_, .heavyApps?): HeavyAppsView()
         case (_, .loginItems?): LoginItemsView(agentDirs: [lib.appendingPathComponent("LaunchAgents")],
-                                               daemonDirs: env.isDemo ? [] : [URL(fileURLWithPath: "/Library/LaunchAgents"),
-                                                                              URL(fileURLWithPath: "/Library/LaunchDaemons")])
+                                               daemonDirs: agentDirs.dropFirst() + daemonDirs)
 
         case (_, .uninstall?): UninstallView(section: section)
         case (_, .leftovers?):
