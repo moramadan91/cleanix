@@ -24,16 +24,21 @@ private struct Sidebar: View {
     @Binding var selection: AppSection
 
     var body: some View {
-        GlassEffectContainer(spacing: 14) {
-            VStack(spacing: 14) {
-                ForEach(AppSection.allCases) { section in
-                    SidebarItem(section: section, isSelected: selection == section) { selection = section }
+        // Nine icons must fit any window height: 9 items + 8 gaps + room for the traffic lights.
+        GeometryReader { geo in
+            let gap: CGFloat = 10
+            let size = max(40, min(62, (geo.size.height - 44 - 16 - gap * 8) / 9))
+            GlassEffectContainer(spacing: gap) {
+                VStack(spacing: gap) {
+                    ForEach(AppSection.allCases) { section in
+                        SidebarItem(section: section, isSelected: selection == section, size: size) { selection = section }
+                    }
                 }
             }
+            .padding(.horizontal, 18)
+            .padding(.top, 44)
         }
-        .padding(.horizontal, 18)
-        .padding(.top, 44)
-        .frame(maxHeight: .infinity, alignment: .top)
+        .frame(width: 98)
     }
 }
 
@@ -41,6 +46,7 @@ private struct Sidebar: View {
 private struct SidebarItem: View {
     let section: AppSection
     let isSelected: Bool
+    let size: CGFloat
     let action: () -> Void
     @State private var hovering = false
 
@@ -54,8 +60,8 @@ private struct SidebarItem: View {
         Button(action: action) {
             HStack(spacing: 6) {
                 Image(systemName: section.symbol)
-                    .font(.system(size: 26, weight: .semibold))
-                    .frame(width: 62, height: 62)
+                    .font(.system(size: size * 0.42, weight: .semibold))
+                    .frame(width: size, height: size)
                 if hovering {
                     Text(section.title)
                         .font(.system(size: 19, weight: .semibold))
@@ -66,13 +72,13 @@ private struct SidebarItem: View {
                 }
             }
             .foregroundStyle(hovering ? Color.white : (isSelected ? Theme.accent : Color.white.opacity(0.92)))
-            .frame(width: hovering ? 240 : 62, height: 62, alignment: .leading)
+            .frame(width: hovering ? 240 : size, height: size, alignment: .leading)
         }
         .buttonStyle(.plain)
         .glassEffect(glass, in: .capsule)
         .onHover { hovering = $0 }
         .animation(.spring(duration: 0.3, bounce: 0.18), value: hovering)
-        .frame(width: 62, height: 62, alignment: .leading)
+        .frame(width: size, height: size, alignment: .leading)
         .zIndex(hovering ? 1 : 0)
         .accessibilityLabel(section.title)
     }
