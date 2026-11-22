@@ -19,11 +19,14 @@
   // Pick the language before the body is parsed: no flash of the other language, and only its screenshots load.
   try { var l = localStorage.getItem('cleanix.lang') || (navigator.language.indexOf('ar') === 0 ? 'ar' : 'en');
     document.documentElement.lang = l; document.documentElement.dir = l === 'ar' ? 'rtl' : 'ltr'; } catch (e) {}
+  // The page is a story: always open at the top. Mobile browsers restore the old spot (also from the back/forward cache).
+  if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+  addEventListener('pageshow', function () { if (!location.hash) scrollTo(0, 0); });
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=6">
+<link rel="stylesheet" href="style.css?v=7">
 </head>
 <body>
 <a class="skip" href="#main"><span data-ar>انتقل للمحتوى</span><span data-en>Skip to content</span></a>
@@ -215,6 +218,6 @@
 </footer>
 
 <div class="cut" id="cut" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
-<script type="module" src="main.js?v=6"></script>
+<script type="module" src="main.js?v=7"></script>
 </body>
 </html>

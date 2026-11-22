@@ -58,7 +58,7 @@ html[lang="en"] img[data-en], html[lang="en"] div[data-en] { display: block !imp
 
 /* ---------- 1. the mess ---------- */
 .mess { height: 320vh; position: relative; }
-.mess-pin { position: sticky; top: 0; height: 100vh; overflow: hidden; display: grid; place-items: center; }
+.mess-pin { position: sticky; top: 0; height: 100vh; height: 100svh; overflow: hidden; display: grid; place-items: center; }
 .junk { position: absolute; inset: 0; }
 .chip { position: absolute; will-change: transform; }
 .ci {
@@ -133,7 +133,7 @@ html[lang="en"] img[data-en], html[lang="en"] div[data-en] { display: block !imp
 /* Each feature rides up over the end of the one before, so there is never a blank screen between them. */
 .scene + .scene { margin-top: -38vh; }
 .scene-pin {
-  position: sticky; top: 0; height: 100vh; overflow: hidden;
+  position: sticky; top: 0; height: 100vh; height: 100svh; overflow: hidden;
   display: grid; grid-template-columns: minmax(280px, 0.8fr) 1.4fr; align-items: center; gap: 4vw;
   padding: var(--bar-h) 5vw 0;
 }
@@ -180,7 +180,7 @@ html[lang="en"] img[data-en], html[lang="en"] div[data-en] { display: block !imp
 
 /* ---------- 4. safety ---------- */
 .safety { height: 240vh; position: relative; }
-.safety-pin { position: sticky; top: 0; height: 100vh; display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 5vw; padding: var(--bar-h) 6vw 0; }
+.safety-pin { position: sticky; top: 0; height: 100vh; height: 100svh; display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 5vw; padding: var(--bar-h) 6vw 0; }
 .safety-copy h2 { font-size: clamp(30px, 4vw, 56px); line-height: 1.12; font-weight: 700; }
 .safety-copy p { margin-top: 20px; color: var(--muted); font-size: 17px; max-width: 44ch; }
 .vault { position: relative; height: 420px; direction: ltr; }
@@ -227,6 +227,10 @@ html[lang="en"] img[data-en], html[lang="en"] div[data-en] { display: block !imp
   .bar-end { margin-inline-start: auto; }
   .scene-pin { grid-template-columns: 1fr; align-content: center; gap: 28px; padding: calc(var(--bar-h) + 8px) 16px 0; }
   .scene-copy p:last-child { font-size: 15px; }
+  /* Phones flick fast: more scroll per scene so each step stays on screen longer, and less overlap. */
+  .scene { height: 300vh; }
+  .scene + .scene { margin-top: -20vh; }
+  .safety { height: 300vh; }
   .safety-pin { grid-template-columns: 1fr; padding: calc(var(--bar-h) + 8px) 16px 0; align-content: center; }
   .vault { height: 300px; }
   .box { width: 170px; height: 170px; }

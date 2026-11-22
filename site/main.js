@@ -32,14 +32,14 @@ try { saved = localStorage.getItem('cleanix.lang'); } catch (e) {}
 // shortcut: the cut is a one-off bands wipe, so the switch reads like a channel change.
 langBtn.addEventListener('click', () => {
   const next = html.lang === 'ar' ? 'en' : 'ar';
-  if (!motionOK) { applyLang(next); ScrollTrigger.refresh(); scrollTo(0, 0); return; }
+  if (!motionOK) { applyLang(next); warmShots(); ScrollTrigger.refresh(); scrollTo(0, 0); return; }
   const cut = $('#cut'), bands = $$('i', cut);
   gsap.timeline()
     .set(cut, { visibility: 'visible' })
     .fromTo(bands, { scaleX: 0, transformOrigin: i => (i % 2 ? '0% 50%' : '100% 50%') },
       { scaleX: 1, duration: 0.22, ease: 'power3.in', stagger: { each: 0.018, from: 'random' } })
     // Behind the cut: new language, and the page starts over from the top.
-    .call(() => { applyLang(next); ScrollTrigger.refresh(); lenis.scrollTo(0, { immediate: true, force: true }); })
+    .call(() => { applyLang(next); warmShots(); ScrollTrigger.refresh(); lenis.scrollTo(0, { immediate: true, force: true }); })
     .to(bands, { scaleX: 0, transformOrigin: i => (i % 2 ? '100% 50%' : '0% 50%'), duration: 0.26, ease: 'power3.out', stagger: { each: 0.018, from: 'random' } })
     .set(cut, { visibility: 'hidden' });
 });
@@ -58,6 +58,11 @@ function fillTicker() {
 }
 applyLang(saved || (navigator.language.startsWith('ar') ? 'ar' : 'en'));
 
+/* Feature screenshots are small (~30 KB): fetch the shown language's set once the page has loaded, so a
+   scene never opens on an empty frame while a lazy image is still downloading on a phone. */
+function warmShots() { $$('.screen img').forEach(i => { if (getComputedStyle(i).display !== 'none') i.loading = 'eager'; }); }
+if (document.readyState === 'complete') warmShots(); else addEventListener('load', warmShots);
+
 /* ---------- latest version on the download buttons ---------- */
 fetch('https://api.github.com/repos/moramadan91/cleanix/releases/latest')
   .then(r => (r.ok ? r.json() : null))
@@ -68,6 +73,8 @@ if (motionOK) {
   // The page is a story that starts with the intro: a reload opens at the top (a #section link still works).
   // ScrollTrigger owns history.scrollRestoration, so set it through its API.
   if (!location.hash) { ScrollTrigger.clearScrollMemory('manual'); scrollTo(0, 0); }
+  // Phones: the address bar showing/hiding resizes the screen; don't recompute every scene for that.
+  ScrollTrigger.config({ ignoreMobileResize: true });
   /* ---------- one loop: GSAP drives Lenis, ScrollTrigger reads it ---------- */
   lenis = new Lenis({ lerp: 0.1, autoRaf: false, anchors: { offset: -60 } });
   lenis.on('scroll', ScrollTrigger.update);
@@ -178,7 +185,7 @@ function buildScene(sec) {
   const screen = $('.screen', sec), imgs = $$('img', screen), orb = $('.orb', sec);
   splitWords(h);
   // Starts while the scene is still sliding in, so the next feature is already showing under the current one.
-  const tl = gsap.timeline({ scrollTrigger: { trigger: sec, start: 'top 75%', end: 'bottom bottom', scrub: 0.7 } });
+  const tl = gsap.timeline({ scrollTrigger: { trigger: sec, start: 'top 75%', end: 'bottom bottom', scrub: 1.2 } });
   tl.from($('.scene-no', sec), { opacity: 0, x: -20, duration: 0.08 }, 0)
     .from($$('.w', h), { yPercent: 120, rotation: 8, opacity: 0, duration: 0.18, stagger: 0.02, ease: 'back.out(1.6)' }, 0.02)
     .from(p, { opacity: 0, y: 24, duration: 0.12 }, 0.12)
