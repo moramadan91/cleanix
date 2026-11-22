@@ -1,0 +1,12 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "app.name" : {
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "نضّف" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Naddaf" } }
+      }
+    }
+  },
+  "version" : "1.0"
+}
