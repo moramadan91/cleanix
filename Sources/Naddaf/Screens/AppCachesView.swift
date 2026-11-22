@@ -19,7 +19,10 @@ struct AppCachesView: View {
     @State private var result = CleanResult()
     @State private var undoRecords: [QuarantineRecord] = []
 
-    private var visible: [AppCacheGroup] { groups.filter { showSystem || !$0.isSystem } }
+    @AppStorage(ListSort.key) private var sort = ListSort.largest
+    private var visible: [AppCacheGroup] {
+        sort.sorted(groups.filter { showSystem || !$0.isSystem }, name: \.appName, bytes: \.bytes)
+    }
     private var chosen: [AppCacheGroup] { visible.filter { selected.contains($0.id) } }
     private var chosenBytes: Int64 { chosen.reduce(0) { $0 + $1.bytes } }
 
@@ -46,6 +49,7 @@ struct AppCachesView: View {
                     .font(.system(size: 14, weight: .semibold)).monospacedDigit()
                 Spacer()
                 Toggle(L("caches.showSystem"), isOn: $showSystem).toggleStyle(.switch).controlSize(.small)
+                SortMenu(sort: $sort)
                 Button(L("common.selectAll")) { selected = Set(visible.map(\.id)) }.buttonStyle(.liquid(small: true))
                 Button(L("common.selectNone")) { selected = [] }.buttonStyle(.liquid(small: true))
             }

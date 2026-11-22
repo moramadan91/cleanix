@@ -1,4 +1,5 @@
 import SwiftUI
+import QuickLook
 import NaddafCore
 
 /// Generic scan screen: intro → scanning → ticked list grouped by `ScanItem.group` → review → done.
@@ -22,12 +23,20 @@ struct ScanListView: View {
     @State private var confirmEmpty = false
     @State private var result = CleanResult()
     @State private var undoRecords: [QuarantineRecord] = []
+    /// File shown in the Quick Look panel (right-click a row).
+    @State private var quickLook: URL?
 
     private var chosen: [ScanItem] { items.filter { selected.contains($0.url) } }
+    @AppStorage(ListSort.key) private var sort = ListSort.largest
+    /// Groups follow the chosen order too: by their total size, or by their title.
     private var groups: [String] {
         var seen: [String] = []
         for item in items where !seen.contains(item.group) { seen.append(item.group) }
-        return seen
+        let totals = Dictionary(grouping: items, by: \.group).mapValues { $0.reduce(0) { $0 + $1.bytes } }
+        return sort.sorted(seen, name: groupTitle, bytes: { totals[$0] ?? 0 })
+    }
+    private func sortedItems(in group: String) -> [ScanItem] {
+        sort.sorted(items.filter { $0.group == group }, name: \.url.lastPathComponent, bytes: \.bytes)
     }
     private var actionTitle: String {
         if case .emptyTrash = mode { return L("trash.action") }
@@ -56,6 +65,7 @@ struct ScanListView: View {
                     Text(String(format: L("common.itemsSelected"), chosen.count, formatBytes(chosen.reduce(0) { $0 + $1.bytes })))
                         .font(.system(size: 14, weight: .semibold)).monospacedDigit()
                     Spacer()
+                    SortMenu(sort: $sort)
                     Button(L("common.selectAll")) { selected = Set(items.map(\.url)) }.buttonStyle(.liquid(small: true))
                     Button(L("common.selectNone")) { selected = [] }.buttonStyle(.liquid(small: true))
                 }
@@ -72,13 +82,14 @@ struct ScanListView: View {
                         ForEach(groups, id: \.self) { group in
                             Text(groupTitle(group)).font(.system(size: 14, weight: .bold)).foregroundStyle(.secondary)
                                 .padding(.top, 6)
-                            ForEach(items.filter { $0.group == group }) { row($0) }
+                            ForEach(sortedItems(in: group)) { row($0) }
                         }
                     }
                     .padding(.bottom, 8)
                 }
                 .scrollIndicators(.hidden)
                 .glassPanel()
+                .quickLookPreview($quickLook)
             }
 
             // Nothing found: offer a rescan instead of a disabled Clean button.
@@ -125,6 +136,11 @@ struct ScanListView: View {
             }
         }
         .modifier(RowBackground(highlighted: isOn.wrappedValue && !isReveal))
+        .contentShape(Rectangle())
+        .contextMenu {
+            Button(L("common.quickLook"), systemImage: "eye") { quickLook = item.url }
+            Button(L("common.reveal"), systemImage: "folder") { revealInFinder(item.url) }
+        }
     }
 
     private func scan() {

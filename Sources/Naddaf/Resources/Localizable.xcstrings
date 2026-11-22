@@ -401,6 +401,22 @@
         }
       }
     },
+    "common.quickLook": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "نظرة سريعة"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quick Look"
+          }
+        }
+      }
+    },
     "common.rescan": {
       "localizations": {
         "ar": {
@@ -2381,6 +2397,70 @@
           "stringUnit": {
             "state": "translated",
             "value": "Review & clean"
+          }
+        }
+      }
+    },
+    "sort.largest": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الأكبر الأول"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Largest first"
+          }
+        }
+      }
+    },
+    "sort.nameAZ": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الاسم من أ لـ ي"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Name A–Z"
+          }
+        }
+      }
+    },
+    "sort.nameZA": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الاسم من ي لـ أ"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Name Z–A"
+          }
+        }
+      }
+    },
+    "sort.smallest": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الأصغر الأول"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Smallest first"
           }
         }
       }

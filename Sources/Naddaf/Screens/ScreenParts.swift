@@ -111,11 +111,49 @@ struct GlassBadge: ViewModifier {
     }
 }
 
+/// Order of a file or app list; one choice shared by every list (remembered).
+enum ListSort: String, CaseIterable, Identifiable {
+    case largest, smallest, nameAZ, nameZA
+    static let key = "listSort"
+    var id: Self { self }
+    var title: String { L("sort.\(rawValue)") }
+
+    func sorted<T>(_ list: [T], name: (T) -> String, bytes: (T) -> Int64) -> [T] {
+        switch self {
+        case .largest: list.sorted { bytes($0) > bytes($1) }
+        case .smallest: list.sorted { bytes($0) < bytes($1) }
+        case .nameAZ: list.sorted { name($0).localizedStandardCompare(name($1)) == .orderedAscending }
+        case .nameZA: list.sorted { name($0).localizedStandardCompare(name($1)) == .orderedDescending }
+        }
+    }
+}
+
+/// Small glass capsule that opens the sort choices.
+struct SortMenu: View {
+    @Binding var sort: ListSort
+
+    var body: some View {
+        Menu {
+            Picker("", selection: $sort) {
+                ForEach(ListSort.allCases) { Text($0.title).tag($0) }
+            }
+            .pickerStyle(.inline).labelsHidden()
+        } label: {
+            Label(sort.title, systemImage: "arrow.up.arrow.down")
+        }
+        .menuStyle(.button)
+        .menuIndicator(.hidden)
+        .buttonStyle(.liquid(small: true))
+        .fixedSize()
+    }
+}
+
 extension View {
-    /// Search field drawn as a clear glass capsule.
+    /// Search field drawn as a clear glass capsule (small, so it sits quietly beside a list).
     func glassField() -> some View {
         textFieldStyle(.plain)
-            .padding(.horizontal, 14).padding(.vertical, 7)
+            .font(.system(size: 12))
+            .padding(.horizontal, 12).padding(.vertical, 5)
             // Not glassEffect: a focused field's blinking caret made the glass re-render (~30% idle CPU).
             .background(Capsule().fill(.white.opacity(0.08)))
             .overlay(Capsule().strokeBorder(.white.opacity(0.25), lineWidth: 1))

@@ -20,8 +20,10 @@ struct UninstallView: View {
     @State private var reviewing = false
 
     private var remover: RemoverScanner { RemoverScanner(appDirs: AppEnv.shared.userAppDirs, home: AppEnv.shared.home) }
+    @AppStorage(ListSort.key) private var sort = ListSort.largest
     private var shown: [AppInfo] {
-        search.isEmpty ? apps : apps.filter { $0.name.localizedCaseInsensitiveContains(search) }
+        let found = search.isEmpty ? apps : apps.filter { $0.name.localizedCaseInsensitiveContains(search) }
+        return sort.sorted(found, name: \.name, bytes: \.bytes)
     }
 
     var body: some View {
@@ -39,8 +41,11 @@ struct UninstallView: View {
             HStack(spacing: 12) {
                 Text(String(format: L("apps.selected"), selected.count)).font(.system(size: 16, weight: .semibold))
                 Spacer()
-                TextField(L("common.search"), text: $search).glassField().frame(width: 220)
+                SortMenu(sort: $sort)
+                TextField(L("common.search"), text: $search).glassField().frame(width: 160)
             }
+            .padding(.horizontal, 6)
+            .padding(.top, 12) // clear of the tabs above
             .frame(maxWidth: 560)
             ScrollView {
                 LazyVStack(spacing: 8) {
