@@ -28,7 +28,7 @@ final class AppEnv: Sendable {
         quarantine = Quarantine(root: lib.appendingPathComponent("Application Support/Naddaf/Quarantine"))
         // Allowlist: only the folders the scanners report from. Everything else is refused by Cleaner.
         let roots = ["Caches", "HTTPStorages", "Containers", "Group Containers", "Application Support",
-                     "Logs", "Developer/Xcode/DerivedData"].map { lib.appendingPathComponent($0) }
+                     "Logs", "Developer/Xcode/DerivedData", "Mail Downloads"].map { lib.appendingPathComponent($0) }
             + [home.appendingPathComponent(".npm")]
         cleaner = Cleaner(policy: PathPolicy(allowedRoots: roots), quarantine: quarantine)
     }

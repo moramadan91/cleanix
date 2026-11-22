@@ -27,15 +27,12 @@ struct AppCachesView: View {
         case .intro:
             IntroHero(section: section) { scan() }
         case .scanning:
-            VStack(spacing: 18) {
-                ProgressView().controlSize(.large)
-                Text(L("caches.scanning")).font(.system(size: 18, weight: .medium))
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            ScanningView(text: L("caches.scanning"))
         case .results:
             results
         case .done:
-            done
+            DoneView(result: result, undoable: !undoRecords.isEmpty,
+                     onUndo: undoRecords.isEmpty ? nil : { undo() }, onRescan: { scan() })
         }
     }
 
@@ -65,12 +62,7 @@ struct AppCachesView: View {
                 .scrollIndicators(.hidden)
             }
 
-            Button { showPreview = true } label: {
-                Text(L("common.clean")).font(.system(size: 20, weight: .bold)).frame(width: 220, height: 52)
-            }
-            .buttonStyle(.glassProminent)
-            .tint(Theme.accent)
-            .disabled(chosen.isEmpty)
+            ActionButton(title: L("common.clean"), disabled: chosen.isEmpty) { showPreview = true }
         }
         .padding(.horizontal, 40)
         .padding(.bottom, 28)
@@ -108,7 +100,7 @@ struct AppCachesView: View {
             if isOpen {
                 ForEach(group.items) { item in
                     HStack {
-                        Text(item.url.path(percentEncoded: false).replacingOccurrences(of: AppEnv.shared.home.path, with: "~"))
+                        Text(displayPath(item.url))
                             .font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
                         Spacer()
                         Text(formatBytes(item.bytes)).font(.system(size: 12)).foregroundStyle(.secondary).monospacedDigit()
@@ -124,28 +116,6 @@ struct AppCachesView: View {
     private func icon(for group: AppCacheGroup) -> NSImage {
         if let url = group.appURL { return NSWorkspace.shared.icon(forFile: url.path) }
         return NSWorkspace.shared.icon(for: .folder)
-    }
-
-    // MARK: done
-
-    private var done: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "checkmark.circle.fill").font(.system(size: 72)).foregroundStyle(Theme.accent)
-            Text(String(format: L("common.cleaned"), formatBytes(result.freedBytes)))
-                .font(.system(size: 28, weight: .bold))
-            Text(L("preview.undo")).foregroundStyle(.secondary)
-            if !result.failed.isEmpty {
-                Text(String(format: L("common.failedCount"), result.failed.count)).foregroundStyle(Theme.accent)
-            }
-            HStack(spacing: 12) {
-                if !undoRecords.isEmpty {
-                    Button(L("common.undo")) { undo() }.buttonStyle(.glass)
-                }
-                Button(L("common.rescan")) { scan() }.buttonStyle(.glassProminent).tint(Theme.accent)
-            }
-            .controlSize(.large)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     // MARK: actions

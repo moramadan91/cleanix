@@ -1,4 +1,5 @@
 import SwiftUI
+import NaddafCore
 
 struct RootView: View {
     @State var selection: AppSection = .smartScan
@@ -116,7 +117,23 @@ private struct SectionPage: View {
                 TabStrip(selection: $cleanupTab).padding(.top, 18)
                 switch cleanupTab {
                 case .appCaches: AppCachesView(section: section)
-                default: IntroHero(section: section, soon: true) {}
+                case .sweep:
+                    ScanListView(section: section, mode: .clean(.quarantine)) { SweepScanner(home: env.home) }
+                        .id(CleanupTab.sweep)
+                case .trash:
+                    ScanListView(section: section, mode: .emptyTrash) {
+                        TrashScanner(trashRoots: [env.home.appendingPathComponent(".Trash")])
+                    }
+                    .id(CleanupTab.trash)
+                case .mail:
+                    ScanListView(section: section, mode: .clean(.trash)) {
+                        let lib = env.home.appendingPathComponent("Library")
+                        return MailAttachmentsScanner(mailDownloads: [
+                            lib.appendingPathComponent("Containers/com.apple.mail/Data/Library/Mail Downloads"),
+                            lib.appendingPathComponent("Mail Downloads")])
+                    }
+                    .id(CleanupTab.mail)
+                case .shredder: ShredderView()
                 }
             } else {
                 IntroHero(section: section, soon: true) {}
@@ -126,6 +143,7 @@ private struct SectionPage: View {
     }
 
     @State private var cleanupTab = CleanupTab.appCaches
+    private var env: AppEnv { .shared }
 }
 
 enum CleanupTab: String, CaseIterable, Identifiable {
