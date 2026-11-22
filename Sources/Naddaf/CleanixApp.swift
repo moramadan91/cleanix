@@ -4,7 +4,7 @@ import NaddafCore
 import Sparkle
 
 @main
-struct NaddafApp: App {
+struct CleanixApp: App {
     @NSApplicationDelegateAdaptor(SplashDelegate.self) private var splash
 
     var body: some Scene {
@@ -26,7 +26,7 @@ struct NaddafApp: App {
 @MainActor
 final class SplashDelegate: NSObject, NSApplicationDelegate {
     /// Signed updates from GitHub Releases (feed and public key in Info.plist, see scripts/release.sh).
-    /// Checks on launch once a day and asks before installing.
+    /// Checks on every launch (see reveal) and daily while open; asks before installing.
     let updater = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
     private var panel: NSPanel?
     private var observers: [Any] = []
@@ -86,6 +86,8 @@ final class SplashDelegate: NSObject, NSApplicationDelegate {
             try? await Task.sleep(for: .milliseconds(500))
             self?.panel?.orderOut(nil)
             self?.panel = nil
+            // Every launch, not only once a day: silent unless a new version exists.
+            self?.updater.updater.checkForUpdatesInBackground()
         }
     }
 }

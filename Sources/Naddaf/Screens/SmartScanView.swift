@@ -42,7 +42,7 @@ struct SmartScanView: View {
                         Text(String(format: L("smart.items"), s.items.count)).font(.system(size: 12)).foregroundStyle(.secondary)
                     }
                     .frame(width: 180, height: 120)
-                    .glassEffect(.regular.tint(section.tint.opacity(0.25)), in: .rect(cornerRadius: 22))
+                    .depthGlass(RoundedRectangle(cornerRadius: 22), lift: 0.8)
                 }
             }
             Spacer(minLength: 0)
@@ -135,7 +135,7 @@ struct OverviewView: View {
                     Text(String(format: L("overview.free"), formatBytes(free))).foregroundStyle(.secondary)
                 }
                 .padding(24)
-                .glassEffect(.regular.tint(section.tint.opacity(0.18)), in: .rect(cornerRadius: 26))
+                .depthGlass(RoundedRectangle(cornerRadius: 26))
             }
             HStack(spacing: 14) {
                 ForEach(tiles, id: \.key) { tile in
@@ -144,7 +144,7 @@ struct OverviewView: View {
                         Text(formatBytes(tile.bytes)).font(.system(size: 22, weight: .bold)).monospacedDigit()
                     }
                     .frame(width: 170, height: 100)
-                    .glassEffect(.regular.tint(section.tint.opacity(0.22)), in: .rect(cornerRadius: 22))
+                    .depthGlass(RoundedRectangle(cornerRadius: 22), lift: 0.8)
                 }
             }
             if let last = UserDefaults.standard.object(forKey: "lastSmartScanBytes") as? Int64, last > 0 {

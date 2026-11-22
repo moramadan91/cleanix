@@ -14,14 +14,25 @@ struct AuroraBackground: View {
                            startPoint: .topLeading, endPoint: .bottom)
             RadialGradient(colors: [section.tint2.opacity(0.65), .clear], center: .bottomTrailing,
                            startRadius: 0, endRadius: 760)
-            // Soft spotlight behind the hero icon (the hero sits at the trailing side).
-            RadialGradient(colors: [.white.opacity(0.13), .clear],
-                           center: UnitPoint(x: direction == .rightToLeft ? 0.25 : 0.75, y: 0.45),
-                           startRadius: 0, endRadius: 460)
+            // Soft spotlight behind the centred hero.
+            RadialGradient(colors: [.white.opacity(0.10), .clear], center: UnitPoint(x: 0.5, y: 0.42),
+                           startRadius: 0, endRadius: 420)
+            // Static light blobs: something for the glass to bend, which is what makes it read as 3D.
+            GeometryReader { geo in
+                let w = geo.size.width, h = geo.size.height, flip: CGFloat = direction == .rightToLeft ? -1 : 1
+                blob(section.tint, 0.55, size: w * 0.42, x: w * (0.5 - 0.22 * flip), y: h * 0.30)
+                blob(section.tint2, 0.70, size: w * 0.48, x: w * (0.5 + 0.26 * flip), y: h * 0.72)
+                blob(.white, 0.10, size: w * 0.30, x: w * (0.5 + 0.18 * flip), y: h * 0.18)
+            }
         }
         .ignoresSafeArea()
+        .drawingGroup() // flatten the blurs once; the background never animates
         .id(section)
         .transition(.opacity)
+    }
+
+    private func blob(_ color: Color, _ opacity: Double, size: CGFloat, x: CGFloat, y: CGFloat) -> some View {
+        Circle().fill(color.opacity(opacity)).frame(width: size, height: size).blur(radius: size * 0.35).position(x: x, y: y)
     }
 }
 

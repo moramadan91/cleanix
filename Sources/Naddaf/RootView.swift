@@ -136,6 +136,8 @@ private struct SidebarItem: View {
 extension EnvironmentValues {
     /// A screen calls this when its scan starts, so the page can offer Start over.
     @Entry var screenStarted: @MainActor @Sendable () -> Void = {}
+    /// Colour of the current section, for the ring around the round main button.
+    @Entry var sectionTint: Color = .white
 }
 
 /// One screen: a section, plus its tab when the section has tabs.
@@ -181,6 +183,7 @@ private struct SectionPage: View {
                     SectionContent(section: key.section, tab: key.tab)
                         .id(generation[key, default: 0])
                         .environment(\.screenStarted) { started.insert(key) }
+                        .environment(\.sectionTint, key.section.tint)
                         // Short lists sit under the tabs; the title never drifts down with them.
                         .frame(maxHeight: .infinity, alignment: .top)
                         .opacity(key == now ? 1 : 0)
@@ -224,7 +227,7 @@ private struct TabStrip: View {
             }
         }
         .padding(6)
-        .glassEffect(.regular.tint(.white.opacity(0.04)), in: .capsule)
+        .depthGlass(Capsule(), lift: 0.6)
     }
 }
 
@@ -243,9 +246,8 @@ struct IntroHero: View {
             }
             .id("hero-\(section.id)")
             .transition(.scale(scale: 0.86).combined(with: .opacity))
-            Button(title, action: action)
-                .buttonStyle(.liquid(prominent: true, big: true))
-            .padding(.bottom, 34)
+            RoundActionButton(title: title, action: action)
+                .padding(.bottom, 30)
         }
     }
 }

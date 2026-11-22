@@ -25,6 +25,8 @@ struct ScanListView: View {
     @State private var undoRecords: [QuarantineRecord] = []
     /// File shown in the Quick Look panel (right-click a row).
     @State private var quickLook: URL?
+    /// Group whose list is open from the cards; nil shows the cards (when there are 2+ groups).
+    @State private var reviewing: String?
 
     private var chosen: [ScanItem] { items.filter { selected.contains($0.url) } }
     @AppStorage(ListSort.key) private var sort = ListSort.largest
@@ -62,6 +64,10 @@ struct ScanListView: View {
                     .padding(.top, 8)
             } else if !items.isEmpty {
                 HStack(spacing: 12) {
+                    if showsCards && reviewing != nil {
+                        Button(L("common.back"), systemImage: "chevron.backward") { reviewing = nil }
+                            .buttonStyle(.liquid(small: true))
+                    }
                     let bytes = chosen.reduce(0) { $0 + $1.bytes }
                     // No size when the only pick is the Trash counted through Finder.
                     Text(String(format: L("common.itemsSelected"), chosen.count, bytes > 0 || chosen.isEmpty ? formatBytes(bytes) : "—"))
@@ -78,10 +84,12 @@ struct ScanListView: View {
 
             if items.isEmpty {
                 Text(L("common.nothing")).foregroundStyle(.secondary).frame(maxHeight: .infinity)
+            } else if showsCards && reviewing == nil {
+                cards
             } else {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 8) {
-                        ForEach(groups, id: \.self) { group in
+                        ForEach(groups.filter { reviewing == nil || $0 == reviewing }, id: \.self) { group in
                             Text(groupTitle(group)).font(.system(size: 14, weight: .bold)).foregroundStyle(.secondary)
                                 .padding(.top, 6)
                             ForEach(sortedItems(in: group)) { row($0) }
@@ -118,6 +126,50 @@ struct ScanListView: View {
         }
     }
 
+    /// Results open on one card per group when there is more than one group.
+    private var showsCards: Bool { groups.count > 1 }
+
+    private var cards: some View {
+        let summaries = Dictionary(uniqueKeysWithValues: groupSummaries(items).map { ($0.group, $0) })
+        return ScrollView {
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)], spacing: 14) {
+                ForEach(groups, id: \.self) { group in
+                    if let summary = summaries[group] { card(summary) }
+                }
+            }
+            .padding(.vertical, 10)
+            .padding(.horizontal, 4)
+        }
+        .scrollIndicators(.hidden)
+        .frame(maxWidth: 560)
+    }
+
+    private func card(_ s: GroupSummary) -> some View {
+        let urls = items.filter { $0.group == s.group }.map(\.url)
+        let all = Binding(
+            get: { urls.allSatisfy(selected.contains) },
+            set: { if $0 { selected.formUnion(urls) } else { selected.subtract(urls) } })
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: section.symbol)
+                    .font(.system(size: 17, weight: .semibold))
+                    .frame(width: 40, height: 40)
+                    .depthGlass(Circle(), lift: 0.4)
+                Spacer()
+                if !isReveal { Toggle("", isOn: all).labelsHidden().toggleStyle(.glassCheck) }
+            }
+            Text(groupTitle(s.group)).font(.system(size: 15, weight: .semibold)).lineLimit(1)
+            Text(s.bytes > 0 ? formatBytes(s.bytes) : "—").font(.system(size: 24, weight: .bold)).monospacedDigit()
+            Text(String(format: L("common.itemCount"), s.count)).font(.system(size: 12)).foregroundStyle(.secondary)
+            Button(L("common.review")) { reviewing = s.group }
+                .buttonStyle(.liquid(small: true))
+                .padding(.top, 4)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .depthGlass(RoundedRectangle(cornerRadius: 20), lift: 0.8)
+    }
+
     private func row(_ item: ScanItem) -> some View {
         let isOn = Binding(
             get: { selected.contains(item.url) },
@@ -149,6 +201,7 @@ struct ScanListView: View {
 
     private func scan() {
         phase = .scanning
+        reviewing = nil
         screenStarted()
         let scanner = makeScanner()
         Task {

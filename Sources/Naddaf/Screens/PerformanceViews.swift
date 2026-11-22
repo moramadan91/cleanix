@@ -30,7 +30,7 @@ struct MaintenanceView: View {
                                     .foregroundStyle(ok ? Color.white : .secondary)
                             }
                         }
-                        .modifier(RowBackground(highlighted: isOn.wrappedValue))
+                        .modifier(RowBackground(highlighted: isOn.wrappedValue, glass: true))
                     }
                 }
             }
@@ -94,7 +94,7 @@ struct LoginItemsView: View {
                                     Text(L("login.system")).font(.system(size: 12)).foregroundStyle(.secondary)
                                 }
                             }
-                            .modifier(RowBackground())
+                            .modifier(RowBackground(glass: true))
                         }
                     }
                 }

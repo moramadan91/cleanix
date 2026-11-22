@@ -28,7 +28,7 @@ struct DoneView: View {
                 .font(.system(size: 40, weight: .bold))
                 .foregroundStyle(LinearGradient(colors: [.white, .white.opacity(0.6)], startPoint: .top, endPoint: .bottom))
                 .frame(width: 96, height: 96)
-                .glassEffect(.clear, in: .circle)
+                .depthGlass(Circle(), lift: 1.4)
             Text(String(format: L("common.cleaned"), formatBytes(result.freedBytes)))
                 .font(.system(size: 28, weight: .bold))
             if undoable { Text(L("preview.undo")).foregroundStyle(.secondary) }
@@ -37,7 +37,7 @@ struct DoneView: View {
             }
             HStack(spacing: 12) {
                 if let onUndo { Button(L("common.undo"), action: onUndo).buttonStyle(.liquid(big: true)) }
-                Button(L("common.rescan"), action: onRescan).buttonStyle(.liquid(prominent: true, big: true))
+                RoundActionButton(title: L("common.rescan"), action: onRescan)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -62,11 +62,8 @@ struct LiquidButtonStyle: ButtonStyle {
             // Clear glass, no tint: the button takes the colour of whatever is behind it.
             // Not .interactive(): that glass runs its own press handling, which competed with the
             // Button for the click so some clicks were lost. The press scale below gives the feedback.
-            .glassEffect(.clear, in: .capsule)
+            .depthGlass(Capsule(), lift: small ? 0.3 : prominent ? 1 : 0.6)
             .contentShape(Capsule())
-            .overlay(Capsule().strokeBorder(
-                LinearGradient(colors: [.white.opacity(prominent ? 0.45 : 0.3), .white.opacity(0.05)],
-                               startPoint: .top, endPoint: .bottom), lineWidth: 1))
             .opacity(enabled ? 1 : 0.5)
             .scaleEffect(configuration.isPressed ? 0.96 : 1)
             .animation(.snappy(duration: 0.15), value: configuration.isPressed)
@@ -107,7 +104,7 @@ struct GlassBadge: ViewModifier {
             .font(.system(size: 12, weight: .semibold))
             .foregroundStyle(.white)
             .padding(.horizontal, 10).padding(.vertical, 4)
-            .glassEffect(.clear, in: .capsule)
+            .depthGlass(Capsule(), lift: 0.3)
     }
 }
 
@@ -173,9 +170,43 @@ struct ActionButton: View {
     let action: () -> Void
 
     var body: some View {
-        Button(title, action: action)
-            .buttonStyle(.liquid(prominent: true, big: true))
-            .disabled(disabled)
+        RoundActionButton(title: title, action: action).disabled(disabled)
+    }
+}
+
+/// The one main action of a screen: a round glass button with a static ring in the section's colour.
+struct RoundActionButton: View {
+    let title: String
+    var size: CGFloat = 112
+    let action: () -> Void
+
+    var body: some View {
+        Button(title, action: action).buttonStyle(RoundGlassStyle(size: size))
+    }
+}
+
+private struct RoundGlassStyle: ButtonStyle {
+    let size: CGFloat
+    @Environment(\.isEnabled) private var enabled
+    @Environment(\.sectionTint) private var tint
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 17, weight: .bold))
+            .foregroundStyle(.white)
+            .multilineTextAlignment(.center)
+            .lineLimit(2)
+            .minimumScaleFactor(0.75)
+            .padding(14)
+            .frame(width: size, height: size)
+            .depthGlass(Circle(), lift: 1.4)
+            .contentShape(Circle())
+            .background(Circle().strokeBorder(tint.opacity(0.45), lineWidth: 1.5).frame(width: size + 22, height: size + 22))
+            .background(Circle().fill(tint.opacity(0.30)).frame(width: size + 30, height: size + 30).blur(radius: 18))
+            .opacity(enabled ? 1 : 0.5)
+            .scaleEffect(configuration.isPressed ? 0.96 : 1)
+            .animation(.snappy(duration: 0.15), value: configuration.isPressed)
+            .padding(.vertical, 11)
     }
 }
 
@@ -215,6 +246,27 @@ func revealInFinder(_ url: URL) {
     NSWorkspace.shared.activateFileViewerSelecting([url])
 }
 
+/// Clear glass that reads as 3D: lit rim on top, soft shadow under it. Static, so it costs no idle CPU.
+struct DepthGlass<S: InsettableShape>: ViewModifier {
+    let shape: S
+    var lift: CGFloat = 1
+
+    func body(content: Content) -> some View {
+        content
+            .glassEffect(.clear, in: shape)
+            .overlay(shape.strokeBorder(
+                LinearGradient(colors: [.white.opacity(0.45), .white.opacity(0.03)], startPoint: .top, endPoint: .bottom),
+                lineWidth: 1).allowsHitTesting(false))
+            .shadow(color: .black.opacity(0.25), radius: 10 * lift, y: 6 * lift)
+    }
+}
+
+extension View {
+    func depthGlass<S: InsettableShape>(_ shape: S, lift: CGFloat = 1) -> some View {
+        modifier(DepthGlass(shape: shape, lift: lift))
+    }
+}
+
 /// Layered glass panel that holds a list (lists never sit straight on the background).
 struct GlassPanel: ViewModifier {
     /// Height of the list inside; the panel hugs it instead of stretching over empty space.
@@ -228,7 +280,7 @@ struct GlassPanel: ViewModifier {
             }
             .frame(maxHeight: contentHeight)
             .padding(8)
-            .glassEffect(.regular.tint(.white.opacity(0.04)), in: .rect(cornerRadius: 22))
+            .depthGlass(RoundedRectangle(cornerRadius: 22))
             .frame(maxWidth: 560)
     }
 }
@@ -237,13 +289,26 @@ extension View {
     func glassPanel() -> some View { modifier(GlassPanel()) }
 }
 
-/// Glass-free list row background used by every list screen.
+/// List row background. Long lists use a light fill with a lit rim (no per-row glass, so scrolling
+/// stays smooth); short lists pass `glass` for real depth glass.
 struct RowBackground: ViewModifier {
     var highlighted = false
+    var glass = false
+
     func body(content: Content) -> some View {
-        content
-            .padding(.horizontal, 14).padding(.vertical, 7)
-            .background(RoundedRectangle(cornerRadius: 12).fill(.white.opacity(highlighted ? 0.12 : 0.04)))
+        let shape = RoundedRectangle(cornerRadius: 12)
+        let padded = content.padding(.horizontal, 14).padding(.vertical, 7)
+        if glass {
+            padded
+                .background(shape.fill(.white.opacity(highlighted ? 0.10 : 0)))
+                .depthGlass(shape, lift: 0.4)
+        } else {
+            padded
+                .background(shape.fill(LinearGradient(colors: [.white.opacity(highlighted ? 0.16 : 0.07), .white.opacity(highlighted ? 0.09 : 0.025)],
+                                                      startPoint: .top, endPoint: .bottom)))
+                .overlay(shape.strokeBorder(LinearGradient(colors: [.white.opacity(0.22), .white.opacity(0.02)],
+                                                           startPoint: .top, endPoint: .bottom), lineWidth: 1))
+        }
     }
 }
 
