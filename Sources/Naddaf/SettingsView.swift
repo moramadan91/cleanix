@@ -1,4 +1,5 @@
 import AppKit
+import NaddafCore
 import ServiceManagement
 import SwiftUI
 
@@ -12,6 +13,8 @@ struct SettingsView: View {
             MenuBarEnabledToggle(monitor: .shared)
             MenuBarStatsToggle()
             Divider()
+            PurgeAccessSettings()
+            Divider()
             AlertToggles()
         }
         .padding(20)
@@ -19,6 +22,67 @@ struct SettingsView: View {
         .preferredColorScheme(.dark)
         .environment(\.layoutDirection, Lang.direction)
         .id(lang)
+    }
+}
+
+@MainActor
+@Observable
+final class PurgeAccessStatus {
+    static let shared = PurgeAccessStatus()
+    private(set) var isInstalled = PurgeAccess.isInstalled
+    var installWithNextPurge = true
+
+    func refresh() {
+        isInstalled = PurgeAccess.isInstalled
+    }
+}
+
+private struct PurgeAccessSettings: View {
+    private let access = PurgeAccessStatus.shared
+    @State private var changing = false
+    @State private var failed = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(L("purgeAccess.title"))
+                    Text(L(access.isInstalled ? "purgeAccess.on" : "purgeAccess.off"))
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button(L(access.isInstalled ? "purgeAccess.turnOff" : "purgeAccess.turnOn")) {
+                    setEnabled(!access.isInstalled)
+                }
+                .disabled(changing)
+            }
+            Text(L("purgeAccess.note"))
+                .foregroundStyle(.secondary)
+            if failed {
+                Text(L("purgeAccess.failed"))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .font(.system(size: 12))
+        .onAppear { access.refresh() }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            access.refresh()
+        }
+    }
+
+    private func setEnabled(_ enabled: Bool) {
+        changing = true
+        failed = false
+        Task {
+            do {
+                try await Task.detached { try await PurgeAccess.setEnabled(enabled) }.value
+                if !enabled { access.installWithNextPurge = false }
+            } catch {
+                failed = true
+            }
+            access.refresh()
+            changing = false
+        }
     }
 }
 

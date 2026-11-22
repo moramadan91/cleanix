@@ -21,7 +21,7 @@ public enum MaintenanceTask: CaseIterable, Sendable, Hashable {
         }
     }
 
-    /// Every argv that may ever run with administrator rights.
+    /// Fixed maintenance argv. Purge access management has its own allowlist.
     public static var adminAllowlist: Set<[String]> {
         Set(allCases.filter(\.needsAdmin).flatMap { $0.commands(home: URL(fileURLWithPath: "/nonexistent")) })
     }
@@ -55,7 +55,8 @@ public struct AdminPromptRunner: PrivilegedRunner {
     public init() {}
 
     public func run(_ argv: [String]) async throws -> String {
-        guard MaintenanceTask.adminAllowlist.contains(argv) else { throw NaddafError.notAllowed }
+        guard MaintenanceTask.adminAllowlist.contains(argv) || argv == PurgeAccess.removeCommand
+        else { throw NaddafError.notAllowed }
         return try await Self.prompt(Self.quote(argv))
     }
 
@@ -64,7 +65,13 @@ public struct AdminPromptRunner: PrivilegedRunner {
     public func runTasks(_ tasks: [[[String]]]) async -> [Result<String, Error>] {
         guard !tasks.isEmpty else { return [] }
         do {
-            let output = try await Self.prompt(Self.batchScript(tasks))
+            let script = try Self.batchScript(tasks)
+            for task in tasks {
+                if let path = PurgeAccess.installRuleFile(in: task), !PurgeAccess.containsCurrentUsersRule(path) {
+                    throw NaddafError.notAllowed
+                }
+            }
+            let output = try await Self.prompt(script)
             return Self.parseBatch(output, count: tasks.count)
         } catch {
             return tasks.map { _ in .failure(error) } // cancelled prompt or a refused command: nothing ran
@@ -78,12 +85,33 @@ public struct AdminPromptRunner: PrivilegedRunner {
     }
 
     /// The shell script for a batch. Throws if any command is not on the allowlist.
-    static func batchScript(_ tasks: [[[String]]]) throws -> String {
+    static func batchScript(_ tasks: [[[String]]], purgeUser: String = NSUserName()) throws -> String {
         let allow = MaintenanceTask.adminAllowlist
         return try tasks.enumerated().map { i, commands in
-            guard !commands.isEmpty, commands.allSatisfy(allow.contains) else { throw NaddafError.notAllowed }
-            return "{ " + commands.map(quote).joined(separator: " && ") + "; } 2>&1; echo \"\(marker)\(i)=$?\""
+            let script: String
+            if let path = PurgeAccess.installRuleFile(in: commands),
+               let rule = PurgeAccess.ruleText(user: purgeUser) {
+                script = purgeInstallShell(fileName: URL(fileURLWithPath: path).lastPathComponent, rule: rule)
+            } else if commands == [PurgeAccess.removeCommand] || (!commands.isEmpty && commands.allSatisfy(allow.contains)) {
+                script = commands.map(quote).joined(separator: " && ")
+            } else {
+                throw NaddafError.notAllowed
+            }
+            return "{ " + script + "; } 2>&1; echo \"\(marker)\(i)=$?\""
         }.joined(separator: "; ")
+    }
+
+    private static func purgeInstallShell(fileName: String, rule: String) -> String {
+        // Stage the expected bytes under root ownership. The app's input file
+        // must never be opened by the privileged shell.
+        let commands = PurgeAccess.installScript(ruleFile: "$rule").map { argv in
+            argv.map { $0 == "$rule" ? "\"$rule\"" : quote([$0]) }.joined(separator: " ")
+        }
+        return """
+        (umask 077; dir=$(/usr/bin/mktemp -d /private/tmp/cleanix-purge.XXXXXXXX) || exit 1; \
+        rule="$dir"/\(quote([fileName])); trap '/bin/rm -f "$rule"; /bin/rmdir "$dir"' EXIT; \
+        printf '%s\\n' \(quote([String(rule.dropLast())])) > "$rule" && \(commands.joined(separator: " && ")))
+        """
     }
 
     /// Splits the batch output back into one result per task, by the marker lines.
@@ -136,12 +164,28 @@ public func runMaintenance(
     _ tasks: [MaintenanceTask],
     home: URL,
     runner: PrivilegedRunner,
-    userRunner: PrivilegedRunner = ProcessRunner()
+    userRunner: PrivilegedRunner = ProcessRunner(),
+    installPurgeAccess: Bool = false,
+    purgeAccessInstalled: Bool = PurgeAccess.isInstalled
 ) async -> [MaintenanceTask: Result<String, Error>] {
     var results: [MaintenanceTask: Result<String, Error>] = [:]
-    // Admin tasks go together, so the password is asked once for all of them.
-    let admin = tasks.filter(\.needsAdmin), user = tasks.filter { !$0.needsAdmin }
-    for (task, result) in zip(admin, await runner.runTasks(admin.map { $0.commands(home: home) })) {
+    if tasks.contains(.freeRAM), purgeAccessInstalled,
+       let output = try? await userRunner.run(PurgeAccess.passwordlessPurge) {
+        results[.freeRAM] = .success(output)
+    }
+
+    let admin = tasks.filter { $0.needsAdmin && results[$0] == nil }
+    let user = tasks.filter { !$0.needsAdmin }
+    var adminCommands = admin.map { $0.commands(home: home) }
+    let ruleFile = installPurgeAccess && !purgeAccessInstalled && admin.contains(.freeRAM)
+        ? try? PurgeAccess.makeRuleFile() : nil
+    defer {
+        if let ruleFile { try? FileManager.default.removeItem(atPath: ruleFile) }
+    }
+    // A separate task lets purge run even if rule installation fails.
+    if let ruleFile { adminCommands.insert(PurgeAccess.installScript(ruleFile: ruleFile), at: 0) }
+    let adminResults = adminCommands.isEmpty ? [] : await runner.runTasks(adminCommands)
+    for (task, result) in zip(admin, adminResults.dropFirst(ruleFile == nil ? 0 : 1)) {
         results[task] = result
     }
     for (task, result) in zip(user, await userRunner.runTasks(user.map { $0.commands(home: home) })) {

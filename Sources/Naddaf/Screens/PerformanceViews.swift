@@ -7,8 +7,8 @@ struct MaintenanceView: View {
     @State private var chosen: Set<MaintenanceTask> = [.freeRAM, .flushDNS, .speedUpMail]
     @State private var running = false
     @State private var results: [MaintenanceTask: Bool] = [:]
-
     private let order: [MaintenanceTask] = [.freeRAM, .flushDNS, .speedUpMail, .reindexSpotlight, .thinSnapshots]
+    @Bindable private var purgeAccess = PurgeAccessStatus.shared
 
     var body: some View {
         VStack(spacing: 14) {
@@ -35,7 +35,12 @@ struct MaintenanceView: View {
                 }
             }
             .scrollIndicators(.hidden)
-                .glassPanel()
+            .glassPanel()
+            if chosen.contains(.freeRAM), !purgeAccess.isInstalled {
+                Toggle(L("purgeAccess.offer"), isOn: $purgeAccess.installWithNextPurge)
+                    .toggleStyle(.checkbox)
+                    .disabled(running)
+            }
             Text(L("task.adminNote")).font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center)
             if running {
                 ProgressView().controlSize(.large).frame(height: 52)
@@ -46,6 +51,7 @@ struct MaintenanceView: View {
         .padding(.horizontal, 40)
         .padding(.top, 20)
         .padding(.bottom, 28)
+        .onAppear { purgeAccess.refresh() }
     }
 
     private func run() {
@@ -53,9 +59,13 @@ struct MaintenanceView: View {
         results = [:]
         let tasks = order.filter { chosen.contains($0) }
         let home = AppEnv.shared.home
+        let installPurgeAccess = purgeAccess.installWithNextPurge && !purgeAccess.isInstalled
         Task {
-            let out = await Task.detached { await runMaintenance(tasks, home: home, runner: AdminPromptRunner()) }.value
+            let out = await Task.detached {
+                await runMaintenance(tasks, home: home, runner: AdminPromptRunner(), installPurgeAccess: installPurgeAccess)
+            }.value
             results = out.mapValues { if case .success = $0 { true } else { false } }
+            purgeAccess.refresh()
             running = false
         }
     }

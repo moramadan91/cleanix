@@ -23,6 +23,7 @@ private final class QuickBoost {
                 var seen: Set<URL> = []
                 return sections.flatMap(\.items).filter { seen.insert($0.url.standardizedFileURL).inserted }
             }.value
+            PurgeAccessStatus.shared.refresh()
             phase = .confirm(items, bytes: items.reduce(0) { $0 + $1.bytes })
         }
     }
@@ -33,19 +34,23 @@ private final class QuickBoost {
 
     func boost() {
         guard case let .confirm(items, _) = phase else { return }
+        let access = PurgeAccessStatus.shared
+        let installPurgeAccess = access.installWithNextPurge && !access.isInstalled
         phase = .running
         Task {
             let result = await Task.detached(priority: .userInitiated) {
                 let env = AppEnv.shared
                 let cleaned = await env.cleaner.clean(items, disposal: .quarantine)
                 let before = SystemMetrics.memoryUsed()
-                let maintenance = await runMaintenance([.freeRAM], home: env.home, runner: AdminPromptRunner())
+                let maintenance = await runMaintenance(
+                    [.freeRAM], home: env.home, runner: AdminPromptRunner(), installPurgeAccess: installPurgeAccess)
                 let after = SystemMetrics.memoryUsed()
                 if case .success = maintenance[.freeRAM] {
                     return Phase.result(bytes: cleaned.freedBytes, before: before, after: after)
                 }
                 return Phase.result(bytes: cleaned.freedBytes, before: nil, after: nil)
             }.value
+            PurgeAccessStatus.shared.refresh()
             phase = result
             try? await Task.sleep(for: .seconds(6))
             phase = .idle
@@ -55,6 +60,7 @@ private final class QuickBoost {
 
 struct QuickBoostControls: View {
     private let boost = QuickBoost.shared
+    @Bindable private var purgeAccess = PurgeAccessStatus.shared
 
     var body: some View {
         switch boost.phase {
@@ -69,6 +75,10 @@ struct QuickBoostControls: View {
         case .confirm(_, let bytes):
             VStack(alignment: .leading, spacing: 8) {
                 Text(String(format: L("boost.confirm"), formatBytes(bytes)))
+                if !purgeAccess.isInstalled {
+                    Toggle(L("purgeAccess.offer"), isOn: $purgeAccess.installWithNextPurge)
+                        .toggleStyle(.checkbox)
+                }
                 HStack {
                     Button(L("boost.action"), action: boost.boost)
                         .buttonStyle(.liquid(prominent: true, small: true))

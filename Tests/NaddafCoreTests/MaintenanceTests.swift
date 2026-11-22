@@ -34,7 +34,8 @@ private let noHome = URL(fileURLWithPath: "/nonexistent-naddaf-home")
 
 @Test func maintenanceAdminTasksGoThroughAdminRunner() async {
     let admin = Recorder(), user = Recorder()
-    let results = await runMaintenance([.freeRAM, .flushDNS], home: noHome, runner: admin, userRunner: user)
+    let results = await runMaintenance([.freeRAM, .flushDNS], home: noHome, runner: admin, userRunner: user,
+                                       purgeAccessInstalled: false)
     #expect(admin.calls.count == 3)
     #expect(user.calls.isEmpty)
     #expect(results.values.allSatisfy { !isFailure($0) })
@@ -53,7 +54,7 @@ private let noHome = URL(fileURLWithPath: "/nonexistent-naddaf-home")
 
 @Test func maintenanceOneFailureDoesNotStopOthers() async {
     let admin = Recorder(failing: ["/usr/sbin/purge"])
-    let results = await runMaintenance([.freeRAM, .flushDNS], home: noHome, runner: admin)
+    let results = await runMaintenance([.freeRAM, .flushDNS], home: noHome, runner: admin, purgeAccessInstalled: false)
     #expect(isFailure(results[.freeRAM]))
     #expect(!isFailure(results[.flushDNS]))
 }
