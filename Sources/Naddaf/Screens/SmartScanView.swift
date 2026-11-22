@@ -15,13 +15,16 @@ struct SmartScanView: View {
     @State private var showPreview = false
     @State private var result = CleanResult()
     @State private var undoRecords: [QuarantineRecord] = []
+    @State private var scanStart = Date()
+    /// The scan itself takes a second; the lens gets this long so the search can be seen.
 
     private var allItems: [ScanItem] { sections.flatMap(\.items) }
 
     var body: some View {
         switch phase {
         case .intro: IntroHero(section: section) { scan() }
-        case .scanning: ScanningView()
+        case .scanning: LensScanView(section: section, started: scanStart,
+                                       stages: ["smart.stage1", "smart.stage2", "smart.stage3", "smart.stage4"])
         case .done:
             DoneView(result: result, undoable: !undoRecords.isEmpty,
                      onUndo: undoRecords.isEmpty ? nil : { undo() }, onRescan: { scan() })
@@ -56,6 +59,7 @@ struct SmartScanView: View {
     }
 
     private func scan() {
+        scanStart = .now
         phase = .scanning
         screenStarted()
         let env = AppEnv.shared
@@ -71,7 +75,9 @@ struct SmartScanView: View {
             ("smart.browser", ClosureScanner { try await privacy.scan().filter { $0.safety == .safe } }),
         ])
         Task {
-            sections = await Task.detached { await smart.run() }.value
+            async let found = Task.detached { await smart.run() }.value
+            try? await Task.sleep(for: .seconds(LensScanView.duration))
+            sections = await found
             UserDefaults.standard.set(sections.reduce(0) { $0 + $1.bytes }, forKey: "lastSmartScanBytes")
             phase = .results
         }
@@ -180,5 +186,82 @@ struct OverviewView: View {
         // Keep the spin visible a moment: a refresh that finishes in 0.3 s looks like nothing happened.
         let left = 0.6 - Date().timeIntervalSince(started)
         if left > 0 { try? await Task.sleep(for: .seconds(left)) }
+    }
+}
+
+/// Smart Scan's search: a liquid-glass lens sweeps over the section orb while a line says what is
+/// being checked. It only animates during the scan, so idle CPU is untouched.
+struct LensScanView: View {
+    let section: AppSection
+    let started: Date
+    /// Localization keys, shown one after another over the scan.
+    var stages = ["scan.stage1", "scan.stage2", "scan.stage3", "scan.stage4"]
+    static let duration = 6.0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        TimelineView(.animation(paused: reduceMotion)) { context in
+            let t = max(0, context.date.timeIntervalSince(started))
+            let progress = min(1, t / Self.duration)
+            VStack(spacing: 28) {
+                Spacer(minLength: 0)
+                ZStack {
+                    Circle().strokeBorder(.white.opacity(0.10), lineWidth: 1).frame(width: 290, height: 290)
+                    // Radar sweep around the orb.
+                    Circle()
+                        .trim(from: 0, to: 0.22)
+                        .stroke(AngularGradient(colors: [.clear, .white.opacity(0.55)], center: .center,
+                                                startAngle: .zero, endAngle: .degrees(80)),
+                                style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                        .frame(width: 290, height: 290)
+                        .rotationEffect(.degrees(t * 120))
+                    Image(systemName: section.symbol)
+                        .font(.system(size: 70, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.9))
+                        .frame(width: 180, height: 180)
+                        .depthGlass(Circle(), lift: 1.2)
+                    lens.offset(lensOffset(t))
+                }
+                .frame(height: 310)
+                .accessibilityHidden(true)
+
+                VStack(spacing: 12) {
+                    Text(L(stages[min(stages.count - 1, Int(progress * Double(stages.count)))]))
+                        .font(.system(size: 17, weight: .semibold))
+                        .contentTransition(.opacity)
+                        .animation(.easeInOut(duration: 0.3), value: Int(progress * Double(stages.count)))
+                    Capsule()
+                        .fill(.white.opacity(0.10))
+                        .frame(width: 260, height: 6)
+                        .overlay(alignment: .leading) {
+                            Capsule().fill(.white.opacity(0.85)).frame(width: 260 * progress, height: 6)
+                        }
+                        .environment(\.layoutDirection, Lang.direction)
+                }
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    /// A glass loupe with a handle; the glass bends the orb and background under it.
+    private var lens: some View {
+        ZStack(alignment: .bottomTrailing) {
+            Capsule()
+                .fill(LinearGradient(colors: [.white.opacity(0.75), .white.opacity(0.35)], startPoint: .top, endPoint: .bottom))
+                .frame(width: 12, height: 48)
+                .rotationEffect(.degrees(-45))
+                .offset(x: 30, y: 30)
+            Color.clear
+                .frame(width: 96, height: 96)
+                .depthGlass(Circle(), lift: 1.6)
+                .overlay(Circle().strokeBorder(.white.opacity(0.7), lineWidth: 3))
+        }
+        .frame(width: 96, height: 96)
+    }
+
+    /// Wandering figure-of-eight path, so the lens looks like it is searching, not orbiting.
+    private func lensOffset(_ t: Double) -> CGSize {
+        CGSize(width: 105 * sin(t * 1.3), height: 60 * sin(t * 2.1 + 0.6))
     }
 }

@@ -113,22 +113,6 @@
         }
       }
     },
-    "caches.scanning": {
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "بنفحص كاش كل البرامج…"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Scanning every app's caches…"
-          }
-        }
-      }
-    },
     "caches.selected": {
       "localizations": {
         "ar": {
@@ -1665,6 +1649,70 @@
         }
       }
     },
+    "scan.stage1": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "بيدوّر في كل الفولدرات…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Searching every folder…"
+          }
+        }
+      }
+    },
+    "scan.stage2": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "بيفحص كل ملف…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checking each file…"
+          }
+        }
+      }
+    },
+    "scan.stage3": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "بيحسب المساحة…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Measuring the space…"
+          }
+        }
+      }
+    },
+    "scan.stage4": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "بيجمع النتايج…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Putting the results together…"
+          }
+        }
+      }
+    },
     "section.apps.f1": {
       "localizations": {
         "ar": {
@@ -2477,6 +2525,70 @@
           "stringUnit": {
             "state": "translated",
             "value": "Review & clean"
+          }
+        }
+      }
+    },
+    "smart.stage1": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "بيدوّر على ملفات النظام اللي مالهاش لازمة…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Looking through system junk…"
+          }
+        }
+      }
+    },
+    "smart.stage2": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "بيفحص كاش البرامج…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checking app caches…"
+          }
+        }
+      }
+    },
+    "smart.stage3": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "بيفحص كاش المتصفحات…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checking browser caches…"
+          }
+        }
+      }
+    },
+    "smart.stage4": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "بيجمع النتايج…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Putting the results together…"
           }
         }
       }

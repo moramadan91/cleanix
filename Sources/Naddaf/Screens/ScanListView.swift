@@ -27,6 +27,9 @@ struct ScanListView: View {
     @State private var quickLook: URL?
     /// Group whose list is open from the cards; nil shows the cards (when there are 2+ groups).
     @State private var reviewing: String?
+    /// True while scanning (the lens); false while the Trash is being emptied (plain spinner).
+    @State private var searching = false
+    @State private var scanStart = Date()
 
     private var chosen: [ScanItem] { items.filter { selected.contains($0.url) } }
     @AppStorage(ListSort.key) private var sort = ListSort.largest
@@ -49,7 +52,8 @@ struct ScanListView: View {
     var body: some View {
         switch phase {
         case .intro: IntroHero(section: section) { scan() }
-        case .scanning: ScanningView()
+        case .scanning:
+            if searching { LensScanView(section: section, started: scanStart) } else { ScanningView() }
         case .results: results
         case .done:
             DoneView(result: result, undoable: !undoRecords.isEmpty,
@@ -200,12 +204,16 @@ struct ScanListView: View {
     }
 
     private func scan() {
+        searching = true
+        scanStart = .now
         phase = .scanning
         reviewing = nil
         screenStarted()
         let scanner = makeScanner()
         Task {
-            let found = (try? await Task.detached { try await scanner.scan() }.value) ?? []
+            async let scanned = Task.detached { try await scanner.scan() }.value
+            try? await Task.sleep(for: .seconds(LensScanView.duration)) // the search is seen, not skipped
+            let found = (try? await scanned) ?? []
             items = found.sorted { $0.group == $1.group ? $0.bytes > $1.bytes : $0.group < $1.group }
             // `.review` items (user files) start unticked; `.safe` ones are ticked.
             selected = Set(found.filter { $0.safety == .safe }.map(\.url))
@@ -230,6 +238,7 @@ struct ScanListView: View {
     private func empty() {
         let chosen = self.chosen
         let policy = PathPolicy(allowedRoots: chosen.map(\.url))
+        searching = false
         phase = .scanning // a big bin takes a while; show the spinner instead of a screen that seems stuck
         Task {
             result = (try? await Task.detached { try await emptyTrash(chosen, confirmed: true, policy: policy) }.value) ?? CleanResult()

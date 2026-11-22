@@ -26,13 +26,14 @@ struct RootView: View {
                 }
             }
         }
-        // Language switch at the physical top-right in both languages (leading is the right edge in Arabic),
-        // opposite the window buttons.
-        .overlay(alignment: lang == "ar" ? .topLeading : .topTrailing) {
+        // Language switch opposite the sidebar: top-left in Arabic, top-right in English
+        // (trailing is the left edge in Arabic).
+        .overlay(alignment: .topTrailing) {
             Button(lang == "ar" ? "English" : "العربية") { lang = lang == "ar" ? "en" : "ar" }
-                .padding(.top, 12).padding(.horizontal, 12)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: lang == "ar" ? .topLeading : .topTrailing)
-                .ignoresSafeArea() // up into the title-bar row, level with the window buttons
+                // Just under the title bar, above the sidebar (the title-bar edge cut it in half).
+                .padding(.top, 38).padding(.horizontal, 12)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                .ignoresSafeArea()
         }
         // Check for updates in the bottom corner away from the sidebar (right in English, left in Arabic).
         .overlay(alignment: .bottomTrailing) {

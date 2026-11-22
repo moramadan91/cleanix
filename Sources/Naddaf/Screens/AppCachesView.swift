@@ -11,6 +11,7 @@ struct AppCachesView: View {
     private enum Phase { case intro, scanning, results, done }
 
     @State private var phase = Phase.intro
+    @State private var scanStart = Date()
     @State private var groups: [AppCacheGroup] = []
     @State private var selected: Set<String> = []
     @State private var expanded: Set<String> = []
@@ -31,7 +32,7 @@ struct AppCachesView: View {
         case .intro:
             IntroHero(section: section) { scan() }
         case .scanning:
-            ScanningView(text: L("caches.scanning"))
+            LensScanView(section: section, started: scanStart)
         case .results:
             results
         case .done:
@@ -124,6 +125,7 @@ struct AppCachesView: View {
     // MARK: actions
 
     private func scan() {
+        scanStart = .now
         phase = .scanning
         screenStarted()
         let env = AppEnv.shared
@@ -131,7 +133,9 @@ struct AppCachesView: View {
         let scanner = AppCacheScanner(home: env.home, appDirs: env.appDirs, runningBundleIDs: { running })
         Task {
             // Off the main thread: walking every cache folder can take seconds.
-            let found = (try? await Task.detached { try await scanner.groups() }.value) ?? []
+            async let scanned = Task.detached { try await scanner.groups() }.value
+            try? await Task.sleep(for: .seconds(LensScanView.duration))
+            let found = (try? await scanned) ?? []
             groups = found
             // Running apps and system apps start unticked.
             selected = Set(found.filter { !$0.isRunning && !$0.isSystem }.map(\.id))
