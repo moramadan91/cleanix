@@ -28,7 +28,9 @@ struct RootView: View {
         // opposite the window buttons.
         .overlay(alignment: lang == "ar" ? .topLeading : .topTrailing) {
             Button(lang == "ar" ? "English" : "العربية") { lang = lang == "ar" ? "en" : "ar" }
-                .padding(.top, 10).padding(.horizontal, 16)
+                .padding(.top, 6).padding(.horizontal, 12)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: lang == "ar" ? .topLeading : .topTrailing)
+                .ignoresSafeArea() // up into the title-bar row, level with the window buttons
         }
         .id(lang)
         // Coming back from System Settings: check again so the banner goes away by itself.
