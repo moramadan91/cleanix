@@ -48,18 +48,14 @@ private struct Sidebar: View {
     let checkForUpdates: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 10) {
                 if let mark = Self.mark { Image(nsImage: mark).resizable().frame(width: 28, height: 28) }
                 Text("Cleanix").font(.system(size: 17, weight: .bold))
             }
             .padding(.horizontal, 10).padding(.bottom, 18)
-            GlassEffectContainer(spacing: 6) {
-                VStack(spacing: 6) {
-                    ForEach(AppSection.allCases) { section in
-                        SidebarItem(section: section, isSelected: selection == section) { selection = section }
-                    }
-                }
+            ForEach(AppSection.allCases) { section in
+                SidebarItem(section: section, isSelected: selection == section) { selection = section }
             }
             Spacer(minLength: 12)
             Button(action: checkForUpdates) {
@@ -73,7 +69,7 @@ private struct Sidebar: View {
         .padding(.horizontal, 14)
         .padding(.top, 44) // clear of the window buttons
         .padding(.bottom, 18)
-        .frame(width: 240)
+        .frame(width: 220)
         .frame(maxHeight: .infinity)
         .background(Color(hex: 0x0A0810).opacity(0.35))
         .overlay(alignment: .trailing) { Rectangle().fill(.white.opacity(0.06)).frame(width: 1) }
@@ -97,23 +93,18 @@ private struct SidebarItem: View {
         Button(action: action) {
             HStack(spacing: 12) {
                 Image(systemName: section.symbol)
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(section.tint)
-                    .frame(width: 22, height: 22) // fixed, so every row is the same height
+                    .frame(width: 20)
                 Text(section.title)
-                    .font(.system(size: 15.5, weight: isSelected ? .semibold : .medium))
+                    .font(.system(size: 14, weight: isSelected ? .semibold : .regular))
                     .lineLimit(1)
                 Spacer(minLength: 0)
             }
-            .foregroundStyle(.white.opacity(isSelected || hovering ? 1 : 0.75))
-            .padding(.horizontal, 14).padding(.vertical, 11)
-            // Every row is clear liquid glass; the chosen one is frosted, hover only brightens a fill.
-            .background(RoundedRectangle(cornerRadius: 14).fill(.white.opacity(isSelected ? 0.14 : hovering ? 0.06 : 0)))
-            .glassEffect(isSelected ? .regular.tint(.white.opacity(0.10)) : .clear, in: .rect(cornerRadius: 14))
-            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(
-                LinearGradient(colors: [.white.opacity(isSelected ? 0.5 : 0.28), .white.opacity(0.03)],
-                               startPoint: .top, endPoint: .bottom), lineWidth: 1))
-            .contentShape(RoundedRectangle(cornerRadius: 14))
+            .foregroundStyle(.white.opacity(isSelected || hovering ? 1 : 0.62))
+            .padding(.horizontal, 12).padding(.vertical, 9)
+            .background(RoundedRectangle(cornerRadius: 12).fill(.white.opacity(isSelected ? 0.10 : hovering ? 0.05 : 0)))
+            .contentShape(RoundedRectangle(cornerRadius: 12))
         }
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
