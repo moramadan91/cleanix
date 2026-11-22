@@ -68,7 +68,7 @@ struct UninstallView: View {
         .padding(.horizontal, 40)
         .padding(.bottom, 28)
         .sheet(isPresented: $showPreview) {
-            PreviewSheet(items: preview, disposal: .trash) { clean($0) }
+            PreviewSheet(section: section, items: preview, disposal: .trash) { clean($0) }
         }
     }
 

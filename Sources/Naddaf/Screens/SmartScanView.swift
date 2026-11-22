@@ -50,7 +50,7 @@ struct SmartScanView: View {
         .padding(.horizontal, 40)
         .padding(.bottom, 28)
         .sheet(isPresented: $showPreview) {
-            PreviewSheet(items: allItems, disposal: .quarantine) { clean($0) }
+            PreviewSheet(section: section, items: allItems, disposal: .quarantine) { clean($0) }
         }
     }
 

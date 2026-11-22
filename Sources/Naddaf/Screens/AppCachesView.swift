@@ -68,7 +68,7 @@ struct AppCachesView: View {
         .padding(.horizontal, 40)
         .padding(.bottom, 28)
         .sheet(isPresented: $showPreview) {
-            PreviewSheet(items: chosen.flatMap(\.items), disposal: .quarantine) { clean($0) }
+            PreviewSheet(section: section, items: chosen.flatMap(\.items), disposal: .quarantine) { clean($0) }
         }
     }
 

@@ -89,7 +89,7 @@ struct ScanListView: View {
         .padding(.bottom, 28)
         .sheet(isPresented: $showPreview) {
             if case .clean(let disposal) = mode {
-                PreviewSheet(items: chosen, disposal: disposal) { clean($0, disposal: disposal) }
+                PreviewSheet(section: section, items: chosen, disposal: disposal) { clean($0, disposal: disposal) }
             }
         }
         .confirmationDialog(L("trash.confirmTitle"), isPresented: $confirmEmpty) {

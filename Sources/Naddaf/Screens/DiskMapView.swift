@@ -76,7 +76,7 @@ struct DiskMapView: View {
                 ScanItem(url: $0.url, bytes: $0.bytes, reason: "Disk Map",
                          safety: SpaceAdvice.safety(of: $0.url, home: home), group: current.name)
             }
-            PreviewSheet(items: items, disposal: .trash) { remove($0) }
+            PreviewSheet(section: section, items: items, disposal: .trash) { remove($0) }
         }
     }
 

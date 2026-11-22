@@ -3,6 +3,7 @@ import NaddafCore
 
 /// The only path from a scan to `Cleaner`: the user sees every item and picks what goes.
 struct PreviewSheet: View {
+    let section: AppSection
     let items: [ScanItem]
     let disposal: Disposal
     let onConfirm: ([ScanItem]) -> Void
@@ -10,7 +11,8 @@ struct PreviewSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var selected: Set<URL>
 
-    init(items: [ScanItem], disposal: Disposal, onConfirm: @escaping ([ScanItem]) -> Void) {
+    init(section: AppSection, items: [ScanItem], disposal: Disposal, onConfirm: @escaping ([ScanItem]) -> Void) {
+        self.section = section
         self.items = items
         self.disposal = disposal
         self.onConfirm = onConfirm
@@ -27,19 +29,19 @@ struct PreviewSheet: View {
                 Text(L("preview.undo")).font(.callout).foregroundStyle(.secondary)
             }
             List(items) { item in
-                Toggle(isOn: Binding(
-                    get: { selected.contains(item.url) },
-                    set: { on in if on { selected.insert(item.url) } else { selected.remove(item.url) } }
-                )) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(item.url.lastPathComponent)
-                            Text(item.reason).font(.caption).foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Text(size(item.bytes)).monospacedDigit().foregroundStyle(.secondary)
+                HStack(spacing: 12) {
+                    Toggle("", isOn: Binding(
+                        get: { selected.contains(item.url) },
+                        set: { on in if on { selected.insert(item.url) } else { selected.remove(item.url) } }
+                    )).labelsHidden().toggleStyle(.glassCheck)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(item.url.lastPathComponent).font(.system(size: 14, weight: .semibold))
+                        Text(localized("reason", item.reason)).font(.caption).foregroundStyle(.secondary)
                     }
+                    Spacer()
+                    Text(size(item.bytes)).monospacedDigit().foregroundStyle(.secondary)
                 }
+                .listRowBackground(Color.clear)
             }
             .scrollContentBackground(.hidden)
             HStack {
@@ -54,5 +56,8 @@ struct PreviewSheet: View {
         }
         .padding(24)
         .frame(minWidth: 560, minHeight: 440)
+        // A sheet is its own window: give it the app's direction and a see-through frosted backdrop.
+        .environment(\.layoutDirection, Bundle.module.preferredLocalizations.first == "ar" ? .rightToLeft : .leftToRight)
+        .background(AuroraBackground(section: section))
     }
 }
