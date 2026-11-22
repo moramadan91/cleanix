@@ -90,7 +90,8 @@ public struct AdminPromptRunner: PrivilegedRunner {
     static func parseBatch(_ output: String, count: Int) -> [Result<String, Error>] {
         var results = [Result<String, Error>](repeating: .failure(NaddafError.notAllowed), count: count)
         var text = ""
-        for line in output.split(separator: "\n", omittingEmptySubsequences: false) {
+        // do shell script turns \n into \r, so split on any line ending.
+        for line in output.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline) {
             guard line.hasPrefix(marker), let eq = line.firstIndex(of: "="),
                   let i = Int(line[line.index(line.startIndex, offsetBy: marker.count)..<eq]), i < count,
                   let status = Int32(line[line.index(after: eq)...]) else {

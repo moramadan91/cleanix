@@ -73,6 +73,9 @@ private let noHome = URL(fileURLWithPath: "/nonexistent-naddaf-home")
     if case .success(let text) = results[0] { #expect(text == "purged\n") } else { Issue.record("task 0 should succeed") }
     #expect(isFailure(results[1]))
     #expect(isFailure(AdminPromptRunner.parseBatch("", count: 1)[0])) // no marker: never reported as done
+    // osascript's do shell script returns lines ending in \r, not \n.
+    let mac = AdminPromptRunner.parseBatch("__cleanix_task_0=0\r__cleanix_task_1=0\n", count: 2)
+    #expect(!isFailure(mac[0]) && !isFailure(mac[1]))
 }
 
 @Test func maintenanceNeverRunsArbitraryArgv() async {
