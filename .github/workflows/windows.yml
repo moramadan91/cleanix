@@ -1,0 +1,33 @@
+# Builds the Windows installer (Tauri, NSIS) on a Windows runner; the .exe is attached to the run.
+name: Windows build
+
+on:
+  push:
+    branches: [main]
+    paths: ["windows/**", ".github/workflows/windows.yml"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: windows
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: windows/src-tauri
+      - run: npm ci
+      - name: Tests
+        run: cargo test --manifest-path src-tauri/Cargo.toml
+      - name: Build installer
+        run: npx tauri build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Cleanix-windows-installer
+          path: windows/src-tauri/target/release/bundle/nsis/*.exe
