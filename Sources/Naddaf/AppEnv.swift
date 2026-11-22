@@ -30,7 +30,9 @@ final class AppEnv: Sendable {
         // Allowlist: only the folders the scanners report from. Everything else is refused by Cleaner.
         let roots = ["Caches", "HTTPStorages", "Containers", "Group Containers", "Application Support",
                      "Logs", "Developer/Xcode/DerivedData", "Mail Downloads", "Preferences",
-                     "Saved Application State", "Cookies", "Safari"].map { lib.appendingPathComponent($0) }
+                     "Saved Application State", "Cookies", "Safari", "WebKit",
+                     "Developer/CoreSimulator/Caches", "Developer/Xcode/iOS DeviceSupport",
+                     "iTunes/iPhone Software Updates", "Messages/Attachments"].map { lib.appendingPathComponent($0) }
             + AppEnv.userFolders.map { base.appendingPathComponent($0) }
             + [base.appendingPathComponent(".npm")]
             + AppEnv.userOnly(appDirs)

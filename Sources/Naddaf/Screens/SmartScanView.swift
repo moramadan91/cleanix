@@ -66,8 +66,10 @@ struct SmartScanView: View {
         let running = Set(NSWorkspace.shared.runningApplications.compactMap(\.bundleIdentifier))
         let caches = AppCacheScanner(home: env.home, appDirs: env.appDirs, runningBundleIDs: { running })
         let privacy = PrivacyScanner(home: env.home)
+        let sweep = SweepScanner(home: env.home)
         let smart = SmartScan(sections: [
-            ("tab.sweep", SweepScanner(home: env.home)),
+            // Only `.safe` junk: backups and attachments never go in the one-button clean.
+            ("tab.sweep", ClosureScanner { try await sweep.scan().filter { $0.safety == .safe } }),
             ("tab.appCaches", ClosureScanner {
                 try await caches.groups().filter { !$0.isRunning && !$0.isSystem }.flatMap(\.items)
             }),

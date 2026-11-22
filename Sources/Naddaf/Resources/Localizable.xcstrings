@@ -753,6 +753,22 @@
         }
       }
     },
+    "group.Devices": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الآيفون والآيباد"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhone & iPad"
+          }
+        }
+      }
+    },
     "group.Downloads": {
       "localizations": {
         "ar": {
@@ -829,6 +845,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mail attachments"
+          }
+        }
+      }
+    },
+    "group.Messages": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الرسائل"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Messages"
           }
         }
       }
@@ -1361,6 +1393,22 @@
         }
       }
     },
+    "reason.Device support files": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ملفات دعم الأجهزة (بتتعمل تاني لما توصّل الجهاز)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Device support files (re-made when a device connects)"
+          }
+        }
+      }
+    },
     "reason.Homebrew cache": {
       "localizations": {
         "ar": {
@@ -1425,6 +1473,22 @@
         }
       }
     },
+    "reason.Messages attachments": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الصور والملفات اللي في الرسائل"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Photos and files sent in Messages"
+          }
+        }
+      }
+    },
     "reason.Not notarized": {
       "localizations": {
         "ar": {
@@ -1453,6 +1517,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Not signed by its developer"
+          }
+        }
+      }
+    },
+    "reason.Package cache": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "كاش الحزم"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Package cache"
+          }
+        }
+      }
+    },
+    "reason.Simulator cache": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "كاش المحاكي"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Simulator cache"
           }
         }
       }
@@ -1581,6 +1677,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Not modified for %@+ days"
+          }
+        }
+      }
+    },
+    "reason.iPhone backup": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "نسخة احتياطية للآيفون — سيبها لو هي نسختك الوحيدة"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhone backup — keep it if it is your only copy"
+          }
+        }
+      }
+    },
+    "reason.iPhone software update": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تحديث سوفتوير الآيفون (بيتنزل تاني)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhone software update (downloads again)"
           }
         }
       }
