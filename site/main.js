@@ -175,7 +175,8 @@ function buildScene(sec) {
   const h = $('h2', sec), p = $('.scene-copy p:last-child', sec), stage = $('.stage', sec);
   const screen = $('.screen', sec), imgs = $$('img', screen), orb = $('.orb', sec);
   splitWords(h);
-  const tl = gsap.timeline({ scrollTrigger: { trigger: sec, start: 'top top', end: 'bottom bottom', scrub: 0.7 } });
+  // Starts while the scene is still sliding in, so the next feature is already showing under the current one.
+  const tl = gsap.timeline({ scrollTrigger: { trigger: sec, start: 'top 75%', end: 'bottom bottom', scrub: 0.7 } });
   tl.from($('.scene-no', sec), { opacity: 0, x: -20, duration: 0.08 }, 0)
     .from($$('.w', h), { yPercent: 120, rotation: 8, opacity: 0, duration: 0.18, stagger: 0.02, ease: 'back.out(1.6)' }, 0.02)
     .from(p, { opacity: 0, y: 24, duration: 0.12 }, 0.12)
@@ -234,8 +235,8 @@ function buildScene(sec) {
       { opacity: 1, scale: 1, rotation: 0, svgOrigin: '0 0', duration: 0.18, ease: 'back.out(1.4)', stagger: 0.02 }, 0.5)
       .to(arcs, { scale: i => 1.3 + i * 0.12, opacity: 0, rotation: i => (i % 2 ? 60 : -60), svgOrigin: '0 0', duration: 0.16, ease: 'power2.in', stagger: 0.01 }, 0.78);
   }
-  tl.to(stage, { scale: 0.92, opacity: 0.25, rotationX: 12, transformPerspective: 900, duration: 0.07 }, 0.93)
-    .to($('.scene-copy', sec), { opacity: 0, y: -30, duration: 0.07 }, 0.93);
+  tl.to(stage, { scale: 0.9, opacity: 0.3, rotationX: 12, transformPerspective: 900, duration: 0.1 }, 0.88)
+    .to($('.scene-copy', sec), { opacity: 0, y: -30, duration: 0.08 }, 0.88);
 }
 
 /* ---------- 3. ticker: drifts on its own, speeds up with the scroll ---------- */

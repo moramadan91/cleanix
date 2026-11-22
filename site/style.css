@@ -120,11 +120,18 @@ html[lang="en"] img[data-en], html[lang="en"] div[data-en] { display: block !imp
 }
 .cta:hover { background: var(--violet-2); transform: translateY(-2px); }
 .cta svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.soon {
+  display: inline-flex; align-items: center; gap: 10px; font-weight: 600; font-size: 17px; color: var(--lavender);
+  padding: 16px 28px; border-radius: 999px; border: 1px dashed rgba(234, 228, 255, 0.35); cursor: default;
+}
+.soon svg { width: 20px; height: 20px; fill: currentColor; opacity: 0.8; }
 .meta { color: var(--muted); font-size: 14px; display: flex; gap: 8px; }
 .ver:not(:empty)::after { content: " ·"; }
 
 /* ---------- 2. feature scenes ---------- */
-.scene { height: 260vh; position: relative; }
+.scene { height: 210vh; position: relative; }
+/* Each feature rides up over the end of the one before, so there is never a blank screen between them. */
+.scene + .scene { margin-top: -38vh; }
 .scene-pin {
   position: sticky; top: 0; height: 100vh; overflow: hidden;
   display: grid; grid-template-columns: minmax(280px, 0.8fr) 1.4fr; align-items: center; gap: 4vw;
