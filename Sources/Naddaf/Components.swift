@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 /// Static, rich gradient per section. It never animates by itself, only crossfades when the
 /// section changes: a continuously moving background measured 3.9% idle CPU, so it stays still.
@@ -25,14 +26,11 @@ struct AuroraBackground: View {
 }
 
 /// Large layered hero: glow, rings, glass satellites and a glass orb holding the section symbol.
-/// The symbol plays a built-in SF Symbols effect every couple of seconds. That runs outside the
-/// app's own render loop, and stops when the window is inactive or Reduce Motion is on.
+/// The symbol moves continuously through `LiveSymbol` (Core Animation), which costs almost no CPU.
 struct SectionHero: View {
     let section: AppSection
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
-
-    @State private var tick = 0
 
     private var live: Bool { scenePhase == .active && !reduceMotion }
 
@@ -60,8 +58,7 @@ struct SectionHero: View {
             .offset(x: x, y: y)
     }
 
-    /// The glass orb and its glow are separate, static layers. Only the bare symbol animates on top,
-    /// so the glass is not re-rendered every frame (that made idle CPU about 21%).
+    /// Glass orb and glow are static layers; only the symbol on top moves.
     private var icon: some View {
         ZStack {
             Circle()
@@ -71,17 +68,112 @@ struct SectionHero: View {
             Color.clear
                 .frame(width: 250, height: 250)
                 .glassEffect(.regular.tint(section.tint.opacity(0.55)), in: .circle)
-            Image(systemName: section.symbol)
-                .font(.system(size: 116, weight: .semibold))
-                .foregroundStyle(.white)
-                .symbolEffect(.wiggle, options: .nonRepeating, value: section.motion == .wiggle ? tick : -1)
-                .symbolEffect(.bounce, options: .nonRepeating, value: section.motion == .bounce ? tick : -1)
-                .symbolEffect(.pulse, options: .nonRepeating, value: section.motion == .pulse ? tick : -1)
-                .symbolEffect(.variableColor.iterative, options: .nonRepeating, value: section.motion == .variable ? tick : -1)
+            LiveSymbol(name: section.symbol, pointSize: 116, motion: section.motion, live: live)
+                .frame(width: 250, height: 250)
         }
-        .onHover { if $0 && live { tick += 1 } }
-        .task(id: section) { if live { tick += 1 } }
-        // The symbol plays once when a section opens and once on hover, then stays still.
-        // A looping effect cost about 20% idle CPU; a one-shot every 9 seconds still averaged about 4%.
+    }
+}
+
+/// An SF Symbol drawn once into a bitmap layer and moved with Core Animation keyframes.
+/// The compositor only transforms the finished bitmap, so a forever-looping animation stays cheap
+/// (the SF Symbols effects looped through SwiftUI cost about 20% idle CPU).
+struct LiveSymbol: NSViewRepresentable {
+    let name: String
+    let pointSize: CGFloat
+    let motion: SymbolMotion
+    let live: Bool
+
+    func makeNSView(context: Context) -> SymbolHostView { SymbolHostView() }
+
+    func updateNSView(_ view: SymbolHostView, context: Context) {
+        view.configure(name: name, pointSize: pointSize, motion: motion, live: live)
+    }
+}
+
+final class SymbolHostView: NSView {
+    private let iconLayer = CALayer()
+    private var name = ""
+    private var pointSize: CGFloat = 0
+    private var motion: SymbolMotion = .pulse
+    private var live = false
+    private var anchor = CGPoint(x: 0.5, y: 0.5)
+    private var iconSize = CGSize.zero
+
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        wantsLayer = true
+        layer?.addSublayer(iconLayer)
+    }
+
+    required init?(coder: NSCoder) { fatalError("not used") }
+
+    func configure(name: String, pointSize: CGFloat, motion: SymbolMotion, live: Bool) {
+        let needsImage = name != self.name || pointSize != self.pointSize
+        let changed = needsImage || motion != self.motion || live != self.live
+        self.name = name; self.pointSize = pointSize; self.motion = motion; self.live = live
+        guard changed else { return }
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        if needsImage { renderImage() }
+        anchor = motion == .wiggle ? CGPoint(x: 0.5, y: 0.1) : CGPoint(x: 0.5, y: 0.5)
+        iconLayer.anchorPoint = anchor
+        place()
+        CATransaction.commit()
+        animate()
+    }
+
+    override func layout() {
+        super.layout()
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        place()
+        CATransaction.commit()
+    }
+
+    private func renderImage() {
+        let config = NSImage.SymbolConfiguration(pointSize: pointSize, weight: .semibold)
+            .applying(NSImage.SymbolConfiguration(paletteColors: [.white]))
+        guard let image = NSImage(systemSymbolName: name, accessibilityDescription: nil)?.withSymbolConfiguration(config),
+              let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return }
+        iconSize = image.size
+        iconLayer.contents = cg
+        iconLayer.contentsScale = window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
+        iconLayer.bounds = CGRect(origin: .zero, size: iconSize)
+    }
+
+    private func place() {
+        iconLayer.position = CGPoint(x: bounds.midX, y: bounds.midY + (anchor.y - 0.5) * iconSize.height)
+    }
+
+    private func animate() {
+        iconLayer.removeAllAnimations()
+        guard live else { return }
+        let cycle: CFTimeInterval = 3.2
+
+        func keyframes(_ path: String, _ values: [Double], _ times: [Double]) -> CAKeyframeAnimation {
+            let a = CAKeyframeAnimation(keyPath: path)
+            a.values = values
+            a.keyTimes = times.map { NSNumber(value: $0) }
+            a.calculationMode = .cubic
+            a.duration = cycle
+            a.repeatCount = .infinity
+            return a
+        }
+
+        switch motion {
+        case .wiggle: // a wave: swings around the base, then rests
+            iconLayer.add(keyframes("transform.rotation.z",
+                                    [0, -0.40, 0.36, -0.30, 0.22, -0.10, 0, 0],
+                                    [0, 0.08, 0.16, 0.24, 0.32, 0.40, 0.48, 1]), forKey: "wave")
+        case .bounce:
+            iconLayer.add(keyframes("transform.translation.y",
+                                    [0, 30, 0, 12, 0, 0], [0, 0.12, 0.24, 0.32, 0.40, 1]), forKey: "bounce")
+        case .pulse:
+            iconLayer.add(keyframes("transform.scale", [1, 1.16, 1, 1], [0, 0.18, 0.36, 1]), forKey: "scale")
+            iconLayer.add(keyframes("opacity", [1, 0.78, 1, 1], [0, 0.18, 0.36, 1]), forKey: "fade")
+        case .variable:
+            iconLayer.add(keyframes("transform.scale", [1, 1.12, 1, 1.12, 1, 1], [0, 0.14, 0.28, 0.42, 0.56, 1]), forKey: "scale")
+            iconLayer.add(keyframes("transform.rotation.z", [0, 0.14, 0, -0.14, 0, 0], [0, 0.14, 0.28, 0.42, 0.56, 1]), forKey: "tilt")
+        }
     }
 }

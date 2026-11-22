@@ -12,7 +12,7 @@ Status: built and running. Core tests untouched (76 pass); app target builds.
 ## Idle CPU (acceptance: under 1%) — findings
 - Looping `symbolEffect(.repeat(.periodic))`: about 21 to 23% idle CPU. Moving the glass out from behind the symbol did not help (still about 20%).
 - One-shot every 9 seconds: 0.0 most samples but a burst of 11.8% per play, about 4% averaged. Rejected.
-- FINAL: the symbol plays once when a section opens and once on hover. Idle: 0.0, 0.0, 0.0 (and 0.0 earlier).
+- FINAL: the symbol plays once when a section opens and once on hover. Idle samples (3 s each): 0.0, 0.0, 0.0, 3.9, 0.7, 0.0, an average of about 0.8%. The 3.9 spike is unexplained (it was not the removed periodic timer); it should be re-measured over a longer window.
 
 ## Rulings
 - "Live" icons therefore animate on section open and on hover, not continuously. A continuous loop would break the lightness goal. If the user wants a periodic loop anyway, it costs real CPU (see above).
@@ -22,3 +22,10 @@ Status: built and running. Core tests untouched (76 pass); app target builds.
 ## Not verified
 - Visual result and hover animation were NOT seen by me (no Screen Recording permission). The human must check how it looks and that the pill does not clip.
 - Only measured CPU for the default (smartScan) section.
+
+## Update: continuous motion (user asked for it)
+- Replaced the SF Symbols effects with `LiveSymbol` (`Components.swift`): the symbol is drawn once into a bitmap `CALayer` and moved with `CAKeyframeAnimation`, repeating forever (3.2 s cycle with a rest at the end). Core Animation only transforms the finished bitmap.
+- Motions: hand waves from the wrist (rotation), trash/apps/cloud bounce, bolt/disk map pulse (scale + fade), sparkles/overview scale and tilt.
+- Idle CPU with the loop running, 3 s samples: 0.0, 0.0, 0.0, 0.0, 0.0, so under 1% (default section only).
+- Animation stops when the app is not active or Reduce Motion is on (`live`).
+- NOT verified by eye: that the icon is visible and moves as intended. A 0.0% CPU reading would also be consistent with an animation that is not running, so the human must confirm the hand is waving.
