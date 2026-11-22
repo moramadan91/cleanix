@@ -59,8 +59,14 @@ private struct SidebarItem: View {
         // The pill is a plain capsule fill that grows behind it, which the GPU animates cheaply.
         Button(action: action) {
             HStack(spacing: 6) {
+                // Static 3D: gradient face plus stacked hard shadows as the extruded side.
                 Image(systemName: section.symbol)
                     .font(.system(size: size * 0.42, weight: .semibold))
+                    .foregroundStyle(LinearGradient(colors: [.white, section.tint.mix(with: .white, by: 0.45)],
+                                                    startPoint: .top, endPoint: .bottom))
+                    .shadow(color: section.tint2, radius: 0, x: 0, y: 1.5)
+                    .shadow(color: section.tint2.mix(with: .black, by: 0.3), radius: 0, x: 0, y: 3)
+                    .shadow(color: .black.opacity(0.45), radius: 4, x: 0, y: 5)
                     .frame(width: size, height: size)
                     .glassEffect(glass, in: .circle)
                 Text(section.title)
@@ -109,21 +115,70 @@ private struct SectionPage: View {
             .id("text-\(section.id)")
             .transition(.opacity)
 
+            if section == .cleanup {
+                TabStrip(selection: $cleanupTab).padding(.top, 18)
+                switch cleanupTab {
+                case .appCaches: AppCachesView(section: section)
+                default: IntroHero(section: section, soon: true) {}
+                }
+            } else {
+                IntroHero(section: section, soon: true) {}
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    @State private var cleanupTab = CleanupTab.appCaches
+}
+
+enum CleanupTab: String, CaseIterable, Identifiable {
+    case sweep, appCaches, trash, mail, shredder
+    var id: String { rawValue }
+    var title: String { L("cleanup.tab.\(rawValue)") }
+}
+
+private struct TabStrip: View {
+    @Binding var selection: CleanupTab
+
+    var body: some View {
+        HStack(spacing: 8) {
+            ForEach(CleanupTab.allCases) { tab in
+                Button { selection = tab } label: {
+                    Text(tab.title)
+                        .font(.system(size: 14, weight: .semibold))
+                        .padding(.horizontal, 16).padding(.vertical, 8)
+                        .foregroundStyle(selection == tab ? Color.black : Color.white.opacity(0.85))
+                        .background(Capsule().fill(selection == tab ? Theme.accent : Color.white.opacity(0.08)))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+}
+
+/// Section intro: big hero in the middle and the Scan button at the bottom.
+struct IntroHero: View {
+    let section: AppSection
+    var soon = false
+    let action: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
             Spacer(minLength: 0)
             SectionHero(section: section)
                 .id("hero-\(section.id)")
                 .transition(.scale(scale: 0.86).combined(with: .opacity))
             Spacer(minLength: 0)
-
-            Button {} label: {
+            if soon { Text(L("common.soon")).font(.callout).foregroundStyle(.secondary).padding(.bottom, 10) }
+            Button(action: action) {
                 Text(L("common.scan"))
                     .font(.system(size: 22, weight: .bold))
                     .frame(width: 220, height: 58)
             }
             .buttonStyle(.glassProminent)
             .tint(Theme.accent)
+            .disabled(soon)
             .padding(.bottom, 34)
         }
-        .frame(maxWidth: .infinity)
     }
 }

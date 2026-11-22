@@ -68,7 +68,8 @@ struct SectionHero: View {
             Color.clear
                 .frame(width: 250, height: 250)
                 .glassEffect(.regular.tint(section.tint.opacity(0.55)), in: .circle)
-            LiveSymbol(name: section.symbol, pointSize: 116, motion: section.motion, live: live)
+            LiveSymbol(name: section.symbol, pointSize: 116, motion: section.motion, live: live,
+                       tint: section.tint, deep: section.tint2)
                 .frame(width: 250, height: 250)
         }
     }
@@ -82,11 +83,14 @@ struct LiveSymbol: NSViewRepresentable {
     let pointSize: CGFloat
     let motion: SymbolMotion
     let live: Bool
+    var tint: Color = .white
+    var deep: Color = .gray
 
     func makeNSView(context: Context) -> SymbolHostView { SymbolHostView() }
 
     func updateNSView(_ view: SymbolHostView, context: Context) {
-        view.configure(name: name, pointSize: pointSize, motion: motion, live: live)
+        view.configure(name: name, pointSize: pointSize, motion: motion, live: live,
+                       tint: NSColor(tint), deep: NSColor(deep))
     }
 }
 
@@ -103,14 +107,22 @@ final class SymbolHostView: NSView {
         super.init(frame: frame)
         wantsLayer = true
         layer?.addSublayer(iconLayer)
+        // Perspective, so the slow sideways sway reads as a 3D turn rather than a squash.
+        var perspective = CATransform3DIdentity
+        perspective.m34 = -1 / 700
+        layer?.sublayerTransform = perspective
     }
 
     required init?(coder: NSCoder) { fatalError("not used") }
 
-    func configure(name: String, pointSize: CGFloat, motion: SymbolMotion, live: Bool) {
-        let needsImage = name != self.name || pointSize != self.pointSize
+    private var tint = NSColor.white
+    private var deep = NSColor.gray
+
+    func configure(name: String, pointSize: CGFloat, motion: SymbolMotion, live: Bool, tint: NSColor, deep: NSColor) {
+        let needsImage = name != self.name || pointSize != self.pointSize || tint != self.tint || deep != self.deep
         let changed = needsImage || motion != self.motion || live != self.live
         self.name = name; self.pointSize = pointSize; self.motion = motion; self.live = live
+        self.tint = tint; self.deep = deep
         guard changed else { return }
         CATransaction.begin()
         CATransaction.setDisableActions(true)
@@ -130,15 +142,55 @@ final class SymbolHostView: NSView {
         CATransaction.commit()
     }
 
-    private func renderImage() {
+    private func symbol(_ color: NSColor) -> (CGImage, CGSize)? {
         let config = NSImage.SymbolConfiguration(pointSize: pointSize, weight: .semibold)
-            .applying(NSImage.SymbolConfiguration(paletteColors: [.white]))
+            .applying(NSImage.SymbolConfiguration(paletteColors: [color]))
         guard let image = NSImage(systemSymbolName: name, accessibilityDescription: nil)?.withSymbolConfiguration(config),
-              let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return }
-        iconSize = image.size
-        iconLayer.contents = cg
-        iconLayer.contentsScale = window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
-        iconLayer.bounds = CGRect(origin: .zero, size: iconSize)
+              let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
+        return (cg, image.size)
+    }
+
+    /// Bakes a 3D look into ONE bitmap (drawn once, so the looping motion stays free):
+    /// a dark extruded side, a soft drop shadow, and a gradient-lit top face.
+    private func renderImage() {
+        guard let (face, size) = symbol(.white),
+              let (side, _) = symbol(deep.blended(withFraction: 0.35, of: .black) ?? deep) else { return }
+        let scale = window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
+        let depth = (pointSize * 0.07).rounded()
+        let pad: CGFloat = 28
+        let canvas = CGSize(width: size.width + pad * 2, height: size.height + depth + pad * 2)
+        guard let ctx = CGContext(data: nil, width: Int(canvas.width * scale), height: Int(canvas.height * scale),
+                                  bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return }
+        ctx.scaleBy(x: scale, y: scale)
+
+        // Extruded side: the symbol stacked downward, shadowed as one shape.
+        ctx.setShadow(offset: CGSize(width: 0, height: -depth), blur: 22, color: NSColor.black.withAlphaComponent(0.55).cgColor)
+        ctx.beginTransparencyLayer(auxiliaryInfo: nil)
+        for i in 0..<Int(depth) {
+            ctx.draw(side, in: CGRect(x: pad, y: pad + CGFloat(i), width: size.width, height: size.height))
+        }
+        ctx.endTransparencyLayer()
+        ctx.setShadow(offset: .zero, blur: 0, color: nil)
+
+        // Top face: white symbol, repainted with a light-to-tint gradient.
+        let top = CGRect(x: pad, y: pad + depth, width: size.width, height: size.height)
+        ctx.beginTransparencyLayer(auxiliaryInfo: nil)
+        ctx.draw(face, in: top)
+        ctx.setBlendMode(.sourceAtop)
+        let light = tint.blended(withFraction: 0.55, of: .white) ?? tint
+        if let gradient = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB),
+                                     colors: [NSColor.white.cgColor, light.cgColor] as CFArray, locations: [0, 1]) {
+            ctx.drawLinearGradient(gradient, start: CGPoint(x: top.minX, y: top.maxY),
+                                   end: CGPoint(x: top.maxX, y: top.minY), options: [])
+        }
+        ctx.endTransparencyLayer()
+
+        guard let baked = ctx.makeImage() else { return }
+        iconSize = canvas
+        iconLayer.contents = baked
+        iconLayer.contentsScale = scale
+        iconLayer.bounds = CGRect(origin: .zero, size: canvas)
     }
 
     private func place() {
@@ -159,6 +211,11 @@ final class SymbolHostView: NSView {
             a.repeatCount = .infinity
             return a
         }
+
+        // Slow sideways turn on every icon, so the extruded side shows: reads as a solid object.
+        let sway = keyframes("transform.rotation.y", [0, 0.32, 0, -0.32, 0], [0, 0.25, 0.5, 0.75, 1])
+        sway.duration = cycle * 2
+        iconLayer.add(sway, forKey: "sway")
 
         switch motion {
         case .wiggle: // a wave: swings around the base, then rests

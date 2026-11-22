@@ -1,6 +1,5 @@
 {
   "sourceLanguage": "en",
-  "version": "1.0",
   "strings": {
     "app.name": {
       "localizations": {
@@ -18,18 +17,162 @@
         }
       }
     },
-    "common.scan": {
+    "caches.empty": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "ابدأ الفحص"
+            "value": "مفيش كاش للبرامج"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Scan"
+            "value": "No app caches found"
+          }
+        }
+      }
+    },
+    "caches.quitFirst": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اقفل البرنامج الأول"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quit the app first"
+          }
+        }
+      }
+    },
+    "caches.scanning": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "بنفحص كاش كل البرامج…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scanning every app's caches…"
+          }
+        }
+      }
+    },
+    "caches.selected": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المختار: %d برنامج، %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Selected: %d apps, %@"
+          }
+        }
+      }
+    },
+    "caches.showSystem": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اعرض برامج النظام"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show system apps"
+          }
+        }
+      }
+    },
+    "cleanup.tab.appCaches": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "كاش البرامج"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App Caches"
+          }
+        }
+      }
+    },
+    "cleanup.tab.mail": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مرفقات البريد"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mail Attachments"
+          }
+        }
+      }
+    },
+    "cleanup.tab.shredder": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الفرّامة"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shredder"
+          }
+        }
+      }
+    },
+    "cleanup.tab.sweep": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الكنس"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sweep"
+          }
+        }
+      }
+    },
+    "cleanup.tab.trash": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "سلال المهملات"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trash Bins"
           }
         }
       }
@@ -66,6 +209,118 @@
         }
       }
     },
+    "common.cleaned": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اتنضف %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cleaned %@"
+          }
+        }
+      }
+    },
+    "common.failedCount": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d عنصر ما اتشالش"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d items could not be removed"
+          }
+        }
+      }
+    },
+    "common.rescan": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "افحص تاني"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scan again"
+          }
+        }
+      }
+    },
+    "common.scan": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ابدأ الفحص"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scan"
+          }
+        }
+      }
+    },
+    "common.selectAll": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اختار الكل"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select all"
+          }
+        }
+      }
+    },
+    "common.selectNone": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "شيل الاختيار"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select none"
+          }
+        }
+      }
+    },
+    "common.soon": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الشاشة دي جاية في الخطوة الجاية"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This screen is coming next"
+          }
+        }
+      }
+    },
     "common.total": {
       "localizations": {
         "ar": {
@@ -78,6 +333,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Total"
+          }
+        }
+      }
+    },
+    "common.undo": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تراجع"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Undo"
           }
         }
       }
@@ -114,178 +385,66 @@
         }
       }
     },
-    "section.overview.title": {
+    "section.apps.f1": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "نظرة عامة"
+            "value": "المُزيل"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Overview"
+            "value": "Remover"
           }
         }
       }
     },
-    "section.overview.subtitle": {
+    "section.apps.f2": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "حالة جهازك وتوصيات سريعة"
+            "value": "المخلفات"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Your Mac's health and quick recommendations"
+            "value": "Leftovers"
           }
         }
       }
     },
-    "section.overview.f1": {
+    "section.apps.subtitle": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "مساحة القرص"
+            "value": "أزل التطبيقات مع مخلفاتها"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Disk space"
+            "value": "Remove apps along with their leftovers"
           }
         }
       }
     },
-    "section.overview.f2": {
+    "section.apps.title": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "التوصيات"
+            "value": "التطبيقات"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Recommendations"
-          }
-        }
-      }
-    },
-    "section.smartScan.title": {
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "فحص شامل"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Smart Scan"
-          }
-        }
-      }
-    },
-    "section.smartScan.subtitle": {
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "اضغط مرة واحدة وشوف كل اللي ينفع يتنضف"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "One click to see everything worth cleaning"
-          }
-        }
-      }
-    },
-    "section.smartScan.f1": {
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "التنضيف"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cleanup"
-          }
-        }
-      }
-    },
-    "section.smartScan.f2": {
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "الأداء"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Performance"
-          }
-        }
-      }
-    },
-    "section.smartScan.f3": {
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "الفوضى"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Clutter"
-          }
-        }
-      }
-    },
-    "section.cleanup.title": {
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "التنضيف"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cleanup"
-          }
-        }
-      }
-    },
-    "section.cleanup.subtitle": {
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "امسح الكاش والملفات المؤقتة وحرّر مساحة"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Clear caches and junk to free space"
+            "value": "Apps"
           }
         }
       }
@@ -354,242 +513,98 @@
         }
       }
     },
-    "section.protection.title": {
+    "section.cleanup.subtitle": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "الحماية"
+            "value": "امسح الكاش والملفات المؤقتة وحرّر مساحة"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Protection"
+            "value": "Clear caches and junk to free space"
           }
         }
       }
     },
-    "section.protection.subtitle": {
+    "section.cleanup.title": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "راجع الخصوصية وصلاحيات التطبيقات"
+            "value": "التنضيف"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Review privacy and app permissions"
+            "value": "Cleanup"
           }
         }
       }
     },
-    "section.protection.f1": {
+    "section.cloud.f1": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "فحص الخصوصية"
+            "value": "iCloud Drive"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Privacy check"
+            "value": "iCloud Drive"
           }
         }
       }
     },
-    "section.protection.f2": {
+    "section.cloud.f2": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "صلاحيات التطبيقات"
+            "value": "Dropbox وOneDrive وGoogle Drive"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "App permissions"
+            "value": "Dropbox, OneDrive, Google Drive"
           }
         }
       }
     },
-    "section.protection.f3": {
+    "section.cloud.subtitle": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "عناصر تحتاج مراجعة"
+            "value": "حرّر مساحة من المجلدات المتزامنة"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Items to review"
+            "value": "Free space from synced folders"
           }
         }
       }
     },
-    "section.performance.title": {
+    "section.cloud.title": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "الأداء"
+            "value": "السحابة"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Performance"
-          }
-        }
-      }
-    },
-    "section.performance.subtitle": {
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "صيانة الجهاز وعناصر البدء"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Maintenance and startup items"
-          }
-        }
-      }
-    },
-    "section.performance.f1": {
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "مهام الصيانة"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Maintenance tasks"
-          }
-        }
-      }
-    },
-    "section.performance.f2": {
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "عناصر البدء والخلفية"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Startup and background items"
-          }
-        }
-      }
-    },
-    "section.apps.title": {
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "التطبيقات"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Apps"
-          }
-        }
-      }
-    },
-    "section.apps.subtitle": {
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "أزل التطبيقات مع مخلفاتها"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Remove apps along with their leftovers"
-          }
-        }
-      }
-    },
-    "section.apps.f1": {
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "المُزيل"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Remover"
-          }
-        }
-      }
-    },
-    "section.apps.f2": {
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "المخلفات"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Leftovers"
-          }
-        }
-      }
-    },
-    "section.clutter.title": {
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "الفوضى"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Clutter"
-          }
-        }
-      }
-    },
-    "section.clutter.subtitle": {
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "رتّب ملفاتك الكبيرة والمكررة"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tidy large and duplicate files"
+            "value": "Cloud"
           }
         }
       }
@@ -658,34 +673,34 @@
         }
       }
     },
-    "section.diskMap.title": {
+    "section.clutter.subtitle": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "خريطة القرص"
+            "value": "رتّب ملفاتك الكبيرة والمكررة"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Disk Map"
+            "value": "Tidy large and duplicate files"
           }
         }
       }
     },
-    "section.diskMap.subtitle": {
+    "section.clutter.title": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "شوف إيه اللي واخد المساحة"
+            "value": "الفوضى"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "See what takes up your space"
+            "value": "Clutter"
           }
         }
       }
@@ -722,69 +737,326 @@
         }
       }
     },
-    "section.cloud.title": {
+    "section.diskMap.subtitle": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "السحابة"
+            "value": "شوف إيه اللي واخد المساحة"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Cloud"
+            "value": "See what takes up your space"
           }
         }
       }
     },
-    "section.cloud.subtitle": {
+    "section.diskMap.title": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "حرّر مساحة من المجلدات المتزامنة"
+            "value": "خريطة القرص"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Free space from synced folders"
+            "value": "Disk Map"
           }
         }
       }
     },
-    "section.cloud.f1": {
+    "section.overview.f1": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "iCloud Drive"
+            "value": "مساحة القرص"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "iCloud Drive"
+            "value": "Disk space"
           }
         }
       }
     },
-    "section.cloud.f2": {
+    "section.overview.f2": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "Dropbox وOneDrive وGoogle Drive"
+            "value": "التوصيات"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Dropbox, OneDrive, Google Drive"
+            "value": "Recommendations"
+          }
+        }
+      }
+    },
+    "section.overview.subtitle": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "حالة جهازك وتوصيات سريعة"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your Mac's health and quick recommendations"
+          }
+        }
+      }
+    },
+    "section.overview.title": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "نظرة عامة"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Overview"
+          }
+        }
+      }
+    },
+    "section.performance.f1": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مهام الصيانة"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Maintenance tasks"
+          }
+        }
+      }
+    },
+    "section.performance.f2": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "عناصر البدء والخلفية"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Startup and background items"
+          }
+        }
+      }
+    },
+    "section.performance.subtitle": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "صيانة الجهاز وعناصر البدء"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Maintenance and startup items"
+          }
+        }
+      }
+    },
+    "section.performance.title": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الأداء"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Performance"
+          }
+        }
+      }
+    },
+    "section.protection.f1": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "فحص الخصوصية"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Privacy check"
+          }
+        }
+      }
+    },
+    "section.protection.f2": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "صلاحيات التطبيقات"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App permissions"
+          }
+        }
+      }
+    },
+    "section.protection.f3": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "عناصر تحتاج مراجعة"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Items to review"
+          }
+        }
+      }
+    },
+    "section.protection.subtitle": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "راجع الخصوصية وصلاحيات التطبيقات"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Review privacy and app permissions"
+          }
+        }
+      }
+    },
+    "section.protection.title": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الحماية"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Protection"
+          }
+        }
+      }
+    },
+    "section.smartScan.f1": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "التنضيف"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cleanup"
+          }
+        }
+      }
+    },
+    "section.smartScan.f2": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الأداء"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Performance"
+          }
+        }
+      }
+    },
+    "section.smartScan.f3": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الفوضى"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clutter"
+          }
+        }
+      }
+    },
+    "section.smartScan.subtitle": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اضغط مرة واحدة وشوف كل اللي ينفع يتنضف"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "One click to see everything worth cleaning"
+          }
+        }
+      }
+    },
+    "section.smartScan.title": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "فحص شامل"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Smart Scan"
           }
         }
       }
     }
-  }
+  },
+  "version": "1.0"
 }
