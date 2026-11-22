@@ -61,6 +61,10 @@ struct DiskMapView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             HStack(spacing: 14) {
+                // Smaller than a main action, with the size line beside it.
+                Button(L("map.remove")) { showPreview = true }
+                    .buttonStyle(.liquid(prominent: true))
+                    .disabled(chosen.isEmpty)
                 VStack(alignment: .leading, spacing: 4) {
                     Text("\(current.name): \(formatBytes(current.bytes))").font(.system(size: 15, weight: .semibold))
                     let safe = SpaceAdvice.safeBytes(current, home: home)
@@ -69,8 +73,7 @@ struct DiskMapView: View {
                             .font(.system(size: 13)).foregroundStyle(SafetyBadge.color(.safe))
                     }
                 }
-                Spacer()
-                ActionButton(title: L("map.remove"), disabled: chosen.isEmpty) { showPreview = true }
+                Spacer() // the opposite corner stays free for Check for Updates
             }
         }
         .padding(.horizontal, 40)
