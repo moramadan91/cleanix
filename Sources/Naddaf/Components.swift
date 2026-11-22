@@ -150,39 +150,52 @@ final class SymbolHostView: NSView {
         return (cg, image.size)
     }
 
-    /// Bakes a 3D look into ONE bitmap (drawn once, so the looping motion stays free):
-    /// a dark extruded side, a soft drop shadow, and a gradient-lit top face.
+    /// Bakes a liquid-glass symbol into ONE bitmap (drawn once, so the looping motion stays free):
+    /// a soft luminous halo in the section hue, a see-through frosted body, a bright rim on the
+    /// upper edge and a glossy reflection across the top. No drop shadow, no extrusion.
     private func renderImage() {
-        guard let (face, size) = symbol(.white),
-              let (side, _) = symbol(deep.blended(withFraction: 0.35, of: .black) ?? deep) else { return }
+        guard let (face, size) = symbol(.white) else { return }
         let scale = window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
-        let depth = (pointSize * 0.07).rounded()
-        let pad: CGFloat = 28
-        let canvas = CGSize(width: size.width + pad * 2, height: size.height + depth + pad * 2)
+        let pad: CGFloat = 32
+        let canvas = CGSize(width: size.width + pad * 2, height: size.height + pad * 2)
         guard let ctx = CGContext(data: nil, width: Int(canvas.width * scale), height: Int(canvas.height * scale),
                                   bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpace(name: CGColorSpace.sRGB)!,
                                   bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return }
         ctx.scaleBy(x: scale, y: scale)
+        let rect = CGRect(x: pad, y: pad, width: size.width, height: size.height)
+        let space = CGColorSpace(name: CGColorSpace.sRGB)
+        let rim = max(1.5, pointSize * 0.018)
 
-        // Extruded side: the symbol stacked downward, shadowed as one shape.
-        ctx.setShadow(offset: CGSize(width: 0, height: -depth), blur: 22, color: NSColor.black.withAlphaComponent(0.55).cgColor)
-        ctx.beginTransparencyLayer(auxiliaryInfo: nil)
-        for i in 0..<Int(depth) {
-            ctx.draw(side, in: CGRect(x: pad, y: pad + CGFloat(i), width: size.width, height: size.height))
-        }
-        ctx.endTransparencyLayer()
+        // Halo: light passing through tinted glass, centred (not offset like a shadow).
+        ctx.setShadow(offset: .zero, blur: 26, color: tint.withAlphaComponent(0.75).cgColor)
+        ctx.setAlpha(0.35)
+        ctx.draw(face, in: rect)
+        ctx.setAlpha(1)
         ctx.setShadow(offset: .zero, blur: 0, color: nil)
 
-        // Top face: white symbol, repainted with a light-to-tint gradient.
-        let top = CGRect(x: pad, y: pad + depth, width: size.width, height: size.height)
         ctx.beginTransparencyLayer(auxiliaryInfo: nil)
-        ctx.draw(face, in: top)
+        // Body: frosted, more opaque at the top, clearer at the bottom so the orb shows through.
+        ctx.draw(face, in: rect)
+        ctx.setBlendMode(.sourceIn)
+        let body = [NSColor.white.withAlphaComponent(0.95).cgColor,
+                    (tint.blended(withFraction: 0.7, of: .white) ?? tint).withAlphaComponent(0.55).cgColor]
+        if let g = CGGradient(colorsSpace: space, colors: body as CFArray, locations: [0, 1]) {
+            ctx.drawLinearGradient(g, start: CGPoint(x: rect.midX, y: rect.maxY), end: CGPoint(x: rect.midX, y: rect.minY), options: [])
+        }
+        // Rim: everything except the symbol shifted down a little = a bright upper edge.
         ctx.setBlendMode(.sourceAtop)
-        let light = tint.blended(withFraction: 0.55, of: .white) ?? tint
-        if let gradient = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB),
-                                     colors: [NSColor.white.cgColor, light.cgColor] as CFArray, locations: [0, 1]) {
-            ctx.drawLinearGradient(gradient, start: CGPoint(x: top.minX, y: top.maxY),
-                                   end: CGPoint(x: top.maxX, y: top.minY), options: [])
+        ctx.beginTransparencyLayer(auxiliaryInfo: nil)
+        ctx.setFillColor(NSColor.white.cgColor)
+        ctx.fill(rect.insetBy(dx: -pad, dy: -pad))
+        ctx.setBlendMode(.destinationOut)
+        ctx.draw(face, in: rect.offsetBy(dx: 0, dy: -rim))
+        ctx.endTransparencyLayer()
+        // Gloss: a soft diagonal reflection over the upper half.
+        ctx.setBlendMode(.sourceAtop)
+        let gloss = [NSColor.white.withAlphaComponent(0.45).cgColor, NSColor.white.withAlphaComponent(0).cgColor]
+        if let g = CGGradient(colorsSpace: space, colors: gloss as CFArray, locations: [0, 1]) {
+            ctx.drawLinearGradient(g, start: CGPoint(x: rect.minX, y: rect.maxY),
+                                   end: CGPoint(x: rect.midX, y: rect.midY), options: [])
         }
         ctx.endTransparencyLayer()
 

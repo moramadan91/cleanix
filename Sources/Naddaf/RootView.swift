@@ -51,7 +51,7 @@ private struct SidebarItem: View {
     @State private var hovering = false
 
     private var glass: Glass {
-        isSelected ? .regular.tint(Theme.accent.opacity(0.32)) : .regular
+        isSelected ? .regular.tint(Theme.accent.opacity(0.45)) : .regular.tint(section.tint.opacity(0.22))
     }
 
     var body: some View {
@@ -59,14 +59,11 @@ private struct SidebarItem: View {
         // The pill is a plain capsule fill that grows behind it, which the GPU animates cheaply.
         Button(action: action) {
             HStack(spacing: 6) {
-                // Static 3D: gradient face plus stacked hard shadows as the extruded side.
+                // Glass symbol on a glass disc tinted with the section hue; no hard shadows.
                 Image(systemName: section.symbol)
                     .font(.system(size: size * 0.42, weight: .semibold))
-                    .foregroundStyle(LinearGradient(colors: [.white, section.tint.mix(with: .white, by: 0.45)],
+                    .foregroundStyle(LinearGradient(colors: [.white, .white.opacity(0.6)],
                                                     startPoint: .top, endPoint: .bottom))
-                    .shadow(color: section.tint2, radius: 0, x: 0, y: 1.5)
-                    .shadow(color: section.tint2.mix(with: .black, by: 0.3), radius: 0, x: 0, y: 3)
-                    .shadow(color: .black.opacity(0.45), radius: 4, x: 0, y: 5)
                     .frame(width: size, height: size)
                     .glassEffect(glass, in: .circle)
                 Text(section.title)
