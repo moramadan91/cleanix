@@ -37,6 +37,8 @@ XML
 
 git tag "v$V"
 git push origin HEAD "v$V"
+# Cleanix.dmg (no version) keeps one stable download link: releases/latest/download/Cleanix.dmg
+cp "build/Cleanix-$V.dmg" build/Cleanix.dmg
 gh release create "v$V" -R "$REPO" --title "Cleanix $V" --notes "$NOTES" \
-  "build/Cleanix-$V.dmg" "$ZIP" build/appcast.xml
+  "build/Cleanix-$V.dmg" build/Cleanix.dmg "$ZIP" build/appcast.xml
 echo "Released v$V"
