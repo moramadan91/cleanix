@@ -112,17 +112,17 @@ html[lang="en"] img[data-en], html[lang="en"] div[data-en] { display: block !imp
 .intro { min-height: 90vh; display: grid; place-content: center; justify-items: center; text-align: center; gap: 30px; padding: 120px 20px; }
 .big-word { width: min(520px, 80vw); }
 .intro-title { max-width: 22ch; font-size: clamp(24px, 3.4vw, 40px); font-weight: 500; line-height: 1.35; color: var(--lavender); }
-.cta-row { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: center; }
+.cta-row { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; justify-content: center; }
+.dl { display: grid; justify-items: center; gap: 10px; }
 .cta {
   display: inline-flex; align-items: center; gap: 10px; text-decoration: none;
-  background: var(--violet); color: var(--white); font-weight: 600; font-size: 19px;
-  padding: 18px 34px; border-radius: 999px; transition: transform .15s ease, background .15s ease;
+  background: none; color: var(--lavender); font-weight: 600; font-size: 19px; min-width: 240px; justify-content: center;
+  padding: 17px 32px; border-radius: 999px; border: 1px solid rgba(234, 228, 255, 0.4);
+  transition: transform .15s ease, background .15s ease, border-color .15s ease, color .15s ease;
 }
-.cta:hover { background: var(--violet-2); transform: translateY(-2px); }
+.cta:hover, .cta:focus-visible { background: var(--violet); border-color: var(--violet); color: var(--white); transform: translateY(-2px); }
 .cta svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
-.cta.alt { background: none; color: var(--lavender); border: 1px solid rgba(234, 228, 255, 0.4); padding: 17px 30px; }
-.cta.alt:hover { background: rgba(234, 228, 255, 0.08); }
-.cta.alt svg { fill: currentColor; stroke: none; width: 20px; height: 20px; }
+.cta svg.win { width: 20px; height: 20px; fill: currentColor; stroke: none; }
 .guide { text-align: center; margin-top: 18px; }
 .guide a { color: var(--lavender); font-size: 15px; }
 .meta { color: var(--muted); font-size: 14px; display: flex; gap: 8px; }
