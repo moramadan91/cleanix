@@ -4,9 +4,10 @@ const mk = (path, bytes, group, safety = 'safe') => ({ path, name: path.split('\
 const MB = 1024 * 1024;
 const DATA = {
   junk: [
-    mk(H + '\\AppData\\Local\\Temp\\setup_4821', 412 * MB, 'temp'),
+    mk(H + '\\AppData\\Local\\Temp\\setup_4821', 912 * MB, 'temp'),
     mk(H + '\\AppData\\Local\\Temp\\chrome_installer.log', 2 * MB, 'temp'),
     mk(H + '\\AppData\\Local\\CrashDumps\\explorer.exe.dmp', 96 * MB, 'crash'),
+    mk('C:\\Windows\\Temp\\MpCmdRun.log', 12 * MB, 'winTemp'),
   ],
   caches: [
     mk(H + '\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\Cache', 820 * MB, 'Chrome'),
@@ -31,6 +32,7 @@ const dirs = {
 const disk = { total: 512 * 1024 * MB, free: 92 * 1024 * MB };
 let ram = { used: 13 * 1024 * MB, total: 16 * 1024 * MB };
 let junk = DATA.junk.slice();
+let bin = { bytes: 1300 * MB, items: 214 };
 let boostPaths = null;
 const settings = { open_at_login: false, alert_low_space: false, alert_weekly: false,
   last_scan: 0, last_low_space_alert: 0, last_weekly_alert: 0, lang: 'en' };
@@ -51,7 +53,7 @@ const ramPercent = () => Math.round(100 * ram.used / ram.total);
 const recordScan = () => { settings.last_scan = Math.floor(Date.now() / 1000); };
 const wait = ms => new Promise(r => setTimeout(r, ms));
 export async function mockInvoke(cmd, args = {}) {
-  await wait(cmd === 'scan' ? 700 : 150);
+  await wait(cmd === 'scan' || cmd === 'health' ? 700 : 150);
   switch (cmd) {
     case 'scan':
       if (args.kind === 'junk' || args.kind === 'caches') recordScan();
@@ -59,8 +61,11 @@ export async function mockInvoke(cmd, args = {}) {
     case 'health': {
       recordScan();
       const memoryHigh = ramPercent() > 75;
-      return { score: memoryHigh ? 72 : 82, issues: memoryHigh ? ['disk', 'memory', 'startup'] : ['disk', 'startup'],
-        disk, ram, startup: 10, junk: bytesOf(junk), battery: { design: 50000, full: 46000, cycles: 312, health: 92 } };
+      const junkBytes = bytesOf(junk);
+      const junkHigh = junkBytes >= 1_000_000_000;
+      return { score: 82 - (memoryHigh ? 10 : 0) - (junkHigh ? 5 : 0),
+        issues: ['disk', ...(memoryHigh ? ['memory'] : []), 'startup', ...(junkHigh ? ['junk'] : [])],
+        disk, ram, startup: 10, junk: junkBytes, battery: { design: 50000, full: 46000, cycles: 312, health: 92 } };
     }
     case 'boost_preview':
       boostPaths = junk.slice();
@@ -89,7 +94,13 @@ export async function mockInvoke(cmd, args = {}) {
       const p = args.path ?? H;
       return (dirs[p] ?? [['file.bin', 300, 'review', 0], ['Cache', 120, 'safe', 1]]).map(([n, mb, safety, dir]) => ({ path: p + '\\' + n, name: n, bytes: mb * MB, safety, dir: !!dir }));
     }
-    case 'clean': return { freed: args.paths.length * 50 * MB, removed: args.paths, failed: [] };
+    case 'clean': {
+      const freed = args.paths.reduce((sum, path) => sum + (junk.find(item => item.path === path)?.bytes ?? 50 * MB), 0);
+      junk = junk.filter(item => !args.paths.includes(item.path));
+      bin.bytes += freed;
+      bin.items += args.paths.length;
+      return { freed, removed: args.paths, failed: [] };
+    }
     case 'disk_info': return disk;
     case 'list_apps': return [
       ['Adobe Photoshop 2025', 'Adobe Inc.', '26.1', 4800], ['Google Chrome', 'Google LLC', '131.0', 620], ['Zoom Workplace', 'Zoom Communications', '6.2.5', 310],
@@ -109,7 +120,12 @@ export async function mockInvoke(cmd, args = {}) {
       { capability: 'location', app: 'WindowsMaps', allowed: false, last_used: 0 },
     ];
     case 'run_task': if (args.id === 'defender') throw 'x'; return null;
-    case 'recycle_info': return { bytes: 1300 * MB, items: 214 };
+    case 'recycle_info': return { ...bin };
+    case 'open_recycle_bin': return null;
+    case 'empty_recycle':
+      if (!args.confirmed) throw new Error('not confirmed');
+      bin = { bytes: 0, items: 0 };
+      return null;
     default: return null;
   }
 }

@@ -160,11 +160,16 @@ function sortMenu() {
 }
 
 function doneView(r) {
+  const canUndo = r.freed > 0;
   return `<div class="center">
     <div class="orb done">${icon('M5 12.5l4.5 4.5L19 7.5')}</div>
     <h2 class="big-text">${t('common.cleaned', fmt(r.freed))}</h2>
     ${r.failed.length ? `<p class="warn">${t('common.failed', r.failed.length)}</p>` : ''}
-    <button type="button" class="btn big primary" data-action="scan">${t('common.rescan')}</button>
+    <div class="result-actions">
+      ${canUndo ? `<button type="button" class="orb done result-action undo" data-action="undoClean" aria-describedby="restore-note">${t('common.undo')}</button>` : ''}
+      <button type="button" class="orb done result-action" data-action="scan">${t('common.rescan')}</button>
+    </div>
+    ${canUndo ? `<p class="result-note muted" id="restore-note">${t('common.restoreNote')}</p>` : ''}
   </div>`;
 }
 
@@ -185,13 +190,16 @@ async function scan() {
 /* ---------- Recycle Bin ---------- */
 
 let bin = null;
+let binEmptying = false;
 function binView() {
+  if (binEmptying) return spinner();
   if (bin === null) { refreshBin(); return spinner(); }
   if (bin === 'none') return `<div class="center"><p class="muted">${t('overview.unknown')}</p></div>`;
   if (!bin.items) return `<div class="center"><div class="orb done">${icon('M5 12.5l4.5 4.5L19 7.5')}</div><p>${t('bin.empty')}</p></div>`;
   return `<div class="center">
     <div class="orb">${icon(SECTIONS[2].icon)}</div>
     <h2 class="big-text">${t('bin.size', bin.items, fmt(bin.bytes))}</h2>
+    <button type="button" class="btn big primary" data-action="binAsk">${t('bin.action')}</button>
   </div>`;
 }
 
@@ -209,12 +217,20 @@ function scoreRing(pct, label, text) {
     <text x="90" y="98" text-anchor="middle">${text}</text></svg>`;
 }
 
-function healthView(h) {
-  if (!h) return `<div class="panel health"><button type="button" class="btn big primary" data-action="boostAsk">${t('boost.title')}</button></div>`;
+function healthView(h, previousScore, checkFailed) {
+  const refresh = `<button type="button" class="icon-btn health-refresh" data-action="healthRefresh" aria-label="${t('health.refresh')}" ${overviewLoading ? 'disabled aria-busy="true"' : ''}>${icon('M20 4v5h-5M20 9a8 8 0 1 0 .2 5')}</button>`;
+  let status = '';
+  if (checkFailed) status = t('health.checkFailed');
+  else if (previousScore != null) status = previousScore === h.score
+    ? t('health.unchanged', localNumber(h.score))
+    : t('health.changed', localNumber(previousScore), localNumber(h.score));
+  const note = `<p class="health-status muted" role="status">${status}</p>`;
+  if (!h) return `<div class="panel health">${refresh}<button type="button" class="btn big primary" data-action="boostAsk">${t('boost.title')}</button>${note}</div>`;
   const band = h.score >= 80 ? 'good' : h.score >= 50 ? 'fair' : 'poor';
   const destinations = { disk: ['clutter', 'large'], memory: ['performance', 'heavy'], startup: ['performance', 'startup'], junk: ['cleanup', 'junk'] };
   return `<div class="panel health">
-    <div class="health-score">${scoreRing(h.score, t('health.score', localNumber(h.score)), localNumber(h.score))}</div>
+    ${refresh}
+    <div class="health-score">${scoreRing(h.score, t('health.score', localNumber(h.score)), localNumber(h.score))}${note}</div>
     <div class="health-details">
       <h2>${t('health.' + band)}</h2>
       <p class="muted">${t('health.ram', h.ram.total ? fmt(h.ram.used) : '—', h.ram.total ? fmt(h.ram.total) : '—')}</p>
@@ -243,20 +259,37 @@ function overviewView() {
     ['diskMap', null, t('overview.tipMap')],
   ];
   return header() + `<div class="overview">
-    ${healthView(health)}
+    ${healthView(health, overview.previousScore, overview.checkFailed)}
     <div class="panel disk"><h2>${t('overview.disk', 'C:')}</h2>${ring}</div>
     <div class="panel tips"><h2>${t('overview.tips')}</h2>
       ${tips.map(([s, k, text]) => `<div class="tip"><span>${text}</span><button type="button" class="btn small" data-go="${s}" data-go-tab="${k ?? ''}">${t('overview.go')}</button></div>`).join('')}
     </div></div>`;
 }
 
-async function loadOverview() {
+async function loadOverview(refreshButton) {
+  if (overviewLoading) return;
+  const previous = overview;
+  const restoreFocus = refreshButton && document.activeElement === refreshButton;
   overviewLoading = true;
+  if (refreshButton) {
+    refreshButton.disabled = true;
+    refreshButton.setAttribute('aria-busy', 'true');
+  }
   const [health, b] = await Promise.all([invoke('health').catch(() => null), invoke('recycle_info').catch(() => null)]);
-  const disk = health?.disk ?? await invoke('disk_info').catch(() => null);
-  overview = { disk, bin: b, health };
+  const disk = health?.disk?.total ? health.disk : await invoke('disk_info').catch(() => null);
+  if (overview === previous) {
+    overview = {
+      disk, bin: b, health: health ?? previous?.health,
+      previousScore: refreshButton && health ? previous?.health?.score : undefined,
+      checkFailed: Boolean(refreshButton && !health),
+    };
+  }
   overviewLoading = false;
-  if (section === 'overview') render();
+  if (section === 'overview') {
+    const refocus = restoreFocus && (document.activeElement === document.body || document.activeElement === refreshButton);
+    render();
+    if (refocus) $('[data-action="healthRefresh"]')?.focus();
+  }
 }
 
 let boostBusy = false;
@@ -408,7 +441,7 @@ function accessView() {
 
 /* ---------- Maintenance (Performance) ---------- */
 
-const TASKS = ['dns', 'diskCleanup', 'storageSense', 'defender'];
+const TASKS = ['dns', 'explorer', 'diskCleanup', 'storageSense', 'defender'];
 const taskState = {};
 function maintView() {
   return `<div class="tasks">${TASKS.map(id => `<div class="panel task">
@@ -566,7 +599,10 @@ document.addEventListener('click', async e => {
   if (el.id === 'update') return invoke('open_release', { tag: updateTag }).catch(() => {});
   if (el.dataset.settings) return invoke('open_settings', { page: el.dataset.settings }).catch(() => {});
   if (el.id === 'settings') return openSettings();
-  if (el.dataset.task) return runTask(el.dataset.task);
+  if (el.dataset.task) {
+    if (el.dataset.task !== 'explorer') return runTask(el.dataset.task);
+    return confirmAction('task.explorer', t('task.explorer.confirm'), 'task.run', () => runTask('explorer'));
+  }
   if (el.id === 'lang') {
     lang = lang === 'ar' ? 'en' : 'ar';
     store('cleanix.lang', lang);
@@ -590,6 +626,8 @@ document.addEventListener('click', async e => {
   const app = apps.list?.find(a => a.id === el.closest('[data-app]')?.dataset.app);
   switch (el.dataset.action) {
     case 'scan': return scan();
+    case 'undoClean': return invoke('open_recycle_bin').catch(() => showMessage('common.undo', t('bin.openFailed')));
+    case 'healthRefresh': return loadOverview(el);
     case 'tick': return; // handled on change
     case 'mapTick': return;
     case 'all': v.items.forEach(i => i.safety !== 'risky' && v.selected.add(i.path)); return render();
@@ -612,6 +650,21 @@ document.addEventListener('click', async e => {
         closeModal();
         const ok = await invoke('uninstall', { id: app.id }).then(() => true, () => false);
         apps.note = t(ok ? 'apps.launched' : 'apps.failed', app.name);
+        render();
+      };
+      return;
+    case 'binAsk':
+      modal(`<h2>${t('bin.confirmTitle')}</h2><p>${t('bin.confirmBody')}</p>
+        <div class="actions"><button type="button" class="btn" data-modal="cancel">${t('common.cancel')}</button>
+        <button type="button" class="btn danger" data-modal="ok">${t('bin.action')}</button></div>`);
+      pendingOk = async () => {
+        closeModal();
+        binEmptying = true;
+        render();
+        await invoke('empty_recycle', { confirmed: true }).catch(() => {});
+        overview = null;
+        await refreshBin();
+        binEmptying = false;
         render();
       };
       return;

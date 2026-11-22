@@ -49,6 +49,8 @@ pub struct Places {
     pub local: PathBuf,
     pub roaming: PathBuf,
     pub temp: PathBuf,
+    /// C:\Windows\Temp, when known.
+    pub win_temp: Option<PathBuf>,
 }
 
 impl Places {
@@ -58,16 +60,21 @@ impl Places {
         let local = var("LOCALAPPDATA").unwrap_or_else(|| home.join("AppData/Local"));
         let roaming = var("APPDATA").unwrap_or_else(|| home.join("AppData/Roaming"));
         let temp = var("TEMP").filter(|_| cfg!(windows)).unwrap_or_else(|| local.join("Temp"));
-        Places { home, local, roaming, temp }
+        let win_temp = var("WINDIR").map(|w| w.join("Temp"));
+        Places { home, local, roaming, temp, win_temp }
     }
 
-    /// Folders a removal may ever reach into.
-    fn roots(&self) -> [&Path; 3] {
+    fn user_roots(&self) -> [&Path; 3] {
         [&self.home, &self.local, &self.roaming]
     }
 
+    /// Folders a removal may ever reach into.
+    fn roots(&self) -> impl Iterator<Item = &Path> {
+        self.user_roots().into_iter().chain(self.win_temp.as_deref())
+    }
+
     fn contains_unlinked(&self, path: &Path) -> bool {
-        self.roots().into_iter().filter(|root| path.starts_with(root))
+        self.roots().filter(|root| path.starts_with(root))
             .min_by_key(|root| root.components().count())
             .is_some_and(|root| within_user_folder(path, root))
     }
@@ -137,8 +144,9 @@ pub fn scan_junk(p: &Places) -> Vec<ScanItem> {
     ];
     let mut seen = std::collections::HashSet::new();
     let mut out = vec![];
-    for (root, group) in roots {
-        if p.roots().iter().any(|user_root| user_root.starts_with(&root))
+    let win_temp = p.win_temp.iter().map(|root| (root.clone(), "winTemp"));
+    for (root, group) in roots.into_iter().chain(win_temp) {
+        if p.user_roots().iter().any(|user_root| user_root.starts_with(&root))
             || !p.contains_unlinked(&root)
             || !seen.insert(root.clone())
         {
@@ -464,7 +472,7 @@ pub fn scan_leftovers(p: &Places, installed: &[String], days: u64, now: SystemTi
 
 /// How safe removing something is, for the disk map.
 pub fn advise(path: &Path, p: &Places) -> Safety {
-    if p.roots().contains(&path) {
+    if p.roots().any(|root| path == root) {
         return Safety::Risky;
     }
     if backup_roots(p).iter().any(|root| path.starts_with(root) && path != root) {
@@ -551,7 +559,7 @@ fn within_user_folder(path: &Path, root: &Path) -> bool {
 }
 
 /// Removes `paths` with `dispose` (the Recycle Bin in the app) after checking each one:
-/// offered by a scan, not risky, strictly inside one of the user's folders, not a link.
+/// offered by a scan, not risky, strictly inside an allowed root, not a link.
 pub fn remove(
     paths: &[String],
     offered: &Offered,
@@ -559,11 +567,10 @@ pub fn remove(
     dispose: impl Fn(&Path) -> Result<(), String>,
 ) -> CleanResult {
     let mut r = CleanResult::default();
-    let roots = places.roots();
     for raw in paths {
         let path = PathBuf::from(raw);
         let allowed = matches!(offered.0.get(&path), Some(Safety::Safe | Safety::Review))
-            && !roots.contains(&path.as_path())
+            && !places.roots().any(|root| path == root)
             && places.contains_unlinked(&path);
         if !allowed {
             r.failed.push(raw.clone());
@@ -593,7 +600,7 @@ mod tests {
         let home = root.join("home");
         let local = home.join("AppData/Local");
         let roaming = home.join("AppData/Roaming");
-        Places { temp: local.join("Temp"), home, local, roaming }
+        Places { temp: local.join("Temp"), home, local, roaming, win_temp: None }
     }
 
     fn write(path: &Path, bytes: usize) {
@@ -616,6 +623,35 @@ mod tests {
         assert_eq!(items.len(), 3, "temp is listed once even though TEMP == Local\\Temp");
         assert_eq!(items.iter().map(|i| i.bytes).sum::<u64>(), 160);
         assert!(items.iter().all(|i| i.safety == Safety::Safe));
+    }
+
+    #[test]
+    fn windows_temp_offers_entries_but_cannot_remove_the_root() {
+        let t = tempfile::tempdir().unwrap();
+        let mut p = places(t.path());
+        let root = t.path().join("Windows/Temp");
+        let junk = root.join("setup.log");
+        let sibling = root.with_file_name("keep.log");
+        write(&junk, 12);
+        write(&sibling, 8);
+        p.win_temp = Some(root.clone());
+
+        let items = scan_junk(&p);
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0].group, "winTemp");
+        assert_eq!(items[0].safety, Safety::Safe);
+        assert_eq!(advise(&junk, &p), Safety::Risky);
+
+        let mut offered = Offered::default();
+        offered.add_items(&items);
+        offered.0.insert(root.clone(), Safety::Safe);
+        offered.0.insert(sibling.clone(), Safety::Safe);
+        let path = |p: &Path| p.to_string_lossy().into_owned();
+        let result = remove(&[path(&junk), path(&root), path(&sibling)], &offered, &p, rm);
+        assert_eq!(result.removed, vec![path(&junk)]);
+        assert_eq!(result.freed, 12);
+        assert_eq!(result.failed, vec![path(&root), path(&sibling)]);
+        assert!(root.is_dir() && sibling.is_file());
     }
 
     #[test]

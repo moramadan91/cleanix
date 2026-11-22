@@ -76,6 +76,20 @@ pub fn run_task(id: &str) -> Result<(), String> {
     };
     match id {
         "dns" => quiet("ipconfig", &["/flushdns"]),
+        "explorer" => {
+            // Explorer restarts itself on most systems; start it if it did not.
+            let _ = quiet("taskkill", &["/f", "/im", "explorer.exe"]);
+            std::thread::sleep(std::time::Duration::from_millis(1500));
+            let running = hidden_command("tasklist")
+                .args(["/fi", "imagename eq explorer.exe", "/nh"])
+                .output()
+                .map(|o| String::from_utf8_lossy(&o.stdout).to_lowercase().contains("explorer.exe"))
+                .unwrap_or(false);
+            if !running {
+                hidden_command("explorer.exe").spawn().map_err(|e| e.to_string())?;
+            }
+            Ok(())
+        }
         "diskCleanup" => crate::apps::launch("cleanmgr.exe"),
         "storageSense" => crate::apps::launch("ms-settings:storagesense"),
         "defender" => crate::apps::launch("windowsdefender:"),

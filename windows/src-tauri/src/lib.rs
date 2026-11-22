@@ -170,6 +170,25 @@ fn recycle_info() -> Option<BinInfo> {
     win::recycle_info()
 }
 
+#[tauri::command]
+fn open_recycle_bin() -> Result<(), String> {
+    #[cfg(windows)]
+    system::hidden_command("explorer.exe")
+        .arg("shell:RecycleBinFolder")
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// Empties the Recycle Bin for good. The UI asks for an explicit confirmation first.
+#[tauri::command]
+async fn empty_recycle(confirmed: bool) -> Result<(), String> {
+    if !confirmed {
+        return Err("not confirmed".into());
+    }
+    blocking(win::empty_recycle).await?
+}
+
 #[derive(Serialize)]
 struct Health {
     score: u8,
@@ -349,7 +368,8 @@ mod win {
     use super::{BinInfo, DiskInfo};
     use windows_sys::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
     use windows_sys::Win32::UI::Shell::{
-        SHQueryRecycleBinW, SHQUERYRBINFO,
+        SHEmptyRecycleBinW, SHQueryRecycleBinW, SHERB_NOCONFIRMATION, SHERB_NOPROGRESSUI, SHERB_NOSOUND,
+        SHQUERYRBINFO,
     };
 
     fn wide(s: &str) -> Vec<u16> {
@@ -377,7 +397,22 @@ mod win {
         (hr >= 0).then_some(BinInfo { bytes: info.i64Size as u64, items: info.i64NumItems as u64 })
     }
 
-
+    pub fn empty_recycle() -> Result<(), String> {
+        // SAFETY: null window and null root (all bins) are documented valid arguments.
+        let hr = unsafe {
+            SHEmptyRecycleBinW(
+                std::ptr::null_mut(),
+                std::ptr::null(),
+                SHERB_NOCONFIRMATION | SHERB_NOPROGRESSUI | SHERB_NOSOUND,
+            )
+        };
+        // An already empty bin reports an error code; treat it as done.
+        if hr >= 0 || recycle_info().is_some_and(|b| b.items == 0) {
+            Ok(())
+        } else {
+            Err(format!("HRESULT {hr:#x}"))
+        }
+    }
 }
 
 /// Development stand-ins for other systems: nothing to show, nothing emptied.
@@ -389,6 +424,9 @@ mod win {
     }
     pub fn recycle_info() -> Option<BinInfo> {
         None
+    }
+    pub fn empty_recycle() -> Result<(), String> {
+        Err("Windows only".into())
     }
 }
 
@@ -444,6 +482,8 @@ pub fn run() {
             clean,
             disk_info,
             recycle_info,
+            open_recycle_bin,
+            empty_recycle,
             health,
             boost_preview,
             boost_run,
