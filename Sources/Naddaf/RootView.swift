@@ -3,6 +3,8 @@ import AppKit
 import NaddafCore
 
 struct RootView: View {
+    /// Sparkle's check: shows the new version if there is one, or says the app is up to date.
+    var checkForUpdates: () -> Void = {}
     @State var selection: AppSection = .smartScan
     @State private var hasDiskAccess = RootView.checkDiskAccess()
     /// Changing it rebuilds the whole tree (`.id`), so every L() string and the direction flip at once.
@@ -31,6 +33,14 @@ struct RootView: View {
                 .padding(.top, 12).padding(.horizontal, 12)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: lang == "ar" ? .topLeading : .topTrailing)
                 .ignoresSafeArea() // up into the title-bar row, level with the window buttons
+        }
+        // Check for updates in the bottom corner away from the sidebar (right in English, left in Arabic).
+        .overlay(alignment: .bottomTrailing) {
+            Button(action: checkForUpdates) {
+                Label(L("update.check"), systemImage: "arrow.triangle.2.circlepath")
+            }
+            .buttonStyle(.liquid(small: true))
+            .padding(12)
         }
         .id(lang)
         // Coming back from System Settings: check again so the banner goes away by itself.

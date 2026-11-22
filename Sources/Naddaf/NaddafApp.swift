@@ -9,7 +9,7 @@ struct NaddafApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView()
+            RootView(checkForUpdates: { splash.updater.checkForUpdates(nil) })
                 .preferredColorScheme(.dark)
         }
         .windowStyle(.hiddenTitleBar)
