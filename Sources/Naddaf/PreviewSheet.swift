@@ -46,9 +46,9 @@ struct PreviewSheet: View {
                 Text("\(L("common.total")): \(size(chosen.reduce(0) { $0 + $1.bytes }))").monospacedDigit()
                 Spacer()
                 Button(L("common.cancel")) { dismiss() }
+                    .buttonStyle(.liquid())
                 Button(L("common.clean")) { onConfirm(chosen); dismiss() }
-                    .buttonStyle(.borderedProminent)
-                    .tint(Theme.accent)
+                    .buttonStyle(.liquid(prominent: true))
                     .disabled(chosen.isEmpty)
             }
         }

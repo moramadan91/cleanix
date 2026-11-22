@@ -114,7 +114,7 @@ struct ScanListView: View {
             }
             Spacer()
             if isReveal {
-                Button(L("common.reveal")) { revealInFinder(item.url) }.buttonStyle(.glass)
+                Button(L("common.reveal")) { revealInFinder(item.url) }.buttonStyle(.liquid())
             } else {
                 Text(formatBytes(item.bytes)).font(.system(size: 15, weight: .medium)).monospacedDigit()
             }

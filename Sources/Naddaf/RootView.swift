@@ -15,6 +15,8 @@ struct RootView: View {
         }
         // The window itself stays left-to-right (the app bundle has no ar.lproj), so mirror the layout
         // by hand whenever the strings resolved to Arabic: sidebar on the right, text right-aligned.
+        // Every button without its own style is liquid glass.
+        .buttonStyle(.liquid())
         .environment(\.layoutDirection, Bundle.module.preferredLocalizations.first == "ar" ? .rightToLeft : .leftToRight)
         .animation(.spring(duration: 0.5, bounce: 0.2), value: selection)
         .frame(minWidth: 1060, minHeight: 680)
@@ -138,8 +140,8 @@ private struct TabStrip: View {
                     Text(tab.title)
                         .font(.system(size: 14, weight: .semibold))
                         .padding(.horizontal, 16).padding(.vertical, 8)
-                        .foregroundStyle(selection == tab ? Color.black : Color.white.opacity(0.85))
-                        .background(Capsule().fill(selection == tab ? Theme.accent : Color.white.opacity(0.08)))
+                        .foregroundStyle(selection == tab ? Color.white : Color.white.opacity(0.75))
+                        .glassEffect(selection == tab ? .clear : .identity, in: .capsule)
                         .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
@@ -165,13 +167,8 @@ struct IntroHero: View {
             }
             .id("hero-\(section.id)")
             .transition(.scale(scale: 0.86).combined(with: .opacity))
-            Button(action: action) {
-                Text(title)
-                    .font(.system(size: 22, weight: .bold))
-                    .frame(width: 220, height: 58)
-            }
-            .buttonStyle(.glassProminent)
-            .tint(Theme.accent)
+            Button(title, action: action)
+                .buttonStyle(.liquid(prominent: true, big: true))
             .padding(.bottom, 34)
         }
     }

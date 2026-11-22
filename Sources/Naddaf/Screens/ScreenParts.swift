@@ -32,28 +32,54 @@ struct DoneView: View {
                 Text(String(format: L("common.failedCount"), result.failed.count)).foregroundStyle(Theme.accent)
             }
             HStack(spacing: 12) {
-                if let onUndo { Button(L("common.undo"), action: onUndo).buttonStyle(.glass) }
-                Button(L("common.rescan"), action: onRescan).buttonStyle(.glassProminent).tint(Theme.accent)
+                if let onUndo { Button(L("common.undo"), action: onUndo).buttonStyle(.liquid(big: true)) }
+                Button(L("common.rescan"), action: onRescan).buttonStyle(.liquid(prominent: true, big: true))
             }
-            .controlSize(.large)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
-/// Big amber action button at the bottom of a results screen.
+/// Liquid-glass button used everywhere: a clear glass capsule, amber-tinted glass when prominent.
+struct LiquidButtonStyle: ButtonStyle {
+    var prominent = false
+    var big = false
+    @Environment(\.isEnabled) private var enabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: big ? 17 : 13, weight: big ? .bold : .semibold))
+            .foregroundStyle(.white)
+            .frame(minWidth: big ? 150 : nil)
+            .padding(.horizontal, big ? 30 : 14)
+            .padding(.vertical, big ? 12 : 6)
+            // Clear glass, no tint: the button takes the colour of whatever is behind it.
+            .glassEffect(.clear.interactive(), in: .capsule)
+            .overlay(Capsule().strokeBorder(
+                LinearGradient(colors: [.white.opacity(prominent ? 0.45 : 0.3), .white.opacity(0.05)],
+                               startPoint: .top, endPoint: .bottom), lineWidth: 1))
+            .opacity(enabled ? 1 : 0.5)
+            .scaleEffect(configuration.isPressed ? 0.96 : 1)
+            .animation(.snappy(duration: 0.15), value: configuration.isPressed)
+    }
+}
+
+extension ButtonStyle where Self == LiquidButtonStyle {
+    static func liquid(prominent: Bool = false, big: Bool = false) -> LiquidButtonStyle {
+        LiquidButtonStyle(prominent: prominent, big: big)
+    }
+}
+
+/// Main action at the bottom of a screen.
 struct ActionButton: View {
     let title: String
     var disabled = false
     let action: () -> Void
 
     var body: some View {
-        Button(action: action) {
-            Text(title).font(.system(size: 20, weight: .bold)).frame(width: 220, height: 52)
-        }
-        .buttonStyle(.glassProminent)
-        .tint(Theme.accent)
-        .disabled(disabled)
+        Button(title, action: action)
+            .buttonStyle(.liquid(prominent: true, big: true))
+            .disabled(disabled)
     }
 }
 

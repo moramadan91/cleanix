@@ -25,8 +25,8 @@ struct CloudView: View {
                             Label(folder.name, systemImage: folder.isICloud ? "icloud" : "externaldrive.connected.to.line.below")
                                 .font(.system(size: 14, weight: .semibold))
                                 .padding(.horizontal, 16).padding(.vertical, 8)
-                                .foregroundStyle(current == folder ? Color.black : Color.white.opacity(0.85))
-                                .background(Capsule().fill(current == folder ? Theme.accent : Color.white.opacity(0.08)))
+                                .foregroundStyle(current == folder ? Color.white : Color.white.opacity(0.75))
+                                .glassEffect(current == folder ? .regular : .clear, in: .capsule)
                                 .contentShape(Capsule())
                         }
                         .buttonStyle(.plain)
@@ -44,9 +44,9 @@ struct CloudView: View {
                                     Spacer()
                                     Text(formatBytes(file.bytes)).font(.system(size: 15, weight: .medium)).monospacedDigit()
                                     if current?.isICloud == true {
-                                        Button(L("cloud.free")) { evict(file) }.buttonStyle(.glass)
+                                        Button(L("cloud.free")) { evict(file) }.buttonStyle(.liquid())
                                     } else {
-                                        Button(L("common.reveal")) { revealInFinder(file.url) }.buttonStyle(.glass)
+                                        Button(L("common.reveal")) { revealInFinder(file.url) }.buttonStyle(.liquid())
                                     }
                                 }
                                 .modifier(RowBackground())

@@ -85,7 +85,7 @@ struct DiskMapView: View {
             Button { trail.removeLast(); selected = [] } label: {
                 Image(systemName: "chevron.backward").font(.system(size: 14, weight: .bold)).frame(width: 30, height: 30)
             }
-            .buttonStyle(.glass)
+            .buttonStyle(.liquid())
             .disabled(trail.count < 2)
             ScrollView(.horizontal) {
                 HStack(spacing: 6) {
@@ -98,7 +98,7 @@ struct DiskMapView: View {
                 }
             }
             .scrollIndicators(.hidden)
-            Button(L("common.reveal")) { revealInFinder(current.url) }.buttonStyle(.glass)
+            Button(L("common.reveal")) { revealInFinder(current.url) }.buttonStyle(.liquid())
         }
     }
 

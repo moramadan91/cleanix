@@ -89,7 +89,7 @@ struct LoginItemsView: View {
                                 }
                                 Spacer()
                                 if item.kind == .launchAgent {
-                                    Button(L("login.disable")) { disable(item) }.buttonStyle(.glass)
+                                    Button(L("login.disable")) { disable(item) }.buttonStyle(.liquid())
                                 } else {
                                     Text(L("login.system")).font(.system(size: 12)).foregroundStyle(.secondary)
                                 }

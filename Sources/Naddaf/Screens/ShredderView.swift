@@ -57,7 +57,7 @@ struct ShredderView: View {
         VStack(spacing: 14) {
             Image(systemName: "doc.badge.plus").font(.system(size: 44, weight: .light))
             Text(L("shred.drop")).font(.system(size: 18, weight: .semibold))
-            Button(L("shred.choose")) { picking = true }.buttonStyle(.glass)
+            Button(L("shred.choose")) { picking = true }.buttonStyle(.liquid())
         }
         .frame(maxWidth: .infinity, minHeight: 200, maxHeight: .infinity)
         .background(

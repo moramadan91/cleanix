@@ -18,7 +18,7 @@ struct PermissionsView: View {
                             NSWorkspace.shared.open(url)
                         }
                     }
-                    .buttonStyle(.glassProminent).tint(Theme.accent)
+                    .buttonStyle(.liquid(prominent: true))
                 }
                 .frame(maxHeight: .infinity)
             } else if entries.isEmpty {
