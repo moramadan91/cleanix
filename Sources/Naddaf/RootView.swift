@@ -66,13 +66,27 @@ private struct Sidebar: View {
                 SidebarItem(section: section, isSelected: selection == section) { selection = section }
             }
             Spacer(minLength: 12)
-            Button(action: checkForUpdates) {
-                Label(L("update.check"), systemImage: "arrow.triangle.2.circlepath").frame(maxWidth: .infinity)
+            VStack(spacing: 14) {
+                Button(action: checkForUpdates) {
+                    Label(L("update.check"), systemImage: "arrow.triangle.2.circlepath")
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 18)
+                }
+                Button { lang = lang == "ar" ? "en" : "ar" } label: {
+                    HStack(spacing: 8) {
+                        if lang == "ar" {
+                            UnionJackFlag()
+                            Text("English")
+                        } else {
+                            ArabLeagueFlag()
+                            Text("العربية")
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 18)
+                }
             }
-            .buttonStyle(.liquid(small: true))
-            Button { lang = lang == "ar" ? "en" : "ar" } label: {
-                Text(lang == "ar" ? "English" : "العربية").frame(maxWidth: .infinity)
-            }
+            .buttonStyle(.liquid())
         }
         .padding(.horizontal, 14)
         .padding(.top, 44) // clear of the window buttons
