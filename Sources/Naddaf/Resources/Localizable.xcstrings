@@ -1377,6 +1377,86 @@
         }
       }
     },
+    "reason.fmt.downloads": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "في التنزيلات من أكتر من %@ يوم"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In Downloads for %@+ days"
+          }
+        }
+      }
+    },
+    "reason.fmt.duplicate": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "نسخة مكررة من %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Duplicate of %@"
+          }
+        }
+      }
+    },
+    "reason.fmt.in": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "في %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In %@"
+          }
+        }
+      }
+    },
+    "reason.fmt.leftBy": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "فاضل من %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Left by %@"
+          }
+        }
+      }
+    },
+    "reason.fmt.notModified": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ماتعدلش من أكتر من %@ يوم"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not modified for %@+ days"
+          }
+        }
+      }
+    },
     "reason.npm cache": {
       "localizations": {
         "ar": {

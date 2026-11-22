@@ -146,7 +146,25 @@ struct ClosureScanner: NaddafCore.Scanner {
 func localized(_ prefix: String, _ raw: String) -> String {
     let key = "\(prefix).\(raw)"
     let value = L(key)
-    return value == key ? raw : value
+    if value != key { return value }
+    guard prefix == "reason" else { return raw }
+    // Browser reasons ("Chrome history") share their text with the group titles.
+    let asGroup = L("group.\(raw)")
+    if asGroup != "group.\(raw)" { return asGroup }
+    // Reasons built with a name or number: "Left by Slack", "In Downloads for 90+ days"...
+    let patterns: [(String, String)] = [
+        (#"^In Downloads for (\d+)\+ days$"#, "reason.fmt.downloads"),
+        (#"^Not modified for (\d+)\+ days$"#, "reason.fmt.notModified"),
+        (#"^Duplicate of (.+)$"#, "reason.fmt.duplicate"),
+        (#"^Left by (.+)$"#, "reason.fmt.leftBy"),
+        (#"^In (.+)$"#, "reason.fmt.in"),
+    ]
+    for (pattern, fmt) in patterns {
+        if let m = raw.firstMatch(of: try! Regex<(Substring, Substring)>(pattern)) {
+            return String(format: L(fmt), String(m.1))
+        }
+    }
+    return raw
 }
 
 func revealInFinder(_ url: URL) {
