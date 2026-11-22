@@ -34,7 +34,7 @@ public func emptyTrash(_ items: [ScanItem], confirmed: Bool, policy: PathPolicy)
     var result = CleanResult()
     for bin in items {
         if FinderTrash.needed(for: bin.url) {
-            guard policy.isAllowed(bin.url) else {
+            guard FinderTrash.mayEmpty(bin.url, policy: policy) else {
                 result.failed.append((bin.url, "path is not allowed"))
                 continue
             }
@@ -73,6 +73,12 @@ enum FinderTrash {
     static func needed(for root: URL) -> Bool {
         root.lastPathComponent == ".Trash"
             && (try? FileManager.default.contentsOfDirectory(atPath: root.path)) == nil
+    }
+
+    /// The policy allows what is inside a chosen bin, never the bin itself, so ask about its contents
+    /// (asking about the bin refused every Finder empty in 0.1.8).
+    static func mayEmpty(_ bin: URL, policy: PathPolicy) -> Bool {
+        policy.isAllowed(bin.appendingPathComponent("item"))
     }
 
     static func count() -> Int { Int(run([#"tell application "Finder" to return count items of trash"#]) ?? "") ?? 0 }

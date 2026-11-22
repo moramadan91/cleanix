@@ -177,6 +177,7 @@ struct ScanListView: View {
     private func empty() {
         let chosen = self.chosen
         let policy = PathPolicy(allowedRoots: chosen.map(\.url))
+        phase = .scanning // a big bin takes a while; show the spinner instead of a screen that seems stuck
         Task {
             result = (try? await Task.detached { try await emptyTrash(chosen, confirmed: true, policy: policy) }.value) ?? CleanResult()
             undoRecords = []

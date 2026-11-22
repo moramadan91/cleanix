@@ -156,3 +156,10 @@ private func age(_ url: URL, days: Int) throws {
         #expect(groups[0].extras.map(\.url.lastPathComponent) == ["a-newer.bin"])
     }
 }
+
+@Test func finderEmptyIsAllowedForTheChosenBinOnly() {
+    let bin = URL(fileURLWithPath: "/Users/someone/.Trash")
+    // Same policy the Trash screen builds: the chosen bins are the roots.
+    #expect(FinderTrash.mayEmpty(bin, policy: PathPolicy(allowedRoots: [bin])))
+    #expect(!FinderTrash.mayEmpty(bin, policy: PathPolicy(allowedRoots: [URL(fileURLWithPath: "/Users/someone/Downloads")])))
+}
