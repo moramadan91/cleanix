@@ -6,13 +6,13 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "ادّي نضّف «الوصول الكامل للقرص» عشان يشوف سلة المهملات والبريد وملفات البرامج."
+            "value": "ادّي Cleanix «الوصول الكامل للقرص» عشان يشوف سلة المهملات والبريد وملفات البرامج."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Give Naddaf Full Disk Access so it can see the Trash, Mail and app data."
+            "value": "Give Cleanix Full Disk Access so it can see the Trash, Mail and app data."
           }
         }
       }
@@ -38,13 +38,13 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "نضّف"
+            "value": "Cleanix"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Naddaf"
+            "value": "Cleanix"
           }
         }
       }
@@ -374,13 +374,13 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "العناصر دي محتاجة تراجعها بنفسك، ونضّف مش بيمسحها."
+            "value": "العناصر دي محتاجة تراجعها بنفسك، و Cleanix مش بيمسحها."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "These items need your review. Naddaf does not delete them."
+            "value": "These items need your review. Cleanix does not delete them."
           }
         }
       }
@@ -1158,13 +1158,13 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "عشان نعرض الصلاحيات، ادّي نضّف صلاحية الوصول الكامل للقرص من إعدادات النظام."
+            "value": "عشان نعرض الصلاحيات، ادّي Cleanix صلاحية الوصول الكامل للقرص من إعدادات النظام."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "To show permissions, give Naddaf Full Disk Access in System Settings."
+            "value": "To show permissions, give Cleanix Full Disk Access in System Settings."
           }
         }
       }
