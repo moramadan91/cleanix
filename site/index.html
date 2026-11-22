@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cleanix — نضّف الماك ببلاش</title>
+<meta name="description" content="Cleanix: free, open-source Mac cleaner in Arabic and English.">
+<meta property="og:title" content="Cleanix">
+<meta property="og:description" content="برنامج مجاني ومفتوح المصدر لتنضيف الماك، بالعربي والإنجليزي.">
+<meta property="og:image" content="icon.png">
+<link rel="icon" href="favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --violet: #6035F5;
+    --lavender: #EAE4FF;
+    --charcoal: #171222;
+    --white: #FFFFFF;
+    --muted: #B9B0D6;
+    --line: rgba(234, 228, 255, 0.14);
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    background: var(--charcoal);
+    color: var(--white);
+    font-family: "Readex Pro", system-ui, sans-serif;
+    line-height: 1.6;
+  }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 24px; }
+  header { display: flex; justify-content: space-between; align-items: center; padding: 24px 0; }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand img { width: 36px; height: 36px; }
+  .brand span { font-weight: 700; font-size: 20px; }
+  .lang {
+    background: none; color: var(--lavender); border: 1px solid var(--line);
+    border-radius: 999px; padding: 6px 16px; font: inherit; cursor: pointer;
+  }
+  .lang:focus-visible, .cta:focus-visible, a:focus-visible { outline: 3px solid var(--lavender); outline-offset: 3px; }
+
+  .hero { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 48px; align-items: center; padding: 56px 0 80px; }
+  h1 { font-size: clamp(36px, 6vw, 64px); line-height: 1.15; font-weight: 700; }
+  .lead { color: var(--muted); font-size: 19px; margin-top: 18px; max-width: 34ch; }
+  .actions { margin-top: 32px; display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+  .cta {
+    display: inline-flex; align-items: center; gap: 10px;
+    background: var(--violet); color: var(--white); text-decoration: none;
+    font-weight: 600; font-size: 18px; padding: 16px 30px; border-radius: 999px;
+    transition: transform 120ms ease;
+  }
+  .cta:hover { transform: translateY(-2px); }
+  .cta svg { width: 20px; height: 20px; }
+  .meta { color: var(--muted); font-size: 14px; }
+  .ghost { color: var(--lavender); font-size: 15px; }
+
+  /* The logo, tinted from the white cut-outs, with a one-time glitch on load. */
+  .logo { display: grid; justify-items: center; gap: 28px; }
+  .piece { background: var(--violet); -webkit-mask: var(--src) center / contain no-repeat; mask: var(--src) center / contain no-repeat; }
+  .mark { width: min(300px, 70vw); aspect-ratio: 1173 / 895; position: relative; --src: url(mark.png); }
+  .mark::before, .mark::after {
+    content: ""; position: absolute; inset: 0;
+    -webkit-mask: url(mark.png) center / contain no-repeat; mask: url(mark.png) center / contain no-repeat;
+    opacity: 0;
+  }
+  .mark::before { background: #3CF2FF; }
+  .mark::after { background: #FF4FD8; }
+  .word { width: min(250px, 58vw); aspect-ratio: 1545 / 379; --src: url(wordmark.png); }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .mark { animation: tear 0.9s steps(1) both; }
+    .mark::before { animation: splitA 0.9s steps(1) both; }
+    .mark::after { animation: splitB 0.9s steps(1) both; }
+    .word { animation: build 0.6s 0.7s cubic-bezier(.2,.8,.2,1) both; }
+  }
+  @keyframes tear {
+    0% { opacity: 0; } 8% { opacity: 1; clip-path: inset(0 0 60% 0); transform: translateX(-18px); }
+    16% { clip-path: inset(30% 0 20% 0); transform: translateX(14px); }
+    26% { clip-path: inset(0); transform: translateX(-6px); }
+    40% { transform: translateX(3px); } 55%, 100% { transform: none; clip-path: inset(0); opacity: 1; }
+  }
+  @keyframes splitA { 0%, 50% { opacity: .85; transform: translate(-12px, 2px); } 30% { transform: translate(-6px, 0); } 51%, 100% { opacity: 0; } }
+  @keyframes splitB { 0%, 50% { opacity: .85; transform: translate(12px, -2px); } 30% { transform: translate(6px, 0); } 51%, 100% { opacity: 0; } }
+  @keyframes build { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+  [dir="rtl"] .word { animation-name: build; }
+
+  section { padding: 64px 0; border-top: 1px solid var(--line); }
+  h2 { font-size: clamp(26px, 3.5vw, 36px); font-weight: 700; margin-bottom: 28px; }
+  .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 28px 40px; }
+  .features h3 { font-size: 18px; font-weight: 600; color: var(--lavender); }
+  .features p { color: var(--muted); font-size: 15px; margin-top: 4px; }
+
+  ol.steps { list-style: none; padding: 0; display: grid; gap: 18px; counter-reset: s; max-width: 680px; }
+  ol.steps li { counter-increment: s; display: grid; grid-template-columns: 40px 1fr; gap: 14px; align-items: start; }
+  ol.steps li::before {
+    content: counter(s); width: 32px; height: 32px; border-radius: 50%;
+    background: var(--lavender); color: var(--charcoal); font-weight: 700;
+    display: grid; place-items: center;
+  }
+  ol.steps b { color: var(--white); }
+  ol.steps span { color: var(--muted); }
+
+  footer { padding: 40px 0 56px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; display: flex; flex-wrap: wrap; gap: 8px 24px; }
+  footer a { color: var(--lavender); }
+
+  [data-en] { display: none; }
+  html[lang="en"] [data-ar] { display: none; }
+  html[lang="en"] [data-en] { display: revert; }
+
+  @media (max-width: 760px) {
+    .hero { grid-template-columns: 1fr; padding-top: 24px; gap: 40px; }
+    .logo { order: -1; }
+    .wrap { padding: 0 16px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand"><img src="icon.png" alt=""><span>Cleanix</span></div>
+    <button class="lang" id="lang" type="button">English</button>
+  </header>
+
+  <main>
+    <div class="hero">
+      <div>
+        <h1 data-ar>نضّف الماك بتاعك ببلاش.</h1>
+        <h1 data-en>Clean your Mac, free.</h1>
+        <p class="lead" data-ar>برنامج مفتوح المصدر، بالعربي والإنجليزي. بيلاقي الملفات اللي مالهاش لازمة ويوريك كل حاجة قبل ما يمسحها.</p>
+        <p class="lead" data-en>Open source, in Arabic and English. It finds the files you don't need and shows you every one before it removes anything.</p>
+        <div class="actions">
+          <a class="cta" href="https://github.com/moramadan91/cleanix/releases/latest/download/Cleanix.dmg">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12m0 0l-5-5m5 5l5-5M5 20h14"/></svg>
+            <span data-ar>حمّل للماك</span><span data-en>Download for Mac</span>
+          </a>
+          <span class="meta"><span id="ver"></span> <span data-ar>· macOS 26 أو أحدث</span><span data-en>· macOS 26 or later</span></span>
+        </div>
+      </div>
+      <div class="logo" aria-label="Cleanix">
+        <div class="piece mark"></div>
+        <div class="piece word"></div>
+      </div>
+    </div>
+
+    <section>
+      <h2 data-ar>بيعمل إيه</h2><h2 data-en>What it does</h2>
+      <div class="features">
+        <div><h3 data-ar>فحص شامل</h3><h3 data-en>Smart Scan</h3>
+          <p data-ar>ضغطة واحدة: ملفات النظام والكاش والمتصفحات.</p><p data-en>One click: system junk, app and browser caches.</p></div>
+        <div><h3 data-ar>إزالة البرامج</h3><h3 data-en>Uninstall apps</h3>
+          <p data-ar>يشيل البرنامج ومعاه البقايا اللي سايبها.</p><p data-en>Removes an app and everything it left behind.</p></div>
+        <div><h3 data-ar>الملفات الكبيرة والمكررة</h3><h3 data-en>Large and duplicate files</h3>
+          <p data-ar>والصور المتشابهة والتنزيلات القديمة.</p><p data-en>Plus similar photos and old downloads.</p></div>
+        <div><h3 data-ar>خريطة القرص</h3><h3 data-en>Disk Map</h3>
+          <p data-ar>تشوف إيه اللي واخد المساحة، ومتعلم آمن ولا لأ.</p><p data-en>See what takes space, marked safe or not.</p></div>
+        <div><h3 data-ar>الخصوصية والأداء</h3><h3 data-en>Privacy and performance</h3>
+          <p data-ar>بيانات المتصفح، الصيانة، وبرامج بدء التشغيل.</p><p data-en>Browser data, maintenance, login items.</p></div>
+        <div><h3 data-ar>بأمان</h3><h3 data-en>Safe by design</h3>
+          <p data-ar>اللي بيتمسح بيستنى 30 يوم وتقدر ترجّعه.</p><p data-en>Removed items wait 30 days and can be restored.</p></div>
+      </div>
+    </section>
+
+    <section>
+      <h2 data-ar>التسطيب</h2><h2 data-en>Install</h2>
+      <ol class="steps">
+        <li data-ar><div><b>افتح الملف واسحب Cleanix على Applications.</b></div></li>
+        <li data-en><div><b>Open the file and drag Cleanix to Applications.</b></div></li>
+        <li data-ar><div><b>أول مرة: كليك يمين على البرنامج واختار Open.</b><br><span>البرنامج لسه مش موثّق من Apple، فالماك هيسألك مرة واحدة.</span></div></li>
+        <li data-en><div><b>The first time: right-click the app and choose Open.</b><br><span>It is not notarized by Apple yet, so macOS asks once.</span></div></li>
+        <li data-ar><div><b>اديله Full Disk Access.</b><br><span>البرنامج بيوريك زرار يفتحلك الصفحة الصح في الإعدادات.</span></div></li>
+        <li data-en><div><b>Give it Full Disk Access.</b><br><span>The app shows a button that opens the right settings page.</span></div></li>
+        <li data-ar><div><b>التحديثات بتوصل لوحدها.</b><br><span>البرنامج بيسألك قبل ما يسطّب أي نسخة جديدة.</span></div></li>
+        <li data-en><div><b>Updates arrive on their own.</b><br><span>The app asks you before it installs a new version.</span></div></li>
+      </ol>
+    </section>
+  </main>
+
+  <footer>
+    <span data-ar>مجاني ومفتوح المصدر (MIT)</span><span data-en>Free and open source (MIT)</span>
+    <a href="https://github.com/moramadan91/cleanix">GitHub</a>
+  </footer>
+</div>
+<script>
+  const html = document.documentElement, btn = document.getElementById('lang');
+  function setLang(l) {
+    html.lang = l; html.dir = l === 'ar' ? 'rtl' : 'ltr';
+    btn.textContent = l === 'ar' ? 'English' : 'العربية';
+    try { localStorage.setItem('cleanix.lang', l); } catch (e) {}
+  }
+  let saved = null;
+  try { saved = localStorage.getItem('cleanix.lang'); } catch (e) {}
+  setLang(saved || (navigator.language.startsWith('ar') ? 'ar' : 'en'));
+  btn.addEventListener('click', () => setLang(html.lang === 'ar' ? 'en' : 'ar'));
+  fetch('https://api.github.com/repos/moramadan91/cleanix/releases/latest')
+    .then(r => r.ok ? r.json() : null)
+    .then(j => { if (j && j.tag_name) document.getElementById('ver').textContent = j.tag_name; })
+    .catch(() => {});
+</script>
+</body>
+</html>
