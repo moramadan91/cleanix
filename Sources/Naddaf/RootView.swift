@@ -7,6 +7,8 @@ struct RootView: View {
     @State private var hasDiskAccess = RootView.checkDiskAccess()
     /// Changing it rebuilds the whole tree (`.id`), so every L() string and the direction flip at once.
     @AppStorage(Lang.key) private var lang = Lang.current
+    /// The launch intro plays over the app once, then is removed from the tree.
+    @State private var showIntro = true
 
     private static func checkDiskAccess() -> Bool {
         DiskAccess.granted(probe: DiskAccess.probe(home: AppEnv.shared.home))
@@ -40,6 +42,8 @@ struct RootView: View {
         .buttonStyle(.liquid())
         .environment(\.layoutDirection, Lang.direction)
         .animation(.spring(duration: 0.5, bounce: 0.2), value: selection)
+        .scaleEffect(showIntro ? 0.96 : 1)
+        .overlay { if showIntro { IntroView { withAnimation(.spring(duration: 0.5)) { showIntro = false } } } }
         .frame(minWidth: 1060, minHeight: 680)
     }
 }
