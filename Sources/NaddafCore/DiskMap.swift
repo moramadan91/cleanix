@@ -1,0 +1,41 @@
+import Foundation
+
+public final class DiskNode: Sendable {
+    public let name: String
+    public let url: URL
+    public let bytes: Int64
+    public let children: [DiskNode]
+
+    init(name: String, url: URL, bytes: Int64, children: [DiskNode] = []) {
+        self.name = name
+        self.url = url
+        self.bytes = bytes
+        self.children = children
+    }
+}
+
+/// Size tree for the Disk Map. `depth` levels of children are kept; entries under 1% of their
+/// parent are folded into one "Other" node. Symlinks are never followed.
+public func buildDiskTree(root: URL, depth: Int) async throws -> DiskNode {
+    try Task.checkCancellation()
+    let keys: Set<URLResourceKey> = [.isRegularFileKey, .isDirectoryKey, .isSymbolicLinkKey, .fileSizeKey]
+    let values = try? root.resourceValues(forKeys: keys)
+    let name = root.lastPathComponent
+    if values?.isSymbolicLink == true { return DiskNode(name: name, url: root, bytes: 0) }
+    if values?.isRegularFile == true { return DiskNode(name: name, url: root, bytes: Int64(values?.fileSize ?? 0)) }
+    if depth <= 0 { return DiskNode(name: name, url: root, bytes: FS.size(of: root)) }
+
+    var kids: [DiskNode] = []
+    for child in FS.children(of: root) {
+        kids.append(try await buildDiskTree(root: child, depth: depth - 1))
+    }
+    let total = kids.reduce(0) { $0 + $1.bytes }
+    let (tiny, big) = kids.reduce(into: ([DiskNode](), [DiskNode]())) { acc, node in
+        if total > 0 && node.bytes * 100 < total { acc.0.append(node) } else { acc.1.append(node) }
+    }
+    var shown = big.sorted { $0.bytes > $1.bytes }
+    if !tiny.isEmpty {
+        shown.append(DiskNode(name: "Other", url: root, bytes: tiny.reduce(0) { $0 + $1.bytes }))
+    }
+    return DiskNode(name: name, url: root, bytes: total, children: shown)
+}
