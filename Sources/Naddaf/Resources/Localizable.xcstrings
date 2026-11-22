@@ -849,6 +849,38 @@
         }
       }
     },
+    "map.remove": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "امسح المختار"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove selected"
+          }
+        }
+      }
+    },
+    "map.safeInside": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "منه %@ آمن تمسحه"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ inside is safe to delete"
+          }
+        }
+      }
+    },
     "overview.free": {
       "localizations": {
         "ar": {
@@ -1197,6 +1229,54 @@
           "stringUnit": {
             "state": "translated",
             "value": "Not signed by its developer"
+          }
+        }
+      }
+    },
+    "safety.review": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "راجعه الأول"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Review first"
+          }
+        }
+      }
+    },
+    "safety.risky": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ما تمسحوش"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Do not delete"
+          }
+        }
+      }
+    },
+    "safety.safe": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "آمن تمسحه"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Safe to delete"
           }
         }
       }
