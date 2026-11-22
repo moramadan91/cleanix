@@ -20,7 +20,7 @@ struct PreviewSheet: View {
     }
 
     private var chosen: [ScanItem] { items.filter { selected.contains($0.url) } }
-    private func size(_ bytes: Int64) -> String { ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file) }
+    private func size(_ bytes: Int64) -> String { formatBytes(bytes) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -57,7 +57,7 @@ struct PreviewSheet: View {
         .padding(24)
         .frame(minWidth: 560, minHeight: 440)
         // A sheet is its own window: give it the app's direction and a see-through frosted backdrop.
-        .environment(\.layoutDirection, Bundle.module.preferredLocalizations.first == "ar" ? .rightToLeft : .leftToRight)
+        .environment(\.layoutDirection, Lang.direction)
         .background(AuroraBackground(section: section))
     }
 }

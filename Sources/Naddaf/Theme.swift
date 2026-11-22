@@ -15,8 +15,24 @@ enum Theme {
 }
 
 /// Looks a string up in the app's own resource bundle (Arabic and English).
+/// The app's own language, switchable inside the app (stored in UserDefaults); defaults to the system's.
+enum Lang {
+    static let key = "naddaf.lang"
+    static var current: String {
+        UserDefaults.standard.string(forKey: key)
+            ?? (Bundle.module.preferredLocalizations.first == "ar" ? "ar" : "en")
+    }
+    static var isArabic: Bool { current == "ar" }
+    static var direction: LayoutDirection { isArabic ? .rightToLeft : .leftToRight }
+    static var locale: Locale { Locale(identifier: current) }
+    /// The ar.lproj / en.lproj inside the resource bundle (Foundation caches Bundle instances).
+    static var bundle: Bundle {
+        Bundle.module.path(forResource: current, ofType: "lproj").flatMap(Bundle.init(path:)) ?? .module
+    }
+}
+
 func L(_ key: String) -> String {
-    String(localized: String.LocalizationValue(key), bundle: .module)
+    Lang.bundle.localizedString(forKey: key, value: nil, table: "Localizable")
 }
 
 /// Which built-in SF Symbols effect a section's icon plays.

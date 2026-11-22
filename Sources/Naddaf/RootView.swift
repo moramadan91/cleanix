@@ -1,8 +1,16 @@
 import SwiftUI
+import AppKit
 import NaddafCore
 
 struct RootView: View {
     @State var selection: AppSection = .smartScan
+    @State private var hasDiskAccess = RootView.checkDiskAccess()
+    /// Changing it rebuilds the whole tree (`.id`), so every L() string and the direction flip at once.
+    @AppStorage(Lang.key) private var lang = Lang.current
+
+    private static func checkDiskAccess() -> Bool {
+        DiskAccess.granted(probe: DiskAccess.probe(home: AppEnv.shared.home))
+    }
 
     var body: some View {
         ZStack {
@@ -10,14 +18,27 @@ struct RootView: View {
             HStack(spacing: 0) {
                 Sidebar(selection: $selection)
                     .zIndex(1) // the hover pill must draw above the page, not under it
-                SectionPage(section: selection)
+                VStack(spacing: 0) {
+                    if !hasDiskAccess { DiskAccessBanner().padding(.top, 12) }
+                    SectionPage(section: selection)
+                }
             }
         }
-        // The window itself stays left-to-right (the app bundle has no ar.lproj), so mirror the layout
-        // by hand whenever the strings resolved to Arabic: sidebar on the right, text right-aligned.
+        // Language switch in the free bottom corner, away from the sidebar and the window buttons.
+        .overlay(alignment: .bottomTrailing) {
+            Button(lang == "ar" ? "English" : "العربية") { lang = lang == "ar" ? "en" : "ar" }
+                .padding(20)
+        }
+        .id(lang)
+        // Coming back from System Settings: check again so the banner goes away by itself.
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            hasDiskAccess = RootView.checkDiskAccess()
+        }
+        // The window itself stays left-to-right, so mirror the layout by hand for Arabic:
+        // sidebar on the right, text right-aligned.
         // Every button without its own style is liquid glass.
         .buttonStyle(.liquid())
-        .environment(\.layoutDirection, Bundle.module.preferredLocalizations.first == "ar" ? .rightToLeft : .leftToRight)
+        .environment(\.layoutDirection, Lang.direction)
         .animation(.spring(duration: 0.5, bounce: 0.2), value: selection)
         .frame(minWidth: 1060, minHeight: 680)
     }
@@ -176,5 +197,25 @@ struct IntroHero: View {
                 .buttonStyle(.liquid(prominent: true, big: true))
             .padding(.bottom, 34)
         }
+    }
+}
+
+/// Shown until the app has Full Disk Access; without it Trash, Mail and app data read as empty.
+private struct DiskAccessBanner: View {
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "lock.shield").font(.system(size: 16, weight: .semibold))
+            Text(L("access.banner")).font(.system(size: 13, weight: .medium)).lineLimit(2)
+            Button(L("access.open")) {
+                if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles") {
+                    NSWorkspace.shared.open(url)
+                }
+            }
+        }
+        .foregroundStyle(.white)
+        .padding(.leading, 16).padding(.trailing, 6).padding(.vertical, 6)
+        .glassEffect(.clear, in: .capsule)
+        .overlay(Capsule().strokeBorder(.white.opacity(0.3), lineWidth: 1))
+        .frame(maxWidth: 640)
     }
 }

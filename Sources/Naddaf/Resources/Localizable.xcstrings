@@ -1,6 +1,38 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "access.banner": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ادّي نضّف «الوصول الكامل للقرص» عشان يشوف سلة المهملات والبريد وملفات البرامج."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Give Naddaf Full Disk Access so it can see the Trash, Mail and app data."
+          }
+        }
+      }
+    },
+    "access.open": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "افتح الإعدادات"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Settings"
+          }
+        }
+      }
+    },
     "app.name": {
       "localizations": {
         "ar": {

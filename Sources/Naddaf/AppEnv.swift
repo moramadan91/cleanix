@@ -47,5 +47,5 @@ final class AppEnv: Sendable {
 }
 
 func formatBytes(_ bytes: Int64) -> String {
-    ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
+    bytes.formatted(.byteCount(style: .file).locale(Lang.locale))
 }
