@@ -8,12 +8,7 @@ extension Notification.Name {
 @MainActor
 func openCleanix(smartScan: Bool, openWindow: () -> Void) {
     NSApp.activate()
-    if let window = NSApp.windows.first(where: { $0.canBecomeMain }) {
-        if window.isMiniaturized { window.deminiaturize(nil) }
-        window.makeKeyAndOrderFront(nil)
-    } else {
-        openWindow()
-    }
+    if !SplashDelegate.showMainWindow() { openWindow() }
     if smartScan { NotificationCenter.default.post(name: .openSmartScan, object: nil) }
 }
 
@@ -29,6 +24,7 @@ final class MenuBarMonitor {
 
     private init() {
         enabled = defaults.object(forKey: Self.defaultsKey) as? Bool ?? true
+        MenuBarStats.shared.setMonitorEnabled(enabled)
     }
 
     var isEnabled: Bool {
@@ -37,6 +33,7 @@ final class MenuBarMonitor {
             guard newValue != enabled else { return }
             enabled = newValue
             defaults.set(newValue, forKey: Self.defaultsKey)
+            MenuBarStats.shared.setMonitorEnabled(newValue)
         }
     }
 }
@@ -44,14 +41,16 @@ final class MenuBarMonitor {
 struct MenuBarPanel: View {
     @Environment(\.openWindow) private var openWindow
     @Bindable var monitor: MenuBarMonitor
+    private let stats = MenuBarStats.shared
     @AppStorage(Lang.key) private var lang = Lang.current
     @State private var isVisible = false
     @State private var disk: (free: Int64, total: Int64)?
-    @State private var memory: Double?
-    @State private var cpu: Double?
+    @State private var memorySnapshot: Double?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
+            QuickBoostControls()
+            Divider()
             VStack(spacing: 8) {
                 metric(L("monitor.disk"), disk.map { formatBytes($0.free) })
                 if let disk {
@@ -59,8 +58,9 @@ struct MenuBarPanel: View {
                         .progressViewStyle(.linear)
                         .accessibilityHidden(true)
                 }
-                metric(L("monitor.memory"), memory.map(percent))
-                metric(L("monitor.cpu"), cpu.map(percent))
+                metric(L("monitor.memory"), stats.memory.map { formatPercent(Double($0) / 100) }
+                       ?? memorySnapshot.map(formatPercent))
+                metric(L("monitor.cpu"), stats.cpu.map { formatPercent(Double($0) / 100) })
             }
             Divider()
             HStack {
@@ -69,10 +69,9 @@ struct MenuBarPanel: View {
             }
             Divider()
             AlertToggles()
-            Toggle(L("monitor.enabled"), isOn: $monitor.isEnabled)
-                .toggleStyle(.switch)
-                .controlSize(.small)
-                .font(.system(size: 12))
+            LoginItemToggle(isVisible: isVisible)
+            MenuBarEnabledToggle(monitor: monitor)
+            MenuBarStatsToggle()
         }
         .padding(16)
         .frame(width: 300)
@@ -80,9 +79,12 @@ struct MenuBarPanel: View {
         .environment(\.layoutDirection, Lang.direction)
         .id(lang)
         .background(PanelVisibility(isVisible: $isVisible))
-        .task(id: isVisible) {
-            if isVisible { await sample() }
+        .onChange(of: isVisible) {
+            guard isVisible else { return }
+            disk = SystemMetrics.disk()
+            updateMemorySnapshot()
         }
+        .onChange(of: stats.showsStats) { if isVisible { updateMemorySnapshot() } }
     }
 
     private func metric(_ title: String, _ value: String?) -> some View {
@@ -95,28 +97,12 @@ struct MenuBarPanel: View {
         .accessibilityElement(children: .combine)
     }
 
-    private func percent(_ fraction: Double) -> String {
-        fraction.formatted(.percent.precision(.fractionLength(0)).locale(Lang.locale))
-    }
-
     private func activate(smartScan: Bool) {
         openCleanix(smartScan: smartScan) { openWindow(id: CleanixApp.mainWindowID) }
     }
 
-    private func sample() async {
-        var previous: SystemMetrics.CPUTicks?
-        while !Task.isCancelled {
-            disk = SystemMetrics.disk()
-            memory = SystemMetrics.memoryUsed()
-            let current = SystemMetrics.CPUTicks.read()
-            cpu = previous.flatMap { earlier in current?.usage(since: earlier) }
-            previous = current
-            do {
-                try await Task.sleep(for: .seconds(2))
-            } catch {
-                return
-            }
-        }
+    private func updateMemorySnapshot() {
+        memorySnapshot = stats.showsStats ? nil : SystemMetrics.memoryUsed()
     }
 }
 

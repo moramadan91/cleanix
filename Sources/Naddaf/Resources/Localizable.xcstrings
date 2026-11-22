@@ -177,6 +177,118 @@
         }
       }
     },
+    "boost.action": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تسريع"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Boost"
+          }
+        }
+      }
+    },
+    "boost.confirm": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "نفضّي الرام وننضّف %@ من الملفات المؤقتة؟"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Free memory and clean %@ of caches?"
+          }
+        }
+      }
+    },
+    "boost.result": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اتفضّى %1$@ · الرام من %2$@ لـ %3$@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Freed %1$@ · memory %2$@ → %3$@"
+          }
+        }
+      }
+    },
+    "boost.resultCachesOnly": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اتفضّى %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Freed %@"
+          }
+        }
+      }
+    },
+    "boost.running": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "جاري التسريع…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Running Quick Boost…"
+          }
+        }
+      }
+    },
+    "boost.scanning": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "بنشوف إيه اللي ممكن يتنضّف…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checking what can be cleaned…"
+          }
+        }
+      }
+    },
+    "boost.title": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تسريع فوري"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quick Boost"
+          }
+        }
+      }
+    },
     "caches.empty": {
       "localizations": {
         "ar": {
@@ -1217,6 +1329,22 @@
         }
       }
     },
+    "login.approval": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اسمح لـ Cleanix من عناصر تسجيل الدخول."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allow Cleanix in Login Items."
+          }
+        }
+      }
+    },
     "login.disable": {
       "localizations": {
         "ar": {
@@ -1233,6 +1361,38 @@
         }
       }
     },
+    "login.enabled": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "افتح Cleanix لما الماك يشتغل"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Cleanix when the Mac starts"
+          }
+        }
+      }
+    },
+    "login.failed": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مقدرناش نغيّر إعداد الفتح عند الدخول."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn’t update the login item."
+          }
+        }
+      }
+    },
     "login.note": {
       "localizations": {
         "ar": {
@@ -1245,6 +1405,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "A turned-off item is kept in Quarantine for 30 days."
+          }
+        }
+      }
+    },
+    "login.openSettings": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "افتح إعدادات عناصر تسجيل الدخول"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Login Items settings"
           }
         }
       }
@@ -1361,6 +1537,22 @@
         }
       }
     },
+    "monitor.menuBarStats": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الرام %1$@ · المعالج %2$@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "RAM %1$@ · CPU %2$@"
+          }
+        }
+      }
+    },
     "monitor.open": {
       "localizations": {
         "ar": {
@@ -1389,6 +1581,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Show in menu bar"
+          }
+        }
+      }
+    },
+    "monitor.showStats": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اظهر الأرقام في شريط القوائم"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show numbers in the menu bar"
           }
         }
       }

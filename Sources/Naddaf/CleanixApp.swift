@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import Carbon
 import NaddafCore
 import Sparkle
 
@@ -13,6 +14,7 @@ struct CleanixApp: App {
         WindowGroup(id: Self.mainWindowID) {
             RootView(checkForUpdates: { splash.updater.checkForUpdates(nil) })
                 .preferredColorScheme(.dark)
+                .background(MainWindowRegistration())
         }
         .windowStyle(.hiddenTitleBar)
         .commands {
@@ -20,6 +22,9 @@ struct CleanixApp: App {
                 CheckForUpdatesCommand { splash.updater.checkForUpdates(nil) }
                 ShowMonitorCommand(monitor: monitor)
             }
+        }
+        Settings {
+            SettingsView()
         }
         MenuBarExtra(isInserted: $monitor.isEnabled) {
             MenuBarPanel(monitor: monitor)
@@ -51,10 +56,51 @@ private struct ShowMonitorCommand: View {
 
 private struct MonitorMenuBarLabel: View {
     @AppStorage(Lang.key) private var lang = Lang.current
+    private let stats = MenuBarStats.shared
 
     var body: some View {
-        Image(systemName: "sparkles").renderingMode(.template)
-            .accessibilityLabel(L("app.name", language: lang))
+        let name = L("app.name", language: lang)
+        if stats.showsStats {
+            let missing = L("monitor.unavailable", language: lang)
+            let memory = stats.memory.map { formatPercent(Double($0) / 100) } ?? missing
+            let cpu = stats.cpu.map { formatPercent(Double($0) / 100) } ?? missing
+            let title = String(format: L("monitor.menuBarStats", language: lang), memory, cpu)
+            if let image = statsIcon(title: title) {
+                Image(nsImage: image).renderingMode(.template)
+                    .accessibilityLabel(title)
+            } else {
+                Image(systemName: "sparkles").renderingMode(.template).accessibilityLabel(name)
+            }
+        } else {
+            Image(systemName: "sparkles").renderingMode(.template).accessibilityLabel(name)
+        }
+    }
+
+    private func statsIcon(title: String) -> NSImage? {
+        // MenuBarExtra extracts a single image for its status item.
+        let renderer = ImageRenderer(content: HStack(spacing: 4) {
+            Image(systemName: "sparkles").font(.system(size: 13))
+            Text(title).font(.system(size: 11, weight: .medium)).monospacedDigit()
+        }
+        .fixedSize()
+        .foregroundStyle(.black)
+        .environment(\.layoutDirection, Lang.direction))
+        renderer.scale = 2
+        let image = renderer.nsImage
+        image?.isTemplate = true
+        return image
+    }
+}
+
+private struct MainWindowRegistration: NSViewRepresentable {
+    func makeNSView(context: Context) -> WindowObserver { WindowObserver() }
+    func updateNSView(_ view: WindowObserver, context: Context) {}
+
+    final class WindowObserver: NSView {
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            if let window { SplashDelegate.registerMainWindow(window) }
+        }
     }
 }
 
@@ -68,9 +114,22 @@ final class SplashDelegate: NSObject, NSApplicationDelegate {
     private var panel: NSPanel?
     private var observers: [Any] = []
     private var splashing = false
+    private static weak var mainWindow: NSWindow?
+    private static let suppressedWindows = NSHashTable<NSWindow>.weakObjects()
+    private static var waitingForReopen = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         Alerts.shared.registerDelegate()
+        let launchReason = NSAppleEventManager.shared().currentAppleEvent?
+            .paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue
+        if launchReason == keyAELaunchedAsLogInItem {
+            Self.waitingForReopen = true
+            if let window = Self.mainWindow { Self.suppressLoginWindow(window) }
+            observeWindowActivation()
+            Alerts.shared.start()
+            updater.updater.checkForUpdatesInBackground()
+            return
+        }
         let side: CGFloat = 560
         let screen = (NSScreen.main ?? NSScreen.screens[0]).visibleFrame
         let panel = NSPanel(contentRect: NSRect(x: screen.midX - side / 2, y: screen.midY - side / 2, width: side, height: side),
@@ -85,17 +144,52 @@ final class SplashDelegate: NSObject, NSApplicationDelegate {
         splashing = true
 
         mainWindows.forEach(hide)
+        observeWindowActivation()
+        panel.orderFrontRegardless()
+    }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
+        guard Self.waitingForReopen else { return true }
+        return !Self.showMainWindow()
+    }
+
+    static func registerMainWindow(_ window: NSWindow) {
+        mainWindow = window
+        if waitingForReopen { suppressLoginWindow(window) }
+    }
+
+    static func showMainWindow() -> Bool {
+        waitingForReopen = false
+        for window in suppressedWindows.allObjects {
+            window.alphaValue = 1
+            window.ignoresMouseEvents = false
+        }
+        suppressedWindows.removeAllObjects()
+        guard let window = mainWindow else { return false }
+        if window.isMiniaturized { window.deminiaturize(nil) }
+        window.makeKeyAndOrderFront(nil)
+        return true
+    }
+
+    private static func suppressLoginWindow(_ window: NSWindow) {
+        suppressedWindows.add(window)
+        window.alphaValue = 0
+        window.ignoresMouseEvents = true
+        window.orderOut(nil)
+    }
+
+    private func observeWindowActivation() {
         // The SwiftUI window may appear a moment after launch: hide it the moment it shows up.
         for name in [NSWindow.didBecomeKeyNotification, NSWindow.didBecomeMainNotification] {
             observers.append(NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] note in
                 let w = note.object as? NSWindow
                 MainActor.assumeIsolated {
-                    guard let self, self.splashing, let w, w !== self.panel else { return }
-                    self.hide(w)
+                    guard let self, let w, w !== self.panel else { return }
+                    if self.splashing { self.hide(w) }
+                    if Self.waitingForReopen, Self.suppressedWindows.contains(w) { Self.suppressLoginWindow(w) }
                 }
             })
         }
-        panel.orderFrontRegardless()
     }
 
     private var mainWindows: [NSWindow] { NSApp.windows.filter { $0 !== panel && $0.canBecomeMain } }

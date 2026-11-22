@@ -62,20 +62,7 @@ struct SmartScanView: View {
         scanStart = .now
         phase = .scanning
         screenStarted()
-        let env = AppEnv.shared
-        let running = Set(NSWorkspace.shared.runningApplications.compactMap(\.bundleIdentifier))
-        let caches = AppCacheScanner(home: env.home, appDirs: env.appDirs, runningBundleIDs: { running })
-        let privacy = PrivacyScanner(home: env.home)
-        let sweep = SweepScanner(home: env.home)
-        let smart = SmartScan(sections: [
-            // Only `.safe` junk: backups and attachments never go in the one-button clean.
-            ("tab.sweep", ClosureScanner { try await sweep.scan().filter { $0.safety == .safe } }),
-            ("tab.appCaches", ClosureScanner {
-                try await caches.groups().filter { !$0.isRunning && !$0.isSystem }.flatMap(\.items)
-            }),
-            // Browser caches only; history and cookies are never part of the one-button clean.
-            ("smart.browser", ClosureScanner { try await privacy.scan().filter { $0.safety == .safe } }),
-        ])
+        let smart = makeSmartScan(includeBrowserCaches: true)
         Task {
             async let found = Task.detached { await smart.run() }.value
             try? await Task.sleep(for: .seconds(LensScanView.duration))

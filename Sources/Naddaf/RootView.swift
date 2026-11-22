@@ -146,14 +146,15 @@ private struct SectionPage: View {
 
     var body: some View {
         // Title sits top-center, clear of the sidebar pills.
-        VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 4) {
+        VStack(spacing: 0) {
+            VStack(spacing: 4) {
                 Text(section.title)
                     .font(.system(size: 28, weight: .bold))
                 Text(section.subtitle)
                     .font(.system(size: 15, weight: .regular))
                     .foregroundStyle(.white.opacity(0.62))
             }
+            .multilineTextAlignment(.center)
             .padding(.top, 26)
             .padding(.horizontal, 40)
             .id("text-\(section.id)")
