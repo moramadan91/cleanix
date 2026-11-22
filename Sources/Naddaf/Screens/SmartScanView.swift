@@ -105,6 +105,9 @@ struct OverviewView: View {
     @State private var refresh = 0
     @State private var health: HealthScore?
     @State private var battery: BatteryHealth?
+    /// Health re-check: a quick Smart Scan so the score sees what cleaning changed.
+    @State private var checking = false
+    @State private var previousScore: Int?
     @AppStorage("lastSmartScanBytes") private var lastScanBytes = 0
 
     var body: some View {
@@ -198,11 +201,42 @@ struct OverviewView: View {
                 ForEach(health.issues.prefix(3), id: \.self) { issue in
                     Text(L(issue)).font(.system(size: 13)).foregroundStyle(.secondary)
                 }
+                if checking {
+                    Text(L("health.checking")).font(.system(size: 13, weight: .medium)).foregroundStyle(section.tint)
+                } else if let previousScore {
+                    let now = health.score.formatted(.number.locale(Lang.locale))
+                    Text(previousScore == health.score ? String(format: L("health.same"), now)
+                         : String(format: L("health.change"), previousScore.formatted(.number.locale(Lang.locale)), now))
+                        .font(.system(size: 13, weight: .medium)).foregroundStyle(section.tint)
+                }
             }
             Spacer(minLength: 0)
+            Button { Task { await recheck() } } label: {
+                Image(systemName: "arrow.clockwise")
+                    .rotationEffect(.degrees(checking ? 360 : 0))
+                    .animation(checking ? .linear(duration: 0.8).repeatForever(autoreverses: false) : .default, value: checking)
+            }
+            .buttonStyle(.liquid(small: true))
+            .disabled(checking)
+            .help(L("health.recheck"))
+            .accessibilityLabel(L("health.recheck"))
         }
         .padding(20)
         .depthGlass(RoundedRectangle(cornerRadius: 26))
+    }
+
+    /// Measures the junk again (same scan as Smart Scan) and rebuilds the score from it.
+    private func recheck() async {
+        guard !checking else { return }
+        checking = true
+        let before = health?.score
+        let smart = makeSmartScan(includeBrowserCaches: true)
+        let sections = await Task.detached { await smart.run() }.value
+        lastScanBytes = Int(sections.reduce(0) { $0 + $1.bytes })
+        UserDefaults.standard.set(Date(), forKey: "lastSmartScanDate")
+        await load()
+        previousScore = before
+        checking = false
     }
 
     private func load() async {
