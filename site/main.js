@@ -19,6 +19,7 @@ function rng(seed) {
 
 /* ---------- language ---------- */
 const langBtn = $('#lang');
+let lenis = null; // set below when motion is on
 function applyLang(l) {
   html.lang = l; html.dir = l === 'ar' ? 'rtl' : 'ltr';
   langBtn.textContent = l === 'ar' ? 'English' : 'العربية';
@@ -31,13 +32,14 @@ try { saved = localStorage.getItem('cleanix.lang'); } catch (e) {}
 // shortcut: the cut is a one-off bands wipe, so the switch reads like a channel change.
 langBtn.addEventListener('click', () => {
   const next = html.lang === 'ar' ? 'en' : 'ar';
-  if (!motionOK) { applyLang(next); ScrollTrigger.refresh(); return; }
+  if (!motionOK) { applyLang(next); ScrollTrigger.refresh(); scrollTo(0, 0); return; }
   const cut = $('#cut'), bands = $$('i', cut);
   gsap.timeline()
     .set(cut, { visibility: 'visible' })
     .fromTo(bands, { scaleX: 0, transformOrigin: i => (i % 2 ? '0% 50%' : '100% 50%') },
       { scaleX: 1, duration: 0.22, ease: 'power3.in', stagger: { each: 0.018, from: 'random' } })
-    .call(() => { applyLang(next); ScrollTrigger.refresh(); })
+    // Behind the cut: new language, and the page starts over from the top.
+    .call(() => { applyLang(next); ScrollTrigger.refresh(); lenis.scrollTo(0, { immediate: true, force: true }); })
     .to(bands, { scaleX: 0, transformOrigin: i => (i % 2 ? '100% 50%' : '0% 50%'), duration: 0.26, ease: 'power3.out', stagger: { each: 0.018, from: 'random' } })
     .set(cut, { visibility: 'hidden' });
 });
@@ -67,7 +69,7 @@ if (motionOK) {
   // ScrollTrigger owns history.scrollRestoration, so set it through its API.
   if (!location.hash) { ScrollTrigger.clearScrollMemory('manual'); scrollTo(0, 0); }
   /* ---------- one loop: GSAP drives Lenis, ScrollTrigger reads it ---------- */
-  const lenis = new Lenis({ lerp: 0.1, autoRaf: false, anchors: { offset: -60 } });
+  lenis = new Lenis({ lerp: 0.1, autoRaf: false, anchors: { offset: -60 } });
   lenis.on('scroll', ScrollTrigger.update);
   gsap.ticker.add(t => lenis.raf(t * 1000));
   gsap.ticker.lagSmoothing(0);
