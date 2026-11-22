@@ -81,7 +81,7 @@ struct GlassPanel: ViewModifier {
         content
             .padding(8)
             .glassEffect(.regular.tint(.white.opacity(0.04)), in: .rect(cornerRadius: 22))
-            .frame(maxWidth: 720)
+            .frame(maxWidth: 560)
     }
 }
 
