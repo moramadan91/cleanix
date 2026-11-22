@@ -83,7 +83,7 @@ struct ScanListView: View {
                 }
                 .padding(.horizontal, 6)
                 .padding(.top, 12)
-                .frame(maxWidth: 560)
+                .frame(maxWidth: 760)
             }
 
             if items.isEmpty {
@@ -145,7 +145,7 @@ struct ScanListView: View {
             .padding(.horizontal, 4)
         }
         .scrollIndicators(.hidden)
-        .frame(maxWidth: 560)
+        .frame(maxWidth: 760)
     }
 
     private func card(_ s: GroupSummary) -> some View {

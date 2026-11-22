@@ -46,7 +46,7 @@ struct UninstallView: View {
             }
             .padding(.horizontal, 6)
             .padding(.top, 12) // clear of the tabs above
-            .frame(maxWidth: 560)
+            .frame(maxWidth: 760)
             ScrollView {
                 LazyVStack(spacing: 8) {
                     ForEach(shown, id: \.bundleID) { app in

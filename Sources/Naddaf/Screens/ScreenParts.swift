@@ -281,7 +281,7 @@ struct GlassPanel: ViewModifier {
             .frame(maxHeight: contentHeight)
             .padding(8)
             .depthGlass(RoundedRectangle(cornerRadius: 22))
-            .frame(maxWidth: 560)
+            .frame(maxWidth: 760)
     }
 }
 

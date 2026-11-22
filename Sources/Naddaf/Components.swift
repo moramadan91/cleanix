@@ -5,34 +5,21 @@ import AppKit
 /// section changes: a continuously moving background measured 3.9% idle CPU, so it stays still.
 struct AuroraBackground: View {
     let section: AppSection
-    @Environment(\.layoutDirection) private var direction
 
     var body: some View {
-        ZStack {
-            Theme.bg
-            LinearGradient(colors: [section.tint.opacity(0.78), section.tint2.opacity(0.40), .clear],
-                           startPoint: .topLeading, endPoint: .bottom)
-            RadialGradient(colors: [section.tint2.opacity(0.65), .clear], center: .bottomTrailing,
-                           startRadius: 0, endRadius: 760)
-            // Soft spotlight behind the centred hero.
-            RadialGradient(colors: [.white.opacity(0.10), .clear], center: UnitPoint(x: 0.5, y: 0.42),
-                           startRadius: 0, endRadius: 420)
-            // Static light blobs: something for the glass to bend, which is what makes it read as 3D.
-            GeometryReader { geo in
-                let w = geo.size.width, h = geo.size.height, flip: CGFloat = direction == .rightToLeft ? -1 : 1
-                blob(section.tint, 0.55, size: w * 0.42, x: w * (0.5 - 0.22 * flip), y: h * 0.30)
-                blob(section.tint2, 0.70, size: w * 0.48, x: w * (0.5 + 0.26 * flip), y: h * 0.72)
-                blob(.white, 0.10, size: w * 0.30, x: w * (0.5 + 0.18 * flip), y: h * 0.18)
+        // Same glow as the Windows version: section colour from the top, its deep hue from the bottom.
+        GeometryReader { geo in
+            ZStack {
+                Theme.bg
+                RadialGradient(colors: [section.tint.opacity(0.42), .clear], center: UnitPoint(x: 0.75, y: 0),
+                               startRadius: 0, endRadius: max(geo.size.width, geo.size.height) * 0.6)
+                RadialGradient(colors: [section.tint2.opacity(0.60), .clear], center: UnitPoint(x: 0.2, y: 1),
+                               startRadius: 0, endRadius: max(geo.size.width, geo.size.height) * 0.55)
             }
         }
         .ignoresSafeArea()
-        .drawingGroup() // flatten the blurs once; the background never animates
         .id(section)
         .transition(.opacity)
-    }
-
-    private func blob(_ color: Color, _ opacity: Double, size: CGFloat, x: CGFloat, y: CGFloat) -> some View {
-        Circle().fill(color.opacity(opacity)).frame(width: size, height: size).blur(radius: size * 0.35).position(x: x, y: y)
     }
 }
 

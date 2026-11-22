@@ -18,30 +18,12 @@ struct RootView: View {
         ZStack {
             AuroraBackground(section: selection)
             HStack(spacing: 0) {
-                Sidebar(selection: $selection)
-                    .zIndex(1) // the hover pill must draw above the page, not under it
+                Sidebar(selection: $selection, lang: $lang, checkForUpdates: checkForUpdates)
                 VStack(spacing: 0) {
                     if !hasDiskAccess { DiskAccessBanner().padding(.top, 12) }
                     SectionPage(section: selection)
                 }
             }
-        }
-        // Language switch opposite the sidebar: top-left in Arabic, top-right in English
-        // (trailing is the left edge in Arabic).
-        .overlay(alignment: .topTrailing) {
-            Button(lang == "ar" ? "English" : "العربية") { lang = lang == "ar" ? "en" : "ar" }
-                // Just under the title bar, above the sidebar (the title-bar edge cut it in half).
-                .padding(.top, 38).padding(.horizontal, 12)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-                .ignoresSafeArea()
-        }
-        // Check for updates in the bottom corner away from the sidebar (right in English, left in Arabic).
-        .overlay(alignment: .bottomTrailing) {
-            Button(action: checkForUpdates) {
-                Label(L("update.check"), systemImage: "arrow.triangle.2.circlepath")
-            }
-            .buttonStyle(.liquid(small: true))
-            .padding(12)
         }
         .id(lang)
         // Coming back from System Settings: check again so the banner goes away by itself.
@@ -58,79 +40,75 @@ struct RootView: View {
     }
 }
 
+/// Labelled sidebar as in the Windows version: logo and name on top, one row per section with its
+/// coloured icon, language and updates at the bottom, and a thin line between it and the page.
 private struct Sidebar: View {
     @Binding var selection: AppSection
+    @Binding var lang: String
+    let checkForUpdates: () -> Void
 
     var body: some View {
-        // Nine icons must fit any window height: 9 items + 8 gaps + room for the traffic lights.
-        GeometryReader { geo in
-            let gap: CGFloat = 10
-            let size = max(40, min(62, (geo.size.height - 44 - 16 - gap * 8) / 9))
-            GlassEffectContainer(spacing: gap) {
-                VStack(spacing: gap) {
-                    ForEach(AppSection.allCases) { section in
-                        SidebarItem(section: section, isSelected: selection == section, size: size) { selection = section }
-                    }
-                }
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 10) {
+                if let mark = Self.mark { Image(nsImage: mark).resizable().frame(width: 28, height: 28) }
+                Text("Cleanix").font(.system(size: 17, weight: .bold))
             }
-            .padding(.horizontal, 18)
-            .padding(.top, 44)
+            .padding(.horizontal, 10).padding(.bottom, 18)
+            ForEach(AppSection.allCases) { section in
+                SidebarItem(section: section, isSelected: selection == section) { selection = section }
+            }
+            Spacer(minLength: 12)
+            Button(action: checkForUpdates) {
+                Label(L("update.check"), systemImage: "arrow.triangle.2.circlepath").frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.liquid(small: true))
+            Button { lang = lang == "ar" ? "en" : "ar" } label: {
+                Text(lang == "ar" ? "English" : "العربية").frame(maxWidth: .infinity)
+            }
         }
-        .frame(width: 98)
+        .padding(.horizontal, 14)
+        .padding(.top, 44) // clear of the window buttons
+        .padding(.bottom, 18)
+        .frame(width: 220)
+        .frame(maxHeight: .infinity)
+        .background(Color(hex: 0x0A0810).opacity(0.35))
+        .overlay(alignment: .trailing) { Rectangle().fill(.white.opacity(0.06)).frame(width: 1) }
+        .ignoresSafeArea()
     }
+
+    private static let mark: NSImage? = {
+        (Bundle.module.url(forResource: "mark", withExtension: "png")
+            ?? Bundle.module.url(forResource: "mark", withExtension: "png", subdirectory: "Brand"))
+            .flatMap(NSImage.init(contentsOf:))
+    }()
 }
 
-/// Icon button that grows into a glass pill showing the full name while the pointer is over it.
 private struct SidebarItem: View {
     let section: AppSection
     let isSelected: Bool
-    let size: CGFloat
     let action: () -> Void
     @State private var hovering = false
 
-    private var glass: Glass {
-        // Untinted: the disc takes the colour behind it. Selected is frosted so it still stands out.
-        isSelected ? .regular.tint(.white.opacity(0.28)) : .clear
-    }
-
     var body: some View {
-        // The glass circle never changes size (resizing glass every frame is what made the pill stutter).
-        // The pill is a plain capsule fill that grows behind it, which the GPU animates cheaply.
         Button(action: action) {
-            HStack(spacing: 6) {
-                // Glass symbol on a glass disc tinted with the section hue; no hard shadows.
+            HStack(spacing: 12) {
                 Image(systemName: section.symbol)
-                    .font(.system(size: size * 0.42, weight: .semibold))
-                    .foregroundStyle(LinearGradient(colors: [.white, .white.opacity(0.6)],
-                                                    startPoint: .top, endPoint: .bottom))
-                    .frame(width: size, height: size)
-                    .glassEffect(glass, in: .circle)
-                    .overlay(Circle().strokeBorder(.white.opacity(isSelected ? 0.7 : 0), lineWidth: 1.5))
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(section.tint)
+                    .frame(width: 20)
                 Text(section.title)
-                    .font(.system(size: 19, weight: .semibold))
+                    .font(.system(size: 14, weight: isSelected ? .semibold : .regular))
                     .lineLimit(1)
-                    .fixedSize()
-                    .opacity(hovering ? 1 : 0)
                 Spacer(minLength: 0)
             }
-            .foregroundStyle(Color.white.opacity(hovering || isSelected ? 1 : 0.92))
-            .frame(width: hovering ? 240 : size, height: size, alignment: .leading)
-            .background {
-                Capsule()
-                    .fill(.ultraThinMaterial)
-                    .overlay(Capsule().fill(.white.opacity(0.08)))
-                    .overlay(Capsule().strokeBorder(.white.opacity(0.35), lineWidth: 1))
-                    .opacity(hovering ? 1 : 0)
-            }
-            .clipShape(Capsule())
-            .contentShape(Capsule())
+            .foregroundStyle(.white.opacity(isSelected || hovering ? 1 : 0.62))
+            .padding(.horizontal, 12).padding(.vertical, 9)
+            .background(RoundedRectangle(cornerRadius: 12).fill(.white.opacity(isSelected ? 0.10 : hovering ? 0.05 : 0)))
+            .contentShape(RoundedRectangle(cornerRadius: 12))
         }
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
-        .animation(.snappy(duration: 0.22), value: hovering)
-        .frame(width: size, height: size, alignment: .leading)
-        .zIndex(hovering ? 1 : 0)
-        .accessibilityLabel(section.title)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 
@@ -159,16 +137,16 @@ private struct SectionPage: View {
 
     var body: some View {
         // Title sits top-center, clear of the sidebar pills.
-        VStack(spacing: 0) {
-            VStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(section.title)
-                    .font(.system(size: 34, weight: .bold))
+                    .font(.system(size: 28, weight: .bold))
                 Text(section.subtitle)
-                    .font(.system(size: 16, weight: .regular))
-                    .foregroundStyle(.white.opacity(0.75))
+                    .font(.system(size: 15, weight: .regular))
+                    .foregroundStyle(.white.opacity(0.62))
             }
-            .multilineTextAlignment(.center)
-            .padding(.top, 40)
+            .padding(.top, 26)
+            .padding(.horizontal, 40)
             .id("text-\(section.id)")
             .transition(.opacity)
 
@@ -176,7 +154,8 @@ private struct SectionPage: View {
             let current = tabs[section] ?? all.first
             if all.count > 1 {
                 TabStrip(tabs: all, selection: Binding(get: { current ?? all[0] }, set: { tabs[section] = $0 }))
-                    .padding(.top, 18)
+                    .padding(.top, 14)
+                    .padding(.horizontal, 40)
             }
             let now = ScreenKey(section: section, tab: current)
             ZStack {
@@ -203,7 +182,7 @@ private struct SectionPage: View {
                     started.remove(now)
                 }
                 .buttonStyle(.liquid(small: true))
-                .padding(.top, 52).padding(.horizontal, 28)
+                .padding(.top, 34).padding(.horizontal, 40)
             }
         }
     }

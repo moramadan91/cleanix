@@ -59,7 +59,7 @@ struct ShredderView: View {
             Text(L("shred.drop")).font(.system(size: 18, weight: .semibold))
             Button(L("shred.choose")) { picking = true }.buttonStyle(.liquid())
         }
-        .frame(maxWidth: 560, minHeight: 200, maxHeight: .infinity)
+        .frame(maxWidth: 760, minHeight: 200, maxHeight: .infinity)
         .glassEffect(targeted ? .regular : .clear, in: .rect(cornerRadius: 28))
         .overlay(
             RoundedRectangle(cornerRadius: 28)
