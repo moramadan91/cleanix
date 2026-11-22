@@ -54,7 +54,8 @@ private struct SidebarItem: View {
     @State private var hovering = false
 
     private var glass: Glass {
-        isSelected ? .regular.tint(Theme.accent.opacity(0.45)) : .regular.tint(section.tint.opacity(0.22))
+        // Untinted: the disc takes the colour behind it. Selected is frosted so it still stands out.
+        isSelected ? .regular.tint(.white.opacity(0.28)) : .clear
     }
 
     var body: some View {
@@ -69,6 +70,7 @@ private struct SidebarItem: View {
                                                     startPoint: .top, endPoint: .bottom))
                     .frame(width: size, height: size)
                     .glassEffect(glass, in: .circle)
+                    .overlay(Circle().strokeBorder(.white.opacity(isSelected ? 0.7 : 0), lineWidth: 1.5))
                 Text(section.title)
                     .font(.system(size: 19, weight: .semibold))
                     .lineLimit(1)
