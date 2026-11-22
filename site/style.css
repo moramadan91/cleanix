@@ -35,8 +35,8 @@ html[lang="en"] img[data-en], html[lang="en"] div[data-en] { display: block !imp
 
 /* Logo pieces are white cut-outs, tinted here. */
 .piece { background: var(--violet); -webkit-mask: var(--src) center / contain no-repeat; mask: var(--src) center / contain no-repeat; }
-.mark { --src: url(mark.png); width: 100%; aspect-ratio: 1173 / 895; }
-.word { --src: url(wordmark.png); aspect-ratio: 1545 / 379; }
+.mark { --src: url(mark.webp); width: 100%; aspect-ratio: 1173 / 895; }
+.word { --src: url(wordmark.webp); aspect-ratio: 1545 / 379; }
 
 /* ---------- top bar: brand left, language switch always at the top right ---------- */
 .bar {
@@ -91,7 +91,7 @@ html[lang="en"] img[data-en], html[lang="en"] div[data-en] { display: block !imp
 /* Glitch: colour-split copies and band tears, triggered by adding .hit */
 .glitch::before, .glitch::after {
   content: ""; position: absolute; inset: 0; opacity: 0;
-  -webkit-mask: url(mark.png) center / contain no-repeat; mask: url(mark.png) center / contain no-repeat;
+  -webkit-mask: url(mark.webp) center / contain no-repeat; mask: url(mark.webp) center / contain no-repeat;
 }
 .glitch::before { background: #3CF2FF; }
 .glitch::after { background: #FF4FD8; }

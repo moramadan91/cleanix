@@ -10,17 +10,27 @@
 <meta property="og:image" content="https://cleanixapp.vercel.app/icon.png">
 <meta name="theme-color" content="#171222">
 <link rel="icon" href="favicon.png">
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/gsap@3.12.5/+esm" crossorigin>
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/gsap@3.12.5/ScrollTrigger/+esm" crossorigin>
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/lenis@1.1.13/+esm" crossorigin>
+<link rel="preload" as="image" href="mark.webp" type="image/webp" fetchpriority="high">
+<script>
+  // Pick the language before the body is parsed: no flash of the other language, and only its screenshots load.
+  try { var l = localStorage.getItem('cleanix.lang') || (navigator.language.indexOf('ar') === 0 ? 'ar' : 'en');
+    document.documentElement.lang = l; document.documentElement.dir = l === 'ar' ? 'rtl' : 'ltr'; } catch (e) {}
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=5">
+<link rel="stylesheet" href="style.css?v=6">
 </head>
 <body>
 <a class="skip" href="#main"><span data-ar>انتقل للمحتوى</span><span data-en>Skip to content</span></a>
 
 <header class="bar">
   <a class="brand" href="#top" aria-label="Cleanix">
-    <img src="icon.png" alt="" width="34" height="34"><span>Cleanix</span>
+    <picture><source srcset="icon-68.webp" type="image/webp"><img src="icon-68.png" alt="" width="34" height="34"></picture><span>Cleanix</span>
   </a>
   <nav class="bar-links" aria-label="Main">
     <a href="#features"><span data-ar>المميزات</span><span data-en>Features</span></a>
@@ -85,7 +95,7 @@
           <p><span data-ar>الفحص الشامل بيدوّر على ملفات النظام وكاش البرامج والمتصفحات مرة واحدة، ويوريك قد إيه ممكن يتنضف بأمان.</span><span data-en>Smart Scan checks system junk, app caches and browser caches at once, and tells you how much is safe to clean.</span></p>
         </div>
         <div class="stage">
-          <div class="screen"><img data-ar src="shots/ar-scan.webp" alt="شاشة الفحص الشامل في Cleanix" loading="lazy"><img data-en src="shots/en-scan.webp" alt="The Smart Scan screen in Cleanix" loading="lazy"></div>
+          <div class="screen"><img data-ar src="shots/ar-scan.webp" alt="شاشة الفحص الشامل في Cleanix" loading="lazy" decoding="async" width="1400" height="896"><img data-en src="shots/en-scan.webp" alt="The Smart Scan screen in Cleanix" loading="lazy" decoding="async" width="1400" height="896"></div>
           <div class="orb"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M26 8c1.5 8 4.5 11 12 12.5C30.5 22 27.5 25 26 33c-1.5-8-4.5-11-12-12.5C21.5 19 24.5 16 26 8Z"/><path d="M13 28c.8 3.6 2.2 5 5.8 5.8-3.6.8-5 2.2-5.8 5.8-.8-3.6-2.2-5-5.8-5.8 3.6-.8 5-2.2 5.8-5.8Z"/></svg></div>
           <div class="beam" aria-hidden="true"></div>
         </div>
@@ -100,7 +110,7 @@
           <p><span data-ar>لما تمسح برنامج بالسحب للسلة بيفضل وراه كاش وإعدادات. Cleanix بيلاقيها ويشيلها معاه، ويوريك البرامج اللي مابتفتحهاش.</span><span data-en>Dragging an app to the Trash leaves caches and settings behind. Cleanix finds them and removes them too, and shows the apps you never open.</span></p>
         </div>
         <div class="stage">
-          <div class="screen"><img data-ar src="shots/ar-apps.webp" alt="شاشة إزالة البرامج" loading="lazy"><img data-en src="shots/en-apps.webp" alt="The Uninstall screen" loading="lazy"></div>
+          <div class="screen"><img data-ar src="shots/ar-apps.webp" alt="شاشة إزالة البرامج" loading="lazy" decoding="async" width="1400" height="896"><img data-en src="shots/en-apps.webp" alt="The Uninstall screen" loading="lazy" decoding="async" width="1400" height="896"></div>
           <div class="orb"><svg viewBox="0 0 48 48" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="3"/><rect x="27" y="9" width="12" height="12" rx="3"/><rect x="9" y="27" width="12" height="12" rx="3"/><rect x="27" y="27" width="12" height="12" rx="3"/></svg></div>
           <div class="shards" aria-hidden="true"></div>
         </div>
@@ -115,7 +125,7 @@
           <p><span data-ar>الملفات الكبيرة والقديمة، المكرر، الصور المتشابهة، والتنزيلات اللي نسيتها. كله في مكان واحد وانت اللي بتختار.</span><span data-en>Large and old files, duplicates, similar photos and forgotten downloads. All in one place, and you choose.</span></p>
         </div>
         <div class="stage">
-          <div class="screen"><img data-ar src="shots/ar-clutter.webp" alt="شاشة الفوضى" loading="lazy"><img data-en src="shots/en-clutter.webp" alt="The Clutter screen" loading="lazy"></div>
+          <div class="screen"><img data-ar src="shots/ar-clutter.webp" alt="شاشة الفوضى" loading="lazy" decoding="async" width="1400" height="896"><img data-en src="shots/en-clutter.webp" alt="The Clutter screen" loading="lazy" decoding="async" width="1400" height="896"></div>
           <div class="orb"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M7 15a3 3 0 0 1 3-3h9l4 4h15a3 3 0 0 1 3 3v15a3 3 0 0 1-3 3H10a3 3 0 0 1-3-3Z"/><path d="M7 21h34"/></svg></div>
           <div class="dupes" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
         </div>
@@ -130,7 +140,7 @@
           <p><span data-ar>خريطة القرص بتوريك كل فولدر وحجمه، ومتعلّم عليه: آمن تمسحه، راجعه الأول، أو ما تقربش.</span><span data-en>Disk Map shows every folder and its size, marked safe to delete, review first, or do not touch.</span></p>
         </div>
         <div class="stage">
-          <div class="screen"><img data-ar src="shots/ar-disk.webp" alt="شاشة خريطة القرص" loading="lazy"><img data-en src="shots/en-disk.webp" alt="The Disk Map screen" loading="lazy"></div>
+          <div class="screen"><img data-ar src="shots/ar-disk.webp" alt="شاشة خريطة القرص" loading="lazy" decoding="async" width="1400" height="896"><img data-en src="shots/en-disk.webp" alt="The Disk Map screen" loading="lazy" decoding="async" width="1400" height="896"></div>
           <div class="orb"><svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="15"/><path d="M24 9v15l11 10"/></svg></div>
           <svg class="ring" viewBox="-60 -60 120 120" aria-hidden="true"></svg>
         </div>
