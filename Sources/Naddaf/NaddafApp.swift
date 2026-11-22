@@ -5,7 +5,7 @@ import NaddafCore
 struct NaddafApp: App {
     var body: some Scene {
         WindowGroup {
-            Text("Naddaf \(NaddafCore.version)")
+            Text("Naddaf \(NaddafInfo.version)")
                 .padding(40)
         }
     }
