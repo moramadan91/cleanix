@@ -929,6 +929,70 @@
         }
       }
     },
+    "heavy.cpu": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المعالج %.0f%%"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CPU %.0f%%"
+          }
+        }
+      }
+    },
+    "heavy.note": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "القفل بيطلب من التطبيق يقفل، فبيلحق يحفظ شغلك الأول."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quit asks the app to close, so it can save your work first."
+          }
+        }
+      }
+    },
+    "heavy.quit": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اقفل"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quit"
+          }
+        }
+      }
+    },
+    "heavy.title": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "التطبيقات المفتوحة، الأتقل الأول"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open apps, heaviest first"
+          }
+        }
+      }
+    },
     "login.disable": {
       "localizations": {
         "ar": {
@@ -2829,6 +2893,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Duplicates"
+          }
+        }
+      }
+    },
+    "tab.heavyApps": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "التطبيقات التقيلة"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heavy apps"
           }
         }
       }

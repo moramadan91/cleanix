@@ -5,7 +5,7 @@ import NaddafCore
 enum SectionTab: String, Identifiable {
     case sweep, appCaches, trash, mail, shredder
     case privacy, permissions, suspicious
-    case maintenance, loginItems
+    case maintenance, loginItems, heavyApps
     case uninstall, leftovers, unused
     case large, duplicates, similar, downloads
 
@@ -16,7 +16,7 @@ enum SectionTab: String, Identifiable {
         switch section {
         case .cleanup: [.sweep, .appCaches, .trash, .mail, .shredder]
         case .protection: [.privacy, .permissions, .suspicious]
-        case .performance: [.maintenance, .loginItems]
+        case .performance: [.maintenance, .loginItems, .heavyApps]
         case .apps: [.uninstall, .leftovers, .unused]
         case .clutter: [.large, .duplicates, .similar, .downloads]
         case .overview, .smartScan, .diskMap, .cloud: []
@@ -67,6 +67,7 @@ struct SectionContent: View {
             }
 
         case (_, .maintenance?): MaintenanceView()
+        case (_, .heavyApps?): HeavyAppsView()
         case (_, .loginItems?): LoginItemsView(agentDirs: [lib.appendingPathComponent("LaunchAgents")],
                                                daemonDirs: env.isDemo ? [] : [URL(fileURLWithPath: "/Library/LaunchAgents"),
                                                                               URL(fileURLWithPath: "/Library/LaunchDaemons")])
