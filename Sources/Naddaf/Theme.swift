@@ -73,10 +73,10 @@ enum AppSection: String, CaseIterable, Identifiable {
         case .smartScan: Color(hex: 0xFFAA3D)
         case .cleanup: Color(hex: 0x2FD1A0)
         case .protection: Color(hex: 0xFF5C8A)
-        case .performance: Color(hex: 0xFF8A3D)
+        case .performance: Color(hex: 0x9BD12E)
         case .apps: Color(hex: 0x4C8DFF)
         case .clutter: Color(hex: 0x1FC8D6)
-        case .diskMap: Color(hex: 0xB26BFF)
+        case .diskMap: Color(hex: 0xF5C542)
         case .cloud: Color(hex: 0x5AB8FF)
         }
     }
@@ -88,10 +88,10 @@ enum AppSection: String, CaseIterable, Identifiable {
         case .smartScan: Color(hex: 0xFF5A3D)
         case .cleanup: Color(hex: 0x0E7C6B)
         case .protection: Color(hex: 0x8E1F5E)
-        case .performance: Color(hex: 0xB2401A)
+        case .performance: Color(hex: 0x2F6B12)
         case .apps: Color(hex: 0x2230A8)
         case .clutter: Color(hex: 0x0D6B80)
-        case .diskMap: Color(hex: 0x5A22B8)
+        case .diskMap: Color(hex: 0x6E4A0C)
         case .cloud: Color(hex: 0x1E5FB5)
         }
     }
