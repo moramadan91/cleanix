@@ -35,9 +35,10 @@ struct DoneView: View {
             if !result.failed.isEmpty {
                 Text(String(format: L("common.failedCount"), result.failed.count)).foregroundStyle(Theme.accent)
             }
-            HStack(spacing: 12) {
-                if let onUndo { Button(L("common.undo"), action: onUndo).buttonStyle(.liquid(big: true)) }
-                RoundActionButton(title: L("common.rescan"), action: onRescan)
+            // Two same-size circles, apart: red goes back, green scans again (same on every screen).
+            HStack(spacing: 44) {
+                if let onUndo { RoundActionButton(title: L("common.undo"), size: 92, tint: Color(hex: 0xFF4D5E), action: onUndo) }
+                RoundActionButton(title: L("common.rescan"), size: 92, tint: Color(hex: 0x2FD1A0), action: onRescan)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -178,20 +179,24 @@ struct ActionButton: View {
 struct RoundActionButton: View {
     let title: String
     var size: CGFloat = 112
+    /// Overrides the section colour (red Undo, green Scan again).
+    var tint: Color?
     let action: () -> Void
 
     var body: some View {
-        Button(title, action: action).buttonStyle(RoundGlassStyle(size: size))
+        Button(title, action: action).buttonStyle(RoundGlassStyle(size: size, fixedTint: tint))
     }
 }
 
 private struct RoundGlassStyle: ButtonStyle {
     let size: CGFloat
+    var fixedTint: Color?
     @Environment(\.isEnabled) private var enabled
-    @Environment(\.sectionTint) private var tint
+    @Environment(\.sectionTint) private var sectionTint
 
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
+        let tint = fixedTint ?? sectionTint
+        return configuration.label
             .font(.system(size: 17, weight: .bold))
             .foregroundStyle(.white)
             .multilineTextAlignment(.center)
@@ -200,6 +205,8 @@ private struct RoundGlassStyle: ButtonStyle {
             .padding(14)
             .frame(width: size, height: size)
             .depthGlass(Circle(), lift: 1.4)
+            // A fixed colour (red/green) fills the glass too, so it reads on any section background.
+            .background(Circle().fill(tint.opacity(fixedTint == nil ? 0 : 0.55)))
             .contentShape(Circle())
             .background(Circle().strokeBorder(tint.opacity(0.45), lineWidth: 1.5).frame(width: size + 22, height: size + 22))
             .background(Circle().fill(tint.opacity(0.30)).frame(width: size + 30, height: size + 30).blur(radius: 18))

@@ -1137,6 +1137,38 @@
         }
       }
     },
+    "health.change": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "كانت %1$@ · دلوقتي %2$@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Was %1$@ · now %2$@"
+          }
+        }
+      }
+    },
+    "health.checking": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "بنفحص جهازك…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checking your Mac…"
+          }
+        }
+      }
+    },
     "health.fair": {
       "localizations": {
         "ar": {
@@ -1245,6 +1277,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Poor"
+          }
+        }
+      }
+    },
+    "health.recheck": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "افحص الحالة تاني"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check again"
+          }
+        }
+      }
+    },
+    "health.same": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "زي ما هي: %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No change: %@"
           }
         }
       }
