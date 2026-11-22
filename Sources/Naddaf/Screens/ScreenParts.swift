@@ -77,9 +77,11 @@ func revealInFinder(_ url: URL) {
 /// Layered glass panel that holds a list (lists never sit straight on the background).
 struct GlassPanel: ViewModifier {
     func body(content: Content) -> some View {
+        // Capped width and centred: keeps lists readable and clear of the sidebar's hover pills.
         content
-            .padding(12)
-            .glassEffect(.regular.tint(.white.opacity(0.04)), in: .rect(cornerRadius: 26))
+            .padding(8)
+            .glassEffect(.regular.tint(.white.opacity(0.04)), in: .rect(cornerRadius: 22))
+            .frame(maxWidth: 720)
     }
 }
 
@@ -92,8 +94,8 @@ struct RowBackground: ViewModifier {
     var highlighted = false
     func body(content: Content) -> some View {
         content
-            .padding(.horizontal, 16).padding(.vertical, 10)
-            .background(RoundedRectangle(cornerRadius: 14).fill(.white.opacity(highlighted ? 0.12 : 0.04)))
+            .padding(.horizontal, 14).padding(.vertical, 7)
+            .background(RoundedRectangle(cornerRadius: 12).fill(.white.opacity(highlighted ? 0.12 : 0.04)))
     }
 }
 
