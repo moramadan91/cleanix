@@ -120,7 +120,7 @@ struct OverviewView: View {
             if total > 0 {
                 VStack(alignment: .leading, spacing: 10) {
                     Text(String(format: L("overview.used"), formatBytes(total - free), formatBytes(total)))
-                        .font(.system(size: 20, weight: .semibold))
+                        .font(.system(size: 17, weight: .semibold))
                     HStack(spacing: 12) {
                         GeometryReader { geo in
                             ZStack(alignment: .leading) {
@@ -130,7 +130,7 @@ struct OverviewView: View {
                                     .frame(width: geo.size.width * CGFloat(Double(total - free) / Double(total)))
                             }
                         }
-                        .frame(height: 22)
+                        .frame(height: 14)
                         // Reads the disk again; spins while it does, so the user sees it really refreshed.
                         Button { refresh += 1 } label: {
                             Image(systemName: "arrow.clockwise")
@@ -143,10 +143,11 @@ struct OverviewView: View {
                     }
                     Text(String(format: L("overview.free"), formatBytes(free))).foregroundStyle(.secondary)
                 }
-                .padding(24)
-                .depthGlass(RoundedRectangle(cornerRadius: 26))
+                .padding(.horizontal, 22).padding(.vertical, 16)
+                .depthGlass(RoundedRectangle(cornerRadius: 22))
             }
-            HStack(spacing: 14) {
+            // Small tiles, spread evenly across the row with even gaps.
+            HStack(spacing: 26) {
                 ForEach(tiles, id: \.key) { tile in
                     overviewTile(title: L(tile.key), symbol: tile.symbol, value: formatBytes(tile.bytes))
                 }
@@ -171,20 +172,20 @@ struct OverviewView: View {
     private func overviewTile(title: String, symbol: String, value: String, detail: String? = nil) -> some View {
         VStack(spacing: 2) {
             Image(systemName: symbol)
-                .font(.system(size: 14, weight: .semibold))
+                .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(section.tint)
                 .accessibilityHidden(true)
-            Text(title).font(.system(size: 13, weight: .semibold))
-            Text(value).font(.system(size: 18, weight: .bold)).monospacedDigit()
+            Text(title).font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
+            Text(value).font(.system(size: 15, weight: .bold)).monospacedDigit()
             if let detail {
-                Text(detail).font(.system(size: 11)).foregroundStyle(.secondary).monospacedDigit()
+                Text(detail).font(.system(size: 10)).foregroundStyle(.secondary).monospacedDigit()
             }
         }
         .lineLimit(1)
         .minimumScaleFactor(0.8)
         .padding(.horizontal, 6)
-        .frame(maxWidth: 130, minHeight: 82)
-        .depthGlass(RoundedRectangle(cornerRadius: 18), lift: 0.8)
+        .frame(width: 104, height: 70)
+        .depthGlass(RoundedRectangle(cornerRadius: 16), lift: 0.8)
         .accessibilityElement(children: .combine)
     }
 
@@ -207,10 +208,10 @@ struct OverviewView: View {
                     .stroke(section.tint, style: StrokeStyle(lineWidth: 7, lineCap: .round))
                     .rotationEffect(.degrees(-90))
                 Text(health.score.formatted(.number.locale(Lang.locale)))
-                    .font(.system(size: 26, weight: .bold))
+                    .font(.system(size: 21, weight: .bold))
                     .monospacedDigit()
             }
-            .frame(width: 76, height: 76)
+            .frame(width: 62, height: 62)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(L("health.title"))
             .accessibilityValue(health.score.formatted(.number.locale(Lang.locale)))
@@ -218,7 +219,7 @@ struct OverviewView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(L("health.title")).font(.system(size: 13)).foregroundStyle(.secondary).accessibilityHidden(true)
                 Text(health.score >= 80 ? L("health.good") : health.score >= 50 ? L("health.fair") : L("health.poor"))
-                    .font(.system(size: 20, weight: .semibold))
+                    .font(.system(size: 17, weight: .semibold))
                 ForEach(health.issues.prefix(3), id: \.self) { issue in
                     Text(L(issue)).font(.system(size: 13)).foregroundStyle(.secondary)
                 }
@@ -242,8 +243,8 @@ struct OverviewView: View {
             .help(L("health.recheck"))
             .accessibilityLabel(L("health.recheck"))
         }
-        .padding(20)
-        .depthGlass(RoundedRectangle(cornerRadius: 26))
+        .padding(.horizontal, 20).padding(.vertical, 14)
+        .depthGlass(RoundedRectangle(cornerRadius: 22))
     }
 
     /// Measures the junk again (same scan as Smart Scan) and rebuilds the score from it.

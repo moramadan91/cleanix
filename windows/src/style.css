@@ -214,7 +214,7 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 26
 
 /* ---------- overview ---------- */
 .overview { flex: 1; display: grid; grid-template-columns: minmax(0, 2.15fr) minmax(250px, 1fr); gap: 18px; align-items: start; align-content: start; max-width: 900px; width: 100%; overflow-y: auto; }
-.overview .panel { padding: 22px; }
+.overview .panel { padding: 18px; }
 .overview h2 { margin: 0 0 14px; font-size: 16px; }
 .disk { display: flex; flex-direction: column; align-items: center; text-align: center; }
 .disk p { margin: 10px 0 0; color: var(--muted); }
@@ -225,21 +225,21 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 26
 .ring text { transform: rotate(90deg); transform-origin: 90px 90px; fill: var(--text); font-size: 30px; font-weight: 700; }
 .tips { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 8px; }
 .tip { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border-radius: 14px; background: rgba(255, 255, 255, 0.04); }
-.overview-stats { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 14px; }
+.overview-stats { grid-column: 1 / -1; display: flex; flex-wrap: wrap; justify-content: center; gap: 26px; }
 .overview .stat-tile {
-  flex: 1 1 110px; min-height: 78px; max-width: 130px; padding: 8px 6px;
+  flex: 0 0 104px; height: 70px; padding: 6px;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-  border-radius: 18px; text-align: center;
+  border-radius: 16px; text-align: center;
 }
 .tinted-icon {
   display: grid; place-items: center; border-radius: 50%;
   color: var(--icon-tint); background: color-mix(in srgb, var(--icon-tint) 17%, transparent);
 }
-.stat-tile .tinted-icon { width: 25px; height: 25px; }
-.stat-tile .tinted-icon svg { width: 15px; height: 15px; }
-.stat-label { font-size: 13px; color: var(--muted); }
-.stat-value { font-size: 18px; line-height: 1.15; font-variant-numeric: tabular-nums; }
-.stat-value small { font-size: 12px; }
+.stat-tile .tinted-icon { width: 20px; height: 20px; }
+.stat-tile .tinted-icon svg { width: 12px; height: 12px; }
+.stat-label { font-size: 11px; color: var(--muted); }
+.stat-value { font-size: 15px; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.stat-value small { font-size: 10px; display: block; color: var(--muted); }
 
 /* ---------- dialog ---------- */
 .modal { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(8, 6, 12, 0.55); z-index: 10; }
