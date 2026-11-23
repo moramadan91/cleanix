@@ -312,13 +312,13 @@ struct OverviewView: View {
     private func overviewTile(title: String, symbol: String, value: String, detail: String? = nil) -> some View {
         VStack(spacing: 2) {
             Image(systemName: symbol)
-                .font(.system(size: 12, weight: .semibold))
+                .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(section.tint)
                 .accessibilityHidden(true)
-            Text(title).font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
-            Text(value).font(.system(size: 15, weight: .bold)).monospacedDigit()
+            Text(title).font(.system(size: 10, weight: .medium)).foregroundStyle(.secondary)
+            Text(value).font(.system(size: 13, weight: .semibold)).monospacedDigit()
             if let detail {
-                Text(detail).font(.system(size: 10)).foregroundStyle(.secondary).monospacedDigit()
+                Text(detail).font(.system(size: 9)).foregroundStyle(.secondary).monospacedDigit()
             }
         }
         .lineLimit(1)

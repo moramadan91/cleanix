@@ -236,11 +236,11 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 26
   display: grid; place-items: center; border-radius: 50%;
   color: var(--icon-tint); background: color-mix(in srgb, var(--icon-tint) 17%, transparent);
 }
-.stat-tile .tinted-icon { width: 20px; height: 20px; }
-.stat-tile .tinted-icon svg { width: 12px; height: 12px; }
-.stat-label { font-size: 11px; color: var(--muted); }
-.stat-value { font-size: 15px; line-height: 1.15; font-variant-numeric: tabular-nums; }
-.stat-value small { font-size: 10px; display: block; color: var(--muted); }
+.stat-tile .tinted-icon { width: 17px; height: 17px; }
+.stat-tile .tinted-icon svg { width: 10px; height: 10px; }
+.stat-label { font-size: 10px; color: var(--muted); }
+.stat-value { font-size: 13px; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.stat-value small { font-size: 9px; display: block; color: var(--muted); }
 
 /* ---------- dialog ---------- */
 .modal { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(8, 6, 12, 0.55); z-index: 10; }
