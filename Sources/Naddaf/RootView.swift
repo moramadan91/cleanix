@@ -4,6 +4,7 @@ import NaddafCore
 
 struct RootView: View {
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// Sparkle's check: shows the new version if there is one, or says the app is up to date.
     var checkForUpdates: () -> Void = {}
     @State var selection: AppSection = .smartScan
@@ -22,7 +23,7 @@ struct RootView: View {
                 Sidebar(selection: $selection, lang: $lang, checkForUpdates: checkForUpdates)
                 VStack(spacing: 0) {
                     if !hasDiskAccess { DiskAccessBanner().padding(.top, 12) }
-                    SectionPage(section: selection)
+                    SectionPage(section: $selection)
                 }
             }
         }
@@ -43,7 +44,7 @@ struct RootView: View {
         // Every button without its own style is liquid glass.
         .buttonStyle(.liquid())
         .environment(\.layoutDirection, Lang.direction)
-        .animation(.spring(duration: 0.5, bounce: 0.2), value: selection)
+        .animation(reduceMotion ? nil : .spring(duration: 0.5, bounce: 0.2), value: selection)
         .frame(minWidth: selection == .performance ? 940 : 1060, minHeight: 680)
     }
 }
@@ -140,6 +141,15 @@ extension EnvironmentValues {
     @Entry var screenStarted: @MainActor @Sendable () -> Void = {}
     /// Colour of the current section, for the ring around the round main button.
     @Entry var sectionTint: Color = .white
+    @Entry var openSection = OpenSectionAction()
+}
+
+struct OpenSectionAction {
+    var navigate: @MainActor @Sendable (AppSection, SectionTab?) -> Void = { _, _ in }
+
+    @MainActor func callAsFunction(_ section: AppSection, _ tab: SectionTab?) {
+        navigate(section, tab)
+    }
 }
 
 struct ScreenCleaningPreference: PreferenceKey {
@@ -159,7 +169,7 @@ private struct ScreenKey: Hashable {
 /// Every screen you open stays alive behind the current one, so a scan keeps running while you
 /// look elsewhere and you come back to where you left it. Start over rebuilds that one screen.
 private struct SectionPage: View {
-    let section: AppSection
+    @Binding var section: AppSection
     @State private var tabs: [AppSection: SectionTab] = [:]
     @State private var visited: [ScreenKey] = []
     @State private var started: Set<ScreenKey> = []
@@ -207,6 +217,10 @@ private struct SectionPage: View {
                         .accessibilityHidden(key != now)
                 }
             }
+            .environment(\.openSection, OpenSectionAction { destination, tab in
+                if let tab { tabs[destination] = tab }
+                section = destination
+            })
             .onChange(of: now, initial: true) { if !visited.contains(now) { visited.append(now) } }
         }
         .frame(maxWidth: .infinity)

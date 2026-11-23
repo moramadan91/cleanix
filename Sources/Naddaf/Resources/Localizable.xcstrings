@@ -1190,13 +1190,13 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "متوسطة"
+            "value": "محتاج شوية تنضيف"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Fair"
+            "value": "Could use a clean-up"
           }
         }
       }
@@ -1745,18 +1745,66 @@
         }
       }
     },
-    "overview.free": {
+    "overview.disk": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "فاضي %@"
+            "value": "القرص"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ free"
+            "value": "Disk"
+          }
+        }
+      }
+    },
+    "overview.diskUsage": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المساحة المستخدمة"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disk space used"
+          }
+        }
+      }
+    },
+    "overview.free": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ فاضي من %2$@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ free of %2$@"
+          }
+        }
+      }
+    },
+    "overview.go": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "افتح"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open"
           }
         }
       }
@@ -1793,18 +1841,130 @@
         }
       }
     },
-    "overview.used": {
+    "overview.tipApps": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "مستخدم %@ من %@"
+            "value": "شيل البرامج اللي مش بتستخدمها"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ used of %@"
+            "value": "Remove apps you no longer use"
+          }
+        }
+      }
+    },
+    "overview.tipBin": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "فضّي السلة (%@)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Empty the Trash (%@)"
+          }
+        }
+      }
+    },
+    "overview.tipJunk": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "امسح الملفات المؤقتة وكاش البرامج"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear temporary files and app caches"
+          }
+        }
+      }
+    },
+    "overview.tipLarge": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "دوّر على الملفات الكبيرة والمنسيّة"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Find large and forgotten files"
+          }
+        }
+      }
+    },
+    "overview.tipMap": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "شوف أنهي فولدرات واخدة أكبر مساحة"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "See which folders take the most space"
+          }
+        }
+      }
+    },
+    "overview.tipStartup": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اختار البرامج اللي تفتح لما تسجّل دخول"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose which apps open at login"
+          }
+        }
+      }
+    },
+    "overview.tips": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "التوصيات"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recommendations"
+          }
+        }
+      }
+    },
+    "overview.unknown": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "معلومات المساحة مش متاحة"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Storage information unavailable"
           }
         }
       }

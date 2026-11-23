@@ -65,6 +65,7 @@ private final class QuickBoost {
 }
 
 struct QuickBoostControls: View {
+    var big = false
     private let boost = QuickBoost.shared
     @Bindable private var purgeAccess = PurgeAccessStatus.shared
 
@@ -75,7 +76,7 @@ struct QuickBoostControls: View {
                 Label(L("boost.title"), systemImage: "bolt.fill")
                     .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.liquid(prominent: true))
+            .buttonStyle(.liquid(prominent: true, big: big))
         case .scanning:
             progress(L("boost.scanning"))
         case .confirm(_, let bytes):

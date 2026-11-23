@@ -214,6 +214,7 @@ struct LiquidButtonStyle: ButtonStyle {
     /// Compact capsule for secondary bar actions (Select all, Start over).
     var small = false
     @Environment(\.isEnabled) private var enabled
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -228,8 +229,8 @@ struct LiquidButtonStyle: ButtonStyle {
             .depthGlass(Capsule(), lift: small ? 0.3 : prominent ? 1 : 0.6)
             .contentShape(Capsule())
             .opacity(enabled ? 1 : 0.5)
-            .scaleEffect(configuration.isPressed ? 0.96 : 1)
-            .animation(.snappy(duration: 0.15), value: configuration.isPressed)
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.96 : 1)
+            .animation(reduceMotion ? nil : .snappy(duration: 0.15), value: configuration.isPressed)
     }
 }
 

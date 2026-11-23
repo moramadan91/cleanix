@@ -95,12 +95,15 @@ struct SmartScanView: View {
     }
 }
 
-/// Storage at a glance plus the biggest easy wins. Read-only: cleaning happens in the other sections.
+/// Health, storage, and shortcuts to the tools that can help.
 struct OverviewView: View {
     @Environment(\.screenIsVisible) private var isVisible
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.openSection) private var openSection
     let section: AppSection
     let loginItems: LoginItemsReader
 
+    @State private var volumeName: String?
     @State private var total: Int64 = 0
     @State private var free: Int64 = 0
     @State private var tiles: [(key: String, symbol: String, bytes: Int64)] = []
@@ -114,59 +117,192 @@ struct OverviewView: View {
     @AppStorage("lastSmartScanBytes") private var lastScanBytes = 0
 
     var body: some View {
-        VStack(spacing: 16) {
-            Spacer(minLength: 0)
-            if let health { healthCard(health) }
-            if total > 0 {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text(String(format: L("overview.used"), formatBytes(total - free), formatBytes(total)))
-                        .font(.system(size: 17, weight: .semibold))
-                    HStack(spacing: 12) {
-                        GeometryReader { geo in
-                            ZStack(alignment: .leading) {
-                                Capsule().fill(.white.opacity(0.10))
-                                Capsule()
-                                    .fill(LinearGradient(colors: [section.tint, Theme.accent], startPoint: .leading, endPoint: .trailing))
-                                    .frame(width: geo.size.width * CGFloat(Double(total - free) / Double(total)))
-                            }
-                        }
-                        .frame(height: 14)
-                        // Reads the disk again; spins while it does, so the user sees it really refreshed.
-                        Button { refresh += 1 } label: {
-                            Image(systemName: "arrow.clockwise")
-                                .rotationEffect(.degrees(loading ? 360 : 0))
-                                .animation(loading ? .linear(duration: 0.8).repeatForever(autoreverses: false) : .default, value: loading)
-                        }
-                        .buttonStyle(.liquid(small: true))
-                        .disabled(loading)
-                        .accessibilityLabel(L("overview.refresh"))
-                    }
-                    Text(String(format: L("overview.free"), formatBytes(free))).foregroundStyle(.secondary)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                HStack(alignment: .top, spacing: 18) {
+                    healthPanel
+                    diskPanel
+                        .containerRelativeFrame(.horizontal) { width, _ in max(250, (width - 18) / 3.15) }
                 }
-                .padding(.horizontal, 22).padding(.vertical, 16)
-                .depthGlass(RoundedRectangle(cornerRadius: 22))
-            }
-            // Small tiles, spread evenly across the row with even gaps.
-            HStack(spacing: 26) {
-                ForEach(tiles, id: \.key) { tile in
-                    overviewTile(title: L(tile.key), symbol: tile.symbol, value: formatBytes(tile.bytes))
-                }
-                if let battery {
-                    overviewTile(title: L("overview.battery"), symbol: batterySymbol(for: battery.percent),
-                                 value: formatPercent(Double(battery.percent) / 100),
-                                 detail: String(format: L("overview.batteryCycles"),
-                                                battery.cycles.formatted(.number.locale(Lang.locale))))
+                // Both panels as tall as the taller one.
+                .fixedSize(horizontal: false, vertical: true)
+                statTiles
+                recommendationsPanel
+                AlertToggles(horizontal: true)
+                    .frame(maxWidth: .infinity)
+                if lastScanBytes > 0 {
+                    Text(String(format: L("overview.lastSmart"), formatBytes(Int64(lastScanBytes))))
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity)
                 }
             }
-            AlertToggles(horizontal: true)
-            if lastScanBytes > 0 {
-                Text(String(format: L("overview.lastSmart"), formatBytes(Int64(lastScanBytes)))).foregroundStyle(.secondary)
-            }
-            Spacer(minLength: 0)
+            .padding(.top, 18)
+            .padding(.bottom, 28)
         }
+        .frame(maxWidth: 900)
         .padding(.horizontal, 40)
-        .padding(.bottom, 28)
+        .frame(maxWidth: .infinity)
         .task(id: isVisible ? refresh : nil) { if isVisible { await load() } }
+    }
+
+    private var healthPanel: some View {
+        HStack(alignment: .top, spacing: 18) {
+            if let health {
+                scoreRing(fraction: Double(health.score) / 100,
+                          value: health.score.formatted(.number.locale(Lang.locale)),
+                          label: L("health.title"))
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .top, spacing: 8) {
+                    Text(health.map { L($0.score >= 80 ? "health.good" : $0.score >= 50 ? "health.fair" : "health.poor") }
+                         ?? L("health.title"))
+                        .font(.system(size: 17, weight: .semibold))
+                        .accessibilityAddTraits(.isHeader)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    refreshButton(title: L("health.recheck"), active: checking) {
+                        Task { await recheck() }
+                    }
+                    .disabled(loading)
+                }
+                if let health {
+                    ForEach(health.issues, id: \.self) { issue in
+                        if let (section, tab) = issueDestination(issue) {
+                            tipRow(L(issue), section: section, tab: tab)
+                        }
+                    }
+                }
+                QuickBoostControls(big: true)
+                if checking {
+                    Text(L("health.checking"))
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(section.tint)
+                } else if let health, let previousScore {
+                    let now = health.score.formatted(.number.locale(Lang.locale))
+                    Text(previousScore == health.score ? String(format: L("health.same"), now)
+                         : String(format: L("health.change"), previousScore.formatted(.number.locale(Lang.locale)), now))
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(section.tint)
+                }
+            }
+        }
+        .padding(18)
+        .frame(maxHeight: .infinity, alignment: .top)
+        .depthGlass(RoundedRectangle(cornerRadius: 22))
+    }
+
+    private var diskPanel: some View {
+        VStack(spacing: 12) {
+            HStack(alignment: .top, spacing: 8) {
+                Text(volumeName ?? L("overview.disk"))
+                    .font(.system(size: 17, weight: .semibold))
+                    .accessibilityAddTraits(.isHeader)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                refreshButton(title: L("overview.refresh"), active: loading && !checking) { refresh += 1 }
+                    .disabled(loading || checking)
+            }
+            if total > 0 {
+                let used = Double(total - free) / Double(total)
+                scoreRing(fraction: used, value: formatPercent(used), label: L("overview.diskUsage"))
+                Text(String(format: L("overview.free"), formatBytes(free), formatBytes(total)))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            } else {
+                Text(L("overview.unknown")).foregroundStyle(.secondary)
+            }
+        }
+        .padding(18)
+        .frame(maxHeight: .infinity, alignment: .top)
+        .depthGlass(RoundedRectangle(cornerRadius: 22))
+    }
+
+    private var statTiles: some View {
+        HStack(spacing: 14) {
+            ForEach(tiles, id: \.key) { tile in
+                overviewTile(title: L(tile.key), symbol: tile.symbol, value: formatBytes(tile.bytes))
+            }
+            if let battery {
+                overviewTile(title: L("overview.battery"), symbol: batterySymbol(for: battery.percent),
+                             value: formatPercent(Double(battery.percent) / 100),
+                             detail: String(format: L("overview.batteryCycles"),
+                                            battery.cycles.formatted(.number.locale(Lang.locale))))
+            }
+        }
+    }
+
+    private var recommendationsPanel: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(L("overview.tips"))
+                .font(.system(size: 17, weight: .semibold))
+                .accessibilityAddTraits(.isHeader)
+                .padding(.bottom, 4)
+            tipRow(L("overview.tipJunk"), section: .cleanup, tab: .sweep)
+            if let trash = tiles.first(where: { $0.key == "tab.trash" }), trash.bytes > 0 {
+                tipRow(String(format: L("overview.tipBin"), formatBytes(trash.bytes)), section: .cleanup, tab: .trash)
+            }
+            tipRow(L("overview.tipLarge"), section: .clutter, tab: .large)
+            tipRow(L("overview.tipApps"), section: .apps, tab: .unused)
+            tipRow(L("overview.tipStartup"), section: .performance, tab: .loginItems)
+            tipRow(L("overview.tipMap"), section: .diskMap)
+        }
+        .padding(18)
+        .depthGlass(RoundedRectangle(cornerRadius: 22))
+    }
+
+    private func tipRow(_ title: String, section: AppSection, tab: SectionTab? = nil) -> some View {
+        HStack(spacing: 12) {
+            Text(title)
+                .font(.system(size: 13))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Button(L("overview.go")) { openSection(section, tab) }
+                .buttonStyle(.liquid(small: true))
+                .fixedSize()
+                .accessibilityHint(title)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 14))
+    }
+
+    private func issueDestination(_ issue: String) -> (AppSection, SectionTab?)? {
+        switch issue {
+        case "health.issue.disk": (.diskMap, nil)
+        case "health.issue.memory": (.performance, .maintenance)
+        case "health.issue.login": (.performance, .loginItems)
+        case "health.issue.junk": (.cleanup, .sweep)
+        default: nil
+        }
+    }
+
+    private func scoreRing(fraction: Double, value: String, label: String) -> some View {
+        ZStack {
+            Circle().strokeBorder(.white.opacity(0.14), lineWidth: 7)
+            if fraction > 0 {
+                Circle().inset(by: 3.5)
+                    .trim(from: 0, to: fraction)
+                    .stroke(section.tint, style: StrokeStyle(lineWidth: 7, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+            }
+            Text(value)
+                .font(.system(size: 21, weight: .bold))
+                .monospacedDigit()
+        }
+        .frame(width: 90, height: 90)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(label)
+        .accessibilityValue(value)
+    }
+
+    private func refreshButton(title: String, active: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: "arrow.clockwise")
+                .symbolEffect(.rotate, options: .repeating, isActive: active && !reduceMotion)
+        }
+        .buttonStyle(.liquid(small: true))
+        .disabled(active)
+        .help(title)
+        .accessibilityLabel(title)
     }
 
     private func overviewTile(title: String, symbol: String, value: String, detail: String? = nil) -> some View {
@@ -199,54 +335,6 @@ struct OverviewView: View {
         }
     }
 
-    private func healthCard(_ health: HealthScore) -> some View {
-        HStack(spacing: 18) {
-            ZStack {
-                Circle().strokeBorder(.white.opacity(0.14), lineWidth: 7)
-                Circle().inset(by: 3.5)
-                    .trim(from: 0, to: Double(health.score) / 100)
-                    .stroke(section.tint, style: StrokeStyle(lineWidth: 7, lineCap: .round))
-                    .rotationEffect(.degrees(-90))
-                Text(health.score.formatted(.number.locale(Lang.locale)))
-                    .font(.system(size: 21, weight: .bold))
-                    .monospacedDigit()
-            }
-            .frame(width: 62, height: 62)
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(L("health.title"))
-            .accessibilityValue(health.score.formatted(.number.locale(Lang.locale)))
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(L("health.title")).font(.system(size: 13)).foregroundStyle(.secondary).accessibilityHidden(true)
-                Text(health.score >= 80 ? L("health.good") : health.score >= 50 ? L("health.fair") : L("health.poor"))
-                    .font(.system(size: 17, weight: .semibold))
-                ForEach(health.issues.prefix(3), id: \.self) { issue in
-                    Text(L(issue)).font(.system(size: 13)).foregroundStyle(.secondary)
-                }
-                if checking {
-                    Text(L("health.checking")).font(.system(size: 13, weight: .medium)).foregroundStyle(section.tint)
-                } else if let previousScore {
-                    let now = health.score.formatted(.number.locale(Lang.locale))
-                    Text(previousScore == health.score ? String(format: L("health.same"), now)
-                         : String(format: L("health.change"), previousScore.formatted(.number.locale(Lang.locale)), now))
-                        .font(.system(size: 13, weight: .medium)).foregroundStyle(section.tint)
-                }
-            }
-            Spacer(minLength: 0)
-            Button { Task { await recheck() } } label: {
-                Image(systemName: "arrow.clockwise")
-                    .rotationEffect(.degrees(checking ? 360 : 0))
-                    .animation(checking ? .linear(duration: 0.8).repeatForever(autoreverses: false) : .default, value: checking)
-            }
-            .buttonStyle(.liquid(small: true))
-            .disabled(checking)
-            .help(L("health.recheck"))
-            .accessibilityLabel(L("health.recheck"))
-        }
-        .padding(.horizontal, 20).padding(.vertical, 14)
-        .depthGlass(RoundedRectangle(cornerRadius: 22))
-    }
-
     /// Measures the junk again (same scan as Smart Scan) and rebuilds the score from it.
     private func recheck() async {
         guard !checking else { return }
@@ -267,7 +355,10 @@ struct OverviewView: View {
         let started = Date()
         defer { if !Task.isCancelled { loading = false } }
         let home = AppEnv.shared.home
-        let values = try? home.resourceValues(forKeys: [.volumeTotalCapacityKey, .volumeAvailableCapacityForImportantUsageKey])
+        let values = try? home.resourceValues(forKeys: [
+            .volumeNameKey, .volumeTotalCapacityKey, .volumeAvailableCapacityForImportantUsageKey,
+        ])
+        volumeName = values?.volumeName
         total = Int64(values?.volumeTotalCapacity ?? 0)
         free = min(total, max(0, values?.volumeAvailableCapacityForImportantUsage ?? 0))
         health = healthScore(HealthInputs(freeBytes: free, totalBytes: total,
@@ -293,7 +384,7 @@ struct OverviewView: View {
         tiles = zip(places, sizes).map { (key: $0.0.key, symbol: $0.0.symbol, bytes: $0.1) }
         // Keep the spin visible a moment: a refresh that finishes in 0.3 s looks like nothing happened.
         let left = 0.6 - Date().timeIntervalSince(started)
-        if left > 0 { try? await Task.sleep(for: .seconds(left)) }
+        if !reduceMotion, left > 0 { try? await Task.sleep(for: .seconds(left)) }
     }
 }
 
