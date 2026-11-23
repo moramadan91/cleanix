@@ -7,7 +7,6 @@ extension Notification.Name {
 
 @MainActor
 func openCleanix(smartScan: Bool, openWindow: () -> Void) {
-    NSApp.activate()
     if !SplashDelegate.showMainWindow() { openWindow() }
     if smartScan { NotificationCenter.default.post(name: .openSmartScan, object: nil) }
 }
@@ -21,6 +20,9 @@ final class MenuBarMonitor {
     private static let defaultsKey = "menuBarEnabled"
     private let defaults = UserDefaults.standard
     private var enabled: Bool
+    var requiresMenuBar = false {
+        didSet { MenuBarStats.shared.setMonitorEnabled(isInserted) }
+    }
 
     private init() {
         enabled = defaults.object(forKey: Self.defaultsKey) as? Bool ?? true
@@ -33,8 +35,13 @@ final class MenuBarMonitor {
             guard newValue != enabled else { return }
             enabled = newValue
             defaults.set(newValue, forKey: Self.defaultsKey)
-            MenuBarStats.shared.setMonitorEnabled(newValue)
+            MenuBarStats.shared.setMonitorEnabled(isInserted)
         }
+    }
+
+    var isInserted: Bool {
+        get { enabled || requiresMenuBar }
+        set { isEnabled = newValue }
     }
 }
 
@@ -131,6 +138,7 @@ private struct PanelVisibility: NSViewRepresentable {
             let center = NotificationCenter.default
             center.removeObserver(self)
             if let window {
+                SplashDelegate.registerMonitorPanel(window)
                 center.addObserver(self, selector: #selector(visibilityChanged),
                                    name: NSWindow.didChangeOcclusionStateNotification, object: window)
             }

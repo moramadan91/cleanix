@@ -44,7 +44,7 @@ struct RootView: View {
         .buttonStyle(.liquid())
         .environment(\.layoutDirection, Lang.direction)
         .animation(.spring(duration: 0.5, bounce: 0.2), value: selection)
-        .frame(minWidth: 1060, minHeight: 680)
+        .frame(minWidth: selection == .performance ? 940 : 1060, minHeight: 680)
     }
 }
 
@@ -142,6 +142,13 @@ extension EnvironmentValues {
     @Entry var sectionTint: Color = .white
 }
 
+struct ScreenCleaningPreference: PreferenceKey {
+    static let defaultValue = false
+    static func reduce(value: inout Bool, nextValue: () -> Bool) {
+        value = value || nextValue()
+    }
+}
+
 /// One screen: a section, plus its tab when the section has tabs.
 private struct ScreenKey: Hashable {
     let section: AppSection
@@ -156,6 +163,7 @@ private struct SectionPage: View {
     @State private var tabs: [AppSection: SectionTab] = [:]
     @State private var visited: [ScreenKey] = []
     @State private var started: Set<ScreenKey> = []
+    @State private var cleaning: Set<ScreenKey> = []
     @State private var generation: [ScreenKey: Int] = [:]
 
     var body: some View {
@@ -187,6 +195,9 @@ private struct SectionPage: View {
                     SectionContent(section: key.section, tab: key.tab)
                         .id(generation[key, default: 0])
                         .environment(\.screenStarted) { started.insert(key) }
+                        .onPreferenceChange(ScreenCleaningPreference.self) { active in
+                            if active { cleaning.insert(key) } else { cleaning.remove(key) }
+                        }
                         .environment(\.sectionTint, key.section.tint)
                         .environment(\.screenIsVisible, key == now)
                         // Short lists sit under the tabs; the title never drifts down with them.
@@ -201,7 +212,7 @@ private struct SectionPage: View {
         .frame(maxWidth: .infinity)
         .overlay(alignment: .topTrailing) {
             let now = ScreenKey(section: section, tab: tabs[section] ?? SectionTab.tabs(for: section).first)
-            if started.contains(now) {
+            if started.contains(now), !cleaning.contains(now) {
                 Button(L("common.startOver")) {
                     generation[now, default: 0] += 1
                     started.remove(now)

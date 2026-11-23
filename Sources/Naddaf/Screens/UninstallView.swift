@@ -7,7 +7,7 @@ struct UninstallView: View {
     @Environment(\.screenStarted) private var screenStarted
     let section: AppSection
 
-    private enum Phase { case intro, scanning, results, done }
+    private enum Phase { case intro, scanning, results, cleaning(CleaningRun), done }
 
     @State private var phase = Phase.intro
     @State private var apps: [AppInfo] = []
@@ -30,6 +30,7 @@ struct UninstallView: View {
         switch phase {
         case .intro: IntroHero(section: section) { load() }
         case .scanning: ScanningView()
+        case .cleaning(let run): CleaningView(run: run)
         case .done: DoneView(result: result) { load() }
         case .results: results
         }
@@ -125,8 +126,10 @@ struct UninstallView: View {
 
     private func clean(_ items: [ScanItem]) {
         let cleaner = AppEnv.shared.cleaner
+        let run = CleaningRun(items: items)
+        phase = .cleaning(run)
         Task {
-            result = await Task.detached { await cleaner.clean(items, disposal: .trash) }.value
+            result = await run.clean(items, using: cleaner, disposal: .trash)
             phase = .done
         }
     }

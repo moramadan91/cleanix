@@ -10,11 +10,20 @@ struct CloudView: View {
     @State private var current: CloudFolder?
     @State private var files: [ScanItem] = []
     @State private var loading = false
+    @State private var cleaning: CleaningRun?
     @State private var message: String?
 
     private var scanner: CloudFoldersScanner { CloudFoldersScanner(home: AppEnv.shared.home) }
 
     var body: some View {
+        if let cleaning {
+            CleaningView(run: cleaning)
+        } else {
+            content
+        }
+    }
+
+    private var content: some View {
         VStack(spacing: 14) {
             if folders.isEmpty {
                 Text(L("cloud.none")).foregroundStyle(.secondary).frame(maxHeight: .infinity)
@@ -63,7 +72,8 @@ struct CloudView: View {
         .padding(.horizontal, 40)
         .padding(.top, 20)
         .padding(.bottom, 28)
-        .onAppear {
+        .task {
+            guard folders.isEmpty else { return }
             folders = scanner.folders()
             if let first = folders.first { open(first) }
         }
@@ -81,12 +91,21 @@ struct CloudView: View {
     }
 
     private func evict(_ file: ScanItem) {
-        do {
-            try scanner.evict(file.url)
-            files.removeAll { $0.url == file.url }
-            message = nil
-        } catch {
-            message = error.localizedDescription
+        let run = CleaningRun(items: [file])
+        let scanner = scanner
+        cleaning = run
+        Task {
+            let error: String? = await run.perform { _ in
+                do {
+                    try scanner.evict(file.url)
+                    return nil
+                } catch {
+                    return error.localizedDescription
+                }
+            }
+            if error == nil { files.removeAll { $0.url == file.url } }
+            message = error
+            cleaning = nil
         }
     }
 }

@@ -29,15 +29,18 @@ public struct TrashScanner: Scanner {
 }
 
 /// Deletes the contents of each bin (the bin folder itself stays). Not undoable.
-public func emptyTrash(_ items: [ScanItem], confirmed: Bool, policy: PathPolicy) async throws -> CleanResult {
+public func emptyTrash(
+    _ items: [ScanItem], confirmed: Bool, policy: PathPolicy, progress: CleanProgress? = nil
+) async throws -> CleanResult {
     guard confirmed else { throw NaddafError.confirmationRequired }
     var result = CleanResult()
-    for bin in items {
+    for (binIndex, bin) in items.enumerated() {
         if FinderTrash.needed(for: bin.url) {
             guard FinderTrash.mayEmpty(bin.url, policy: policy) else {
                 result.failed.append((bin.url, "path is not allowed"))
                 continue
             }
+            await progress?(bin.title ?? bin.url.lastPathComponent, nil)
             let before = FinderTrash.freeSpace(near: bin.url)
             if FinderTrash.empty() {
                 result.removed.append(bin.url)
@@ -47,7 +50,14 @@ public func emptyTrash(_ items: [ScanItem], confirmed: Bool, policy: PathPolicy)
             }
             continue
         }
-        for child in FS.children(of: bin.url) {
+        let children = FS.children(of: bin.url)
+        for (index, child) in children.enumerated() {
+            let fraction: Double? = if items.count > 1 || children.count > 1 {
+                (Double(binIndex) + Double(index) / Double(children.count)) / Double(items.count)
+            } else {
+                nil
+            }
+            await progress?(child.lastPathComponent, fraction)
             guard policy.isAllowed(child) else {
                 result.failed.append((child, "path is not allowed"))
                 continue

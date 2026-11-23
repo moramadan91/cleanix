@@ -16,6 +16,7 @@ struct DiskMapView: View {
     /// Item shown in the Quick Look panel (right-click a row).
     @State private var quickLook: URL?
     @State private var showPreview = false
+    @State private var cleaning: CleaningRun?
     @State private var result: CleanResult?
 
     private var home: URL { AppEnv.shared.home }
@@ -23,6 +24,8 @@ struct DiskMapView: View {
     var body: some View {
         if scanning {
             ScanningView()
+        } else if let cleaning {
+            CleaningView(run: cleaning)
         } else if let result {
             DoneView(result: result) { self.result = nil; scan() }
         } else if let current = trail.last {
@@ -168,7 +171,12 @@ struct DiskMapView: View {
 
     private func remove(_ items: [ScanItem]) {
         let cleaner = AppEnv.shared.cleaner
-        Task { result = await Task.detached { await cleaner.clean(items, disposal: .trash) }.value }
+        let run = CleaningRun(items: items)
+        cleaning = run
+        Task {
+            result = await run.clean(items, using: cleaner, disposal: .trash)
+            cleaning = nil
+        }
     }
 }
 

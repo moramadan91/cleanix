@@ -545,6 +545,22 @@
         }
       }
     },
+    "common.cleaning": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "جاري التنضيف…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cleaning…"
+          }
+        }
+      }
+    },
     "common.failedCount": {
       "localizations": {
         "ar": {
@@ -1693,6 +1709,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Battery health"
+          }
+        }
+      }
+    },
+    "overview.batteryCycles": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ دورة شحن"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ cycles"
           }
         }
       }
@@ -4033,6 +4065,22 @@
         }
       }
     },
+    "task.failed": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ما تمّتش"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed"
+          }
+        }
+      }
+    },
     "task.flushDNS": {
       "localizations": {
         "ar": {
@@ -4054,13 +4102,13 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "بيحل مشكلة مواقع مش بتفتح بعد تغيير الشبكة."
+            "value": "بيصلّح فتح المواقع بعد تغيير الشبكة."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Fixes sites that will not open after a network change."
+            "value": "Fixes site access after network changes."
           }
         }
       }
@@ -4086,13 +4134,13 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "بيفرق شوية وقت، والماك بيرجع يملا الذاكرة لما يحتاج."
+            "value": "بيفضّي الذاكرة مؤقتًا."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Helps for a while; macOS fills memory again as needed."
+            "value": "Frees memory temporarily."
           }
         }
       }
@@ -4118,13 +4166,13 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "بيصلّح البحث، وسبوتلايت بيفضل شغال شوية بعدها."
+            "value": "بيصلّح البحث بإعادة الفهرسة."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Fixes search. Spotlight stays busy for a while after."
+            "value": "Fixes search by rebuilding the index."
           }
         }
       }
@@ -4166,13 +4214,29 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "بيعيد بناء فهرس البريد. اقفل البريد الأول."
+            "value": "بيعيد الفهرسة. اقفل البريد الأول."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Rebuilds Mail's index. Quit Mail first."
+            "value": "Rebuilds the index. Quit Mail first."
+          }
+        }
+      }
+    },
+    "task.succeeded": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تمّت"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Completed"
           }
         }
       }
@@ -4198,13 +4262,13 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "بيفضّي مساحة شايلاها النسخ الاحتياطية المحلية."
+            "value": "بيفضّي مساحة النسخ الاحتياطية المحلية."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Frees space held by local backups."
+            "value": "Frees space used by local backups."
           }
         }
       }

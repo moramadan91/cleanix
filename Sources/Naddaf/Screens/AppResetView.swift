@@ -6,7 +6,7 @@ struct AppResetView: View {
     @Environment(\.screenStarted) private var screenStarted
     let section: AppSection
 
-    private enum Phase { case intro, working, results, done }
+    private enum Phase { case intro, working, results, cleaning(CleaningRun), done }
 
     private struct PreviewBatch: Identifiable {
         let id = UUID()
@@ -40,6 +40,7 @@ struct AppResetView: View {
         switch phase {
         case .intro: IntroHero(section: section, title: L("reset.chooseApp")) { load() }
         case .working: ScanningView()
+        case .cleaning(let run): CleaningView(run: run)
         case .done:
             DoneView(result: result, undoable: !undoRecords.isEmpty,
                      onUndo: undoRecords.isEmpty ? nil : { undo() }, onRescan: { load() })
@@ -161,9 +162,10 @@ struct AppResetView: View {
         guard !running.contains(app.bundleID) else { return }
         let env = AppEnv.shared
         let start = Date()
-        phase = .working
+        let run = CleaningRun(items: items)
+        phase = .cleaning(run)
         Task {
-            result = await Task.detached { await env.cleaner.clean(items, disposal: .quarantine) }.value
+            result = await run.clean(items, using: env.cleaner, disposal: .quarantine)
             let removed = Set(result.removed)
             undoRecords = env.quarantine.records().filter { $0.date >= start && removed.contains($0.original) }
             phase = .done

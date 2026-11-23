@@ -13,6 +13,37 @@ private final class Calls: @unchecked Sendable {
     var urls: [URL] { lock.lock(); defer { lock.unlock() }; return _urls }
 }
 
+private actor ProgressReports {
+    private(set) var names: [String] = []
+    private(set) var fractions: [Double?] = []
+
+    func add(_ name: String, _ fraction: Double?) {
+        names.append(name)
+        fractions.append(fraction)
+    }
+}
+
+@Test func cleanReportsCurrentItemEvenWhenAnItemIsMissing() async throws {
+    let dir = FileManager.default.temporaryDirectory.appendingPathComponent("naddaf-tests-\(UUID().uuidString)")
+    defer { try? FileManager.default.removeItem(at: dir) }
+    let root = dir.appendingPathComponent("allowed")
+    let missing = root.appendingPathComponent("gone.txt")
+    let file = root.appendingPathComponent("cache")
+    try makeFile(file)
+    let cleaner = Cleaner(policy: PathPolicy(allowedRoots: [root]),
+                          quarantine: Quarantine(root: dir.appendingPathComponent("q")))
+    let reports = ProgressReports()
+    let cache = ScanItem(url: file, bytes: 3, reason: "test", safety: .safe, group: "g", title: "App cache")
+    let result = await cleaner.clean([item(missing), cache], disposal: .quarantine) { name, fraction in
+        await reports.add(name, fraction)
+    }
+
+    #expect(await reports.names == ["gone.txt", "App cache"])
+    #expect(await reports.fractions == [0, 0.5])
+    #expect(result.failed.map(\.url) == [missing])
+    #expect(result.removed == [file])
+}
+
 @Test func quarantineMovesFileAndRestoreBringsItBack() throws {
     try withTempDir { dir in
         let file = dir.appendingPathComponent("data/a.txt")

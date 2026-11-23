@@ -2,40 +2,29 @@ import SwiftUI
 import AppKit
 import NaddafCore
 
-/// Checklist of maintenance tasks. Admin tasks ask for the password once, through macOS itself.
+/// Selectable maintenance tasks. Admin tasks ask for the password once, through macOS itself.
 struct MaintenanceView: View {
+    @Environment(\.sectionTint) private var tint
     @State private var chosen: Set<MaintenanceTask> = [.freeRAM, .flushDNS, .speedUpMail]
     @State private var running = false
     @State private var results: [MaintenanceTask: Bool] = [:]
     private let order: [MaintenanceTask] = [.freeRAM, .flushDNS, .speedUpMail, .reindexSpotlight, .thinSnapshots]
+    private let columns = [GridItem(.adaptive(minimum: 230), spacing: 14)]
     @Bindable private var purgeAccess = PurgeAccessStatus.shared
 
     var body: some View {
         VStack(spacing: 14) {
             ScrollView {
-                VStack(spacing: 8) {
+                LazyVGrid(columns: columns, spacing: 14) {
                     ForEach(order, id: \.self) { task in
-                        let isOn = Binding(
-                            get: { chosen.contains(task) },
-                            set: { if $0 { chosen.insert(task) } else { chosen.remove(task) } })
-                        HStack(spacing: 12) {
-                            Toggle("", isOn: isOn).labelsHidden().toggleStyle(.glassCheck)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(L("task.\(task)")).font(.system(size: 15, weight: .semibold))
-                                Text(L("task.\(task).note")).font(.system(size: 12)).foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            if let ok = results[task] {
-                                Image(systemName: ok ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                    .foregroundStyle(ok ? Color.white : .secondary)
-                            }
-                        }
-                        .modifier(RowBackground(highlighted: isOn.wrappedValue, glass: true))
+                        card(task)
                     }
                 }
+                .padding(.vertical, 8)
+                .frame(maxWidth: 760)
+                .frame(maxWidth: .infinity)
             }
             .scrollIndicators(.hidden)
-            .glassPanel()
             if chosen.contains(.freeRAM), !purgeAccess.isInstalled {
                 Toggle(L("purgeAccess.offer"), isOn: $purgeAccess.installWithNextPurge)
                     .toggleStyle(.checkbox)
@@ -52,6 +41,60 @@ struct MaintenanceView: View {
         .padding(.top, 20)
         .padding(.bottom, 28)
         .onAppear { purgeAccess.refresh() }
+    }
+
+    private func card(_ task: MaintenanceTask) -> some View {
+        let isOn = Binding(
+            get: { chosen.contains(task) },
+            set: { if $0 { chosen.insert(task) } else { chosen.remove(task) } })
+        let selected = isOn.wrappedValue
+        let title = L("task.\(task)")
+        let note = L("task.\(task).note")
+        let shape = RoundedRectangle(cornerRadius: 18)
+        let status = results[task].map { L($0 ? "task.succeeded" : "task.failed") }
+        return Button { isOn.wrappedValue.toggle() } label: {
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: symbol(for: task))
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(tint)
+                        .frame(width: 36, height: 36)
+                        .background(tint.opacity(0.14), in: Circle())
+                    Spacer()
+                    if let ok = results[task] {
+                        Image(systemName: ok ? "checkmark.circle.fill" : "xmark.circle.fill")
+                            .foregroundStyle(ok ? Color(hex: 0x2FD1A0) : Color(hex: 0xFF4D5E))
+                            .help(status ?? "")
+                    }
+                    Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+                        .foregroundStyle(selected ? tint : .white.opacity(0.45))
+                }
+                Text(title).font(.system(size: 15, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.8)
+                Text(note).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.85)
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, minHeight: 106, alignment: .leading)
+            .background(shape.fill(.white.opacity(selected ? 0.10 : 0.035)))
+            .depthGlass(shape, lift: 0.55)
+            .overlay(shape.strokeBorder(tint.opacity(selected ? 0.65 : 0), lineWidth: 1.5).allowsHitTesting(false))
+            .contentShape(shape)
+        }
+        .buttonStyle(.plain)
+        .accessibilityRepresentation {
+            Toggle(isOn: isOn) { Text(title) }
+                .accessibilityHint([note, status].compactMap { $0 }.joined(separator: " "))
+        }
+        .help(note)
+    }
+
+    private func symbol(for task: MaintenanceTask) -> String {
+        switch task {
+        case .freeRAM: "memorychip"
+        case .flushDNS: "network"
+        case .speedUpMail: "envelope.badge"
+        case .reindexSpotlight: "magnifyingglass"
+        case .thinSnapshots: "clock.arrow.circlepath"
+        }
     }
 
     private func run() {

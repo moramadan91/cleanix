@@ -14,7 +14,7 @@ struct ScanListView: View {
     let mode: Mode
     let makeScanner: () -> any NaddafCore.Scanner
 
-    private enum Phase { case intro, scanning, results, done }
+    private enum Phase { case intro, scanning, results, cleaning(CleaningRun), done }
 
     @State private var phase = Phase.intro
     @State private var items: [ScanItem] = []
@@ -27,8 +27,6 @@ struct ScanListView: View {
     @State private var quickLook: URL?
     /// Group whose list is open from the cards; nil shows the cards (when there are 2+ groups).
     @State private var reviewing: String?
-    /// True while scanning (the lens); false while the Trash is being emptied (plain spinner).
-    @State private var searching = false
     @State private var scanStart = Date()
 
     private var chosen: [ScanItem] { items.filter { selected.contains($0.url) } }
@@ -53,8 +51,9 @@ struct ScanListView: View {
         switch phase {
         case .intro: IntroHero(section: section) { scan() }
         case .scanning:
-            if searching { LensScanView(section: section, started: scanStart) } else { ScanningView() }
+            LensScanView(section: section, started: scanStart)
         case .results: results
+        case .cleaning(let run): CleaningView(run: run)
         case .done:
             DoneView(result: result, undoable: !undoRecords.isEmpty,
                      onUndo: undoRecords.isEmpty ? nil : { undo() }, onRescan: { scan() })
@@ -204,7 +203,6 @@ struct ScanListView: View {
     }
 
     private func scan() {
-        searching = true
         scanStart = .now
         phase = .scanning
         reviewing = nil
@@ -225,8 +223,10 @@ struct ScanListView: View {
     private func clean(_ chosen: [ScanItem], disposal: Disposal) {
         let env = AppEnv.shared
         let start = Date()
+        let run = CleaningRun(items: chosen)
+        phase = .cleaning(run)
         Task {
-            let r = await Task.detached { await env.cleaner.clean(chosen, disposal: disposal) }.value
+            let r = await run.clean(chosen, using: env.cleaner, disposal: disposal)
             let removed = Set(r.removed)
             undoRecords = disposal == .quarantine
                 ? env.quarantine.records().filter { $0.date >= start && removed.contains($0.original) } : []
@@ -238,10 +238,12 @@ struct ScanListView: View {
     private func empty() {
         let chosen = self.chosen
         let policy = PathPolicy(allowedRoots: chosen.map(\.url))
-        searching = false
-        phase = .scanning // a big bin takes a while; show the spinner instead of a screen that seems stuck
+        let run = CleaningRun(items: chosen)
+        phase = .cleaning(run)
         Task {
-            result = (try? await Task.detached { try await emptyTrash(chosen, confirmed: true, policy: policy) }.value) ?? CleanResult()
+            result = await run.perform { progress in
+                (try? await emptyTrash(chosen, confirmed: true, policy: policy, progress: progress)) ?? CleanResult()
+            }
             undoRecords = []
             phase = .done
         }

@@ -93,6 +93,7 @@ struct MenuBarEnabledToggle: View {
         Toggle(L("monitor.enabled"), isOn: $monitor.isEnabled)
             .toggleStyle(.switch)
             .controlSize(.small)
+            .disabled(monitor.requiresMenuBar)
             .font(.system(size: 12))
     }
 }

@@ -8,7 +8,7 @@ struct AppCachesView: View {
     @Environment(\.screenStarted) private var screenStarted
     let section: AppSection
 
-    private enum Phase { case intro, scanning, results, done }
+    private enum Phase { case intro, scanning, results, cleaning(CleaningRun), done }
 
     @State private var phase = Phase.intro
     @State private var scanStart = Date()
@@ -35,6 +35,7 @@ struct AppCachesView: View {
             LensScanView(section: section, started: scanStart)
         case .results:
             results
+        case .cleaning(let run): CleaningView(run: run)
         case .done:
             DoneView(result: result, undoable: !undoRecords.isEmpty,
                      onUndo: undoRecords.isEmpty ? nil : { undo() }, onRescan: { scan() })
@@ -147,8 +148,10 @@ struct AppCachesView: View {
     private func clean(_ items: [ScanItem]) {
         let env = AppEnv.shared
         let start = Date()
+        let run = CleaningRun(items: items)
+        phase = .cleaning(run)
         Task {
-            let r = await Task.detached { await env.cleaner.clean(items, disposal: .quarantine) }.value
+            let r = await run.clean(items, using: env.cleaner, disposal: .quarantine)
             let removed = Set(r.removed)
             undoRecords = env.quarantine.records().filter { $0.date >= start && removed.contains($0.original) }
             result = r

@@ -8,7 +8,7 @@ struct SmartScanView: View {
     @Environment(\.screenStarted) private var screenStarted
     let section: AppSection
 
-    private enum Phase { case intro, scanning, results, done }
+    private enum Phase { case intro, scanning, results, cleaning(CleaningRun), done }
 
     @State private var phase = Phase.intro
     @State private var sections: [SmartScanSection] = []
@@ -25,6 +25,7 @@ struct SmartScanView: View {
         case .intro: IntroHero(section: section) { scan() }
         case .scanning: LensScanView(section: section, started: scanStart,
                                        stages: ["smart.stage1", "smart.stage2", "smart.stage3", "smart.stage4"])
+        case .cleaning(let run): CleaningView(run: run)
         case .done:
             DoneView(result: result, undoable: !undoRecords.isEmpty,
                      onUndo: undoRecords.isEmpty ? nil : { undo() }, onRescan: { scan() })
@@ -76,8 +77,10 @@ struct SmartScanView: View {
     private func clean(_ items: [ScanItem]) {
         let env = AppEnv.shared
         let start = Date()
+        let run = CleaningRun(items: items)
+        phase = .cleaning(run)
         Task {
-            let r = await Task.detached { await env.cleaner.clean(items, disposal: .quarantine) }.value
+            let r = await run.clean(items, using: env.cleaner, disposal: .quarantine)
             let removed = Set(r.removed)
             undoRecords = env.quarantine.records().filter { $0.date >= start && removed.contains($0.original) }
             result = r
@@ -100,7 +103,7 @@ struct OverviewView: View {
 
     @State private var total: Int64 = 0
     @State private var free: Int64 = 0
-    @State private var tiles: [(key: String, bytes: Int64)] = []
+    @State private var tiles: [(key: String, symbol: String, bytes: Int64)] = []
     @State private var loading = false
     @State private var refresh = 0
     @State private var health: HealthScore?
@@ -145,25 +148,13 @@ struct OverviewView: View {
             }
             HStack(spacing: 14) {
                 ForEach(tiles, id: \.key) { tile in
-                    VStack(spacing: 8) {
-                        Text(L(tile.key)).font(.system(size: 15, weight: .semibold))
-                        Text(formatBytes(tile.bytes)).font(.system(size: 22, weight: .bold)).monospacedDigit()
-                    }
-                    .frame(maxWidth: 170, minHeight: 100)
-                    .depthGlass(RoundedRectangle(cornerRadius: 22), lift: 0.8)
+                    overviewTile(title: L(tile.key), symbol: tile.symbol, value: formatBytes(tile.bytes))
                 }
                 if let battery {
-                    VStack(spacing: 8) {
-                        Text(L("overview.battery")).font(.system(size: 15, weight: .semibold))
-                        Text(String(format: L("overview.batteryDetail"),
-                                    (Double(battery.percent) / 100).formatted(.percent.locale(Lang.locale)),
-                                    battery.cycles.formatted(.number.locale(Lang.locale))))
-                            .font(.system(size: 15, weight: .semibold))
-                            .monospacedDigit()
-                    }
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: 170, minHeight: 100)
-                    .depthGlass(RoundedRectangle(cornerRadius: 22), lift: 0.8)
+                    overviewTile(title: L("overview.battery"), symbol: batterySymbol(for: battery.percent),
+                                 value: formatPercent(Double(battery.percent) / 100),
+                                 detail: String(format: L("overview.batteryCycles"),
+                                                battery.cycles.formatted(.number.locale(Lang.locale))))
                 }
             }
             AlertToggles(horizontal: true)
@@ -175,6 +166,36 @@ struct OverviewView: View {
         .padding(.horizontal, 40)
         .padding(.bottom, 28)
         .task(id: isVisible ? refresh : nil) { if isVisible { await load() } }
+    }
+
+    private func overviewTile(title: String, symbol: String, value: String, detail: String? = nil) -> some View {
+        VStack(spacing: 2) {
+            Image(systemName: symbol)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(section.tint)
+                .accessibilityHidden(true)
+            Text(title).font(.system(size: 13, weight: .semibold))
+            Text(value).font(.system(size: 18, weight: .bold)).monospacedDigit()
+            if let detail {
+                Text(detail).font(.system(size: 11)).foregroundStyle(.secondary).monospacedDigit()
+            }
+        }
+        .lineLimit(1)
+        .minimumScaleFactor(0.8)
+        .padding(.horizontal, 6)
+        .frame(maxWidth: 130, minHeight: 82)
+        .depthGlass(RoundedRectangle(cornerRadius: 18), lift: 0.8)
+        .accessibilityElement(children: .combine)
+    }
+
+    private func batterySymbol(for percent: Int) -> String {
+        switch percent {
+        case ..<13: "battery.0percent"
+        case ..<38: "battery.25percent"
+        case ..<63: "battery.50percent"
+        case ..<88: "battery.75percent"
+        default: "battery.100percent"
+        }
     }
 
     private func healthCard(_ health: HealthScore) -> some View {
@@ -252,19 +273,23 @@ struct OverviewView: View {
                                          memoryPressure: SystemMetrics.memoryUsed() ?? 0,
                                          loginItems: loginItems.items().count, junkBytes: Int64(lastScanBytes)))
         battery = BatteryHealth.read()
-        let places = [("tab.trash", ".Trash"), ("tab.downloads", "Downloads"),
-                      ("tab.appCaches", "Library/Caches"), ("group.Logs", "Library/Logs")]
+        let places = [
+            (key: "tab.trash", path: ".Trash", symbol: "trash"),
+            (key: "tab.downloads", path: "Downloads", symbol: "arrow.down.circle"),
+            (key: "tab.appCaches", path: "Library/Caches", symbol: "shippingbox"),
+            (key: "group.Logs", path: "Library/Logs", symbol: "doc.text"),
+        ]
         // The four folders are sized at the same time (warm cache: ~0.58 s one by one, ~0.35 s together).
         let sizes = await withTaskGroup(of: (Int, Int64).self) { group in
             for (i, place) in places.enumerated() {
-                group.addTask { (i, FS.size(of: home.appendingPathComponent(place.1))) }
+                group.addTask { (i, FS.size(of: home.appendingPathComponent(place.path))) }
             }
             var out = [Int64](repeating: 0, count: places.count)
             for await (i, bytes) in group { out[i] = bytes }
             return out
         }
         guard !Task.isCancelled else { return }
-        tiles = zip(places, sizes).map { (key: $0.0.0, bytes: $0.1) }
+        tiles = zip(places, sizes).map { (key: $0.0.key, symbol: $0.0.symbol, bytes: $0.1) }
         // Keep the spin visible a moment: a refresh that finishes in 0.3 s looks like nothing happened.
         let left = 0.6 - Date().timeIntervalSince(started)
         if left > 0 { try? await Task.sleep(for: .seconds(left)) }

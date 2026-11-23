@@ -6,8 +6,8 @@ import SwiftUI
 private final class QuickBoost {
     static let shared = QuickBoost()
 
-    enum Phase {
-        case idle, scanning, confirm([ScanItem], bytes: Int64), running
+    enum Phase: Sendable {
+        case idle, scanning, confirm([ScanItem], bytes: Int64), running(CleaningRun)
         case result(bytes: Int64, before: Double?, after: Double?)
     }
 
@@ -36,11 +36,17 @@ private final class QuickBoost {
         guard case let .confirm(items, _) = phase else { return }
         let access = PurgeAccessStatus.shared
         let installPurgeAccess = access.installWithNextPurge && !access.isInstalled
-        phase = .running
+        let run = CleaningRun(items: items)
+        let purgeTitle = L("task.freeRAM")
+        phase = .running(run)
         Task {
-            let result = await Task.detached(priority: .userInitiated) {
+            let result: Phase = await run.perform { progress in
                 let env = AppEnv.shared
-                let cleaned = await env.cleaner.clean(items, disposal: .quarantine)
+                let cleaned = await env.cleaner.clean(items, disposal: .quarantine) { name, fraction in
+                    await progress(name, fraction.map { $0 * 0.8 })
+                }
+                await progress(purgeTitle, 0.8)
+                await progress(purgeTitle, nil)
                 let before = SystemMetrics.memoryUsed()
                 let maintenance = await runMaintenance(
                     [.freeRAM], home: env.home, runner: AdminPromptRunner(), installPurgeAccess: installPurgeAccess)
@@ -49,7 +55,7 @@ private final class QuickBoost {
                     return Phase.result(bytes: cleaned.freedBytes, before: before, after: after)
                 }
                 return Phase.result(bytes: cleaned.freedBytes, before: nil, after: nil)
-            }.value
+            }
             PurgeAccessStatus.shared.refresh()
             phase = result
             try? await Task.sleep(for: .seconds(6))
@@ -86,17 +92,23 @@ struct QuickBoostControls: View {
                         .buttonStyle(.liquid(small: true))
                 }
             }
-        case .running:
-            progress(L("boost.running"))
+        case .running(let run):
+            CleaningView(run: run, compact: true)
+                .environment(\.sectionTint, AppSection.performance.tint)
         case let .result(bytes, before, after):
             let freed = formatBytes(bytes)
-            if let before, let after {
-                Text(String(format: L("boost.result"), freed, formatPercent(before), formatPercent(after)))
-                    .monospacedDigit()
+            let title = if let before, let after {
+                String(format: L("boost.result"), freed, formatPercent(before), formatPercent(after))
             } else {
-                Text(String(format: L("boost.resultCachesOnly"), freed))
-                    .monospacedDigit()
+                String(format: L("boost.resultCachesOnly"), freed)
             }
+            VStack(spacing: 8) {
+                CompletionCheckmark(size: 50)
+                CompletionTitle {
+                    Text(title).monospacedDigit()
+                }
+            }
+            .frame(maxWidth: .infinity)
         }
     }
 

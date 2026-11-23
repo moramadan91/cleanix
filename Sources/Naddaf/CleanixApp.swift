@@ -16,6 +16,7 @@ struct CleanixApp: App {
                 .preferredColorScheme(.dark)
                 .background(MainWindowRegistration())
         }
+        .defaultSize(width: 1060, height: 680)
         .windowStyle(.hiddenTitleBar)
         .commands {
             CommandGroup(after: .appInfo) {
@@ -26,7 +27,7 @@ struct CleanixApp: App {
         Settings {
             SettingsView()
         }
-        MenuBarExtra(isInserted: $monitor.isEnabled) {
+        MenuBarExtra(isInserted: $monitor.isInserted) {
             MenuBarPanel(monitor: monitor)
         } label: {
             MonitorMenuBarLabel()
@@ -114,20 +115,45 @@ final class SplashDelegate: NSObject, NSApplicationDelegate {
     private var panel: NSPanel?
     private var observers: [Any] = []
     private var splashing = false
+    private var quitMonitor: Any?
     private static weak var mainWindow: NSWindow?
+    private static weak var monitorPanel: NSWindow?
+    private static let registeredWindows = NSHashTable<NSWindow>.weakObjects()
     private static let suppressedWindows = NSHashTable<NSWindow>.weakObjects()
     private static var waitingForReopen = false
+    private static var pendingUpdateCheck: (() -> Void)?
 
-    func applicationDidFinishLaunching(_ notification: Notification) {
-        Alerts.shared.registerDelegate()
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        configureSilentLogin()
+        observeWindowActivation()
+        NotificationCenter.default.addObserver(self, selector: #selector(mainWindowWillClose),
+                                               name: NSWindow.willCloseNotification, object: nil)
+    }
+
+    private func configureSilentLogin() {
         let launchReason = NSAppleEventManager.shared().currentAppleEvent?
             .paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue
-        if launchReason == keyAELaunchedAsLogInItem {
-            Self.waitingForReopen = true
-            if let window = Self.mainWindow { Self.suppressLoginWindow(window) }
-            observeWindowActivation()
+        guard launchReason == keyAELaunchedAsLogInItem || Self.waitingForReopen else { return }
+        Self.waitingForReopen = true
+        Self.enterMenuBarMode()
+        Self.registeredWindows.allObjects.forEach(Self.suppressLoginWindow)
+    }
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        configureSilentLogin()
+        Alerts.shared.registerDelegate()
+        quitMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            let flags = event.modifierFlags.intersection([.command, .control, .option, .shift])
+            if flags == .command, event.charactersIgnoringModifiers?.lowercased() == "q",
+               let panel = Self.monitorPanel, panel.isVisible, event.window === panel || panel.isKeyWindow {
+                NSApp.terminate(nil)
+                return nil
+            }
+            return event
+        }
+        if Self.waitingForReopen {
+            Self.pendingUpdateCheck = { [weak self] in self?.updater.updater.checkForUpdatesInBackground() }
             Alerts.shared.start()
-            updater.updater.checkForUpdatesInBackground()
             return
         }
         let side: CGFloat = 560
@@ -144,31 +170,57 @@ final class SplashDelegate: NSObject, NSApplicationDelegate {
         splashing = true
 
         mainWindows.forEach(hide)
-        observeWindowActivation()
         panel.orderFrontRegardless()
     }
 
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
+
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
-        guard Self.waitingForReopen else { return true }
+        guard Self.waitingForReopen || sender.activationPolicy() == .accessory else { return true }
         return !Self.showMainWindow()
     }
 
     static func registerMainWindow(_ window: NSWindow) {
+        registeredWindows.add(window)
         mainWindow = window
         if waitingForReopen { suppressLoginWindow(window) }
     }
 
+    static func registerMonitorPanel(_ window: NSWindow) { monitorPanel = window }
+
     static func showMainWindow() -> Bool {
         waitingForReopen = false
+        if NSApp.activationPolicy() != .regular { NSApp.setActivationPolicy(.regular) }
+        MenuBarMonitor.shared.requiresMenuBar = false
         for window in suppressedWindows.allObjects {
             window.alphaValue = 1
             window.ignoresMouseEvents = false
         }
         suppressedWindows.removeAllObjects()
-        guard let window = mainWindow else { return false }
-        if window.isMiniaturized { window.deminiaturize(nil) }
-        window.makeKeyAndOrderFront(nil)
-        return true
+        let window = mainWindow ?? registeredWindows.anyObject
+        if let window {
+            if window.isMiniaturized { window.deminiaturize(nil) }
+            window.makeKeyAndOrderFront(nil)
+        }
+        NSApp.activate()
+        let checkForUpdates = pendingUpdateCheck
+        pendingUpdateCheck = nil
+        checkForUpdates?()
+        return window != nil
+    }
+
+    @objc private func mainWindowWillClose(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow, Self.registeredWindows.contains(window) else { return }
+        Self.registeredWindows.remove(window)
+        Self.suppressedWindows.remove(window)
+        if Self.mainWindow === window { Self.mainWindow = nil }
+        guard !Self.registeredWindows.allObjects.contains(where: { $0.isVisible || $0.isMiniaturized }) else { return }
+        Self.enterMenuBarMode()
+    }
+
+    private static func enterMenuBarMode() {
+        NSApp.setActivationPolicy(.accessory)
+        MenuBarMonitor.shared.requiresMenuBar = true
     }
 
     private static func suppressLoginWindow(_ window: NSWindow) {

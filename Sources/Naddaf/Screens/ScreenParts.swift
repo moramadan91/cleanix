@@ -15,6 +15,170 @@ struct ScanningView: View {
     }
 }
 
+/// Owns a clean independently of its view, so navigating away doesn't interrupt file operations.
+@MainActor
+@Observable
+final class CleaningRun {
+    private static let minimumDuration = 2.5
+    let started = Date.now
+    private let deadline = ContinuousClock.now + .seconds(minimumDuration)
+    private(set) var itemName: String
+    private var measuredProgress: Double?
+    private var progressFloor = 0.0
+    private var finished = false
+
+    init(firstItem: String = "") { itemName = firstItem }
+
+    convenience init(items: [ScanItem]) {
+        self.init(firstItem: items.first.map { $0.title ?? $0.url.lastPathComponent } ?? "")
+    }
+
+    func clean(_ items: [ScanItem], using cleaner: Cleaner, disposal: Disposal) async -> CleanResult {
+        await perform { progress in await cleaner.clean(items, disposal: disposal, progress: progress) }
+    }
+
+    func perform<Result: Sendable>(
+        _ operation: @escaping @Sendable (@escaping CleanProgress) async -> Result
+    ) async -> Result {
+        let result = await Task.detached(priority: .userInitiated) {
+            await operation { name, fraction in await self.report(name, fraction: fraction) }
+        }.value
+        measuredProgress = 1
+        try? await ContinuousClock().sleep(until: deadline)
+        finished = true
+        try? await Task.sleep(for: .milliseconds(180))
+        return result
+    }
+
+    private func report(_ name: String, fraction: Double?) {
+        itemName = name
+        if let fraction { progressFloor = max(progressFloor, fraction) }
+        measuredProgress = fraction
+    }
+
+    func progress(at date: Date, reduceMotion: Bool) -> Double {
+        if finished { return 1 }
+        if reduceMotion { return min(0.99, progressFloor) }
+        let elapsed = max(0, date.timeIntervalSince(started))
+        let paced = min(1, elapsed / Self.minimumDuration)
+        let estimated = 0.9 * (1 - exp(-elapsed / 2))
+        return min(0.99, max(progressFloor, measuredProgress ?? estimated) * paced)
+    }
+}
+
+struct CleaningView: View {
+    let run: CleaningRun
+    var compact = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.screenIsVisible) private var isVisible
+    @Environment(\.sectionTint) private var tint
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduceMotion || !isVisible)) { context in
+            let elapsed = max(0, context.date.timeIntervalSince(run.started))
+            let sweep = reduceMotion ? 0 : elapsed
+            let progress = run.progress(at: context.date, reduceMotion: reduceMotion)
+            let size: CGFloat = compact ? 50 : 170
+            VStack(spacing: compact ? 7 : 14) {
+                ZStack {
+                    Circle().fill(tint.opacity(0.15)).depthGlass(Circle(), lift: compact ? 0.4 : 1)
+                    Image(systemName: "paintbrush.pointed.fill")
+                        .font(.system(size: size * 0.42, weight: .semibold))
+                        .rotationEffect(.degrees(sin(sweep * 6) * 28), anchor: .topTrailing)
+                    if !reduceMotion {
+                        ForEach(0..<4) { index in
+                            let age = (sweep * 1.4 + Double(index) / 4).truncatingRemainder(dividingBy: 1)
+                            Circle().fill(tint)
+                                .frame(width: size * 0.045, height: size * 0.045)
+                                .offset(x: size * (-0.12 - age * 0.32), y: size * (0.19 - age * 0.18))
+                                .opacity((1 - age) * 0.8)
+                        }
+                    }
+                }
+                .frame(width: size, height: size)
+                .accessibilityHidden(true)
+                Text(L("common.cleaning")).font(.system(size: compact ? 14 : 20, weight: .semibold))
+                Text(run.itemName)
+                    .font(.system(size: compact ? 11 : 13))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .padding(.horizontal, 24)
+                GeometryReader { geometry in
+                    Capsule().fill(.white.opacity(0.12))
+                        .overlay(alignment: .leading) {
+                            Capsule().fill(tint).frame(width: geometry.size.width * progress)
+                        }
+                }
+                .frame(height: 5)
+                .frame(maxWidth: compact ? 240 : 280)
+                .accessibilityRepresentation {
+                    ProgressView(value: progress) { Text(L("common.cleaning")) }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: compact ? nil : .infinity)
+        .preference(key: ScreenCleaningPreference.self, value: true)
+    }
+}
+
+struct CompletionCheckmark: View {
+    var size: CGFloat = 96
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var circle = 0.0
+    @State private var check = 0.0
+    @State private var popped = false
+
+    var body: some View {
+        ZStack {
+            Color.clear.depthGlass(Circle(), lift: 1.4)
+            Circle().inset(by: 4)
+                .trim(from: 0, to: reduceMotion ? 1 : circle)
+                .stroke(.white.opacity(0.75), style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+            Path { path in
+                path.move(to: CGPoint(x: size * 0.29, y: size * 0.51))
+                path.addLine(to: CGPoint(x: size * 0.44, y: size * 0.66))
+                path.addLine(to: CGPoint(x: size * 0.72, y: size * 0.37))
+            }
+            .trim(from: 0, to: reduceMotion ? 1 : check)
+            .stroke(.linearGradient(colors: [.white, .white.opacity(0.6)], startPoint: .top, endPoint: .bottom),
+                    style: StrokeStyle(lineWidth: size * 0.065, lineCap: .round, lineJoin: .round))
+        }
+        .frame(width: size, height: size)
+        .scaleEffect(reduceMotion || popped ? 1 : 0.88)
+        .accessibilityHidden(true)
+        .task(id: reduceMotion) {
+            guard !reduceMotion else { return }
+            withAnimation(.easeOut(duration: 0.32)) { circle = 1 }
+            try? await Task.sleep(for: .milliseconds(270))
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeInOut(duration: 0.29)) { check = 1 }
+            try? await Task.sleep(for: .milliseconds(290))
+            guard !Task.isCancelled else { return }
+            withAnimation(.spring(duration: 0.35, bounce: 0.55)) { popped = true }
+        }
+    }
+}
+
+struct CompletionTitle<Content: View>: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var visible = false
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        content()
+            .opacity(reduceMotion || visible ? 1 : 0)
+            .accessibilityHidden(!reduceMotion && !visible)
+            .task(id: reduceMotion) {
+                guard !reduceMotion else { return }
+                try? await Task.sleep(for: .milliseconds(600))
+                guard !Task.isCancelled else { return }
+                withAnimation(.easeOut(duration: 0.18)) { visible = true }
+            }
+    }
+}
+
 /// Result of a clean: freed size, failures, Undo (quarantine only) and Scan again.
 struct DoneView: View {
     let result: CleanResult
@@ -24,13 +188,11 @@ struct DoneView: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            Image(systemName: "checkmark")
-                .font(.system(size: 40, weight: .bold))
-                .foregroundStyle(LinearGradient(colors: [.white, .white.opacity(0.6)], startPoint: .top, endPoint: .bottom))
-                .frame(width: 96, height: 96)
-                .depthGlass(Circle(), lift: 1.4)
-            Text(String(format: L("common.cleaned"), formatBytes(result.freedBytes)))
-                .font(.system(size: 28, weight: .bold))
+            CompletionCheckmark()
+            CompletionTitle {
+                Text(String(format: L("common.cleaned"), formatBytes(result.freedBytes)))
+                    .font(.system(size: 28, weight: .bold))
+            }
             if undoable { Text(L("preview.undo")).foregroundStyle(.secondary) }
             if !result.failed.isEmpty {
                 Text(String(format: L("common.failedCount"), result.failed.count)).foregroundStyle(Theme.accent)

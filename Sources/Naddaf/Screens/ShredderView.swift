@@ -8,10 +8,13 @@ struct ShredderView: View {
     @State private var targeted = false
     @State private var picking = false
     @State private var confirm = false
+    @State private var cleaning: CleaningRun?
     @State private var result: CleanResult?
 
     var body: some View {
-        if let result {
+        if let cleaning {
+            CleaningView(run: cleaning)
+        } else if let result {
             DoneView(result: result) { self.result = nil; urls = [] }
         } else {
             VStack(spacing: 16) {
@@ -80,8 +83,13 @@ struct ShredderView: View {
         let chosen = urls
         // Only files inside the user's home may be shredded; the home folder itself never.
         let policy = PathPolicy(allowedRoots: [AppEnv.shared.home])
+        let run = CleaningRun(firstItem: chosen.first?.lastPathComponent ?? "")
+        cleaning = run
         Task {
-            result = await Task.detached { await shred(chosen, policy: policy) }.value
+            result = await run.perform { progress in
+                await shred(chosen, policy: policy, progress: progress)
+            }
+            cleaning = nil
         }
     }
 }
