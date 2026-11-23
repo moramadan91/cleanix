@@ -171,7 +171,10 @@ struct OverviewView: View {
                         }
                     }
                 }
-                QuickBoostControls(big: true)
+                // Small and a little lower, so it does not dominate the card.
+                QuickBoostControls()
+                    .frame(width: 190)
+                    .padding(.top, 14)
                 if checking {
                     Text(L("health.checking"))
                         .font(.system(size: 13, weight: .medium))
@@ -320,7 +323,7 @@ struct OverviewView: View {
         .lineLimit(1)
         .minimumScaleFactor(0.8)
         .padding(.horizontal, 6)
-        .frame(width: 104, height: 70)
+        .frame(maxWidth: .infinity, minHeight: 70, maxHeight: 70)
         .depthGlass(RoundedRectangle(cornerRadius: 16), lift: 0.8)
         .accessibilityElement(children: .combine)
     }

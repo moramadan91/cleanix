@@ -268,7 +268,7 @@ function healthView(h, previousScore, checkFailed) {
     ? t('health.unchanged', localNumber(h.score))
     : t('health.changed', localNumber(previousScore), localNumber(h.score));
   const note = `<p class="health-status muted" role="status">${status}</p>`;
-  if (!h) return `<div class="panel health">${refresh}<button type="button" class="btn big primary" data-action="boostAsk" ${boostBusy ? 'disabled' : ''}>${t('boost.title')}</button>${note}</div>`;
+  if (!h) return `<div class="panel health">${refresh}<button type="button" class="btn primary boost-btn" data-action="boostAsk" ${boostBusy ? 'disabled' : ''}>${t('boost.title')}</button>${note}</div>`;
   const band = h.score >= 80 ? 'good' : h.score >= 50 ? 'fair' : 'poor';
   const destinations = { disk: ['clutter', 'large'], memory: ['performance', 'heavy'], startup: ['performance', 'startup'], junk: ['cleanup', 'junk'] };
   return `<div class="panel health">
@@ -278,7 +278,7 @@ function healthView(h, previousScore, checkFailed) {
       <h2>${t('health.' + band)}</h2>
       <p class="muted">${t('health.ram', h.ram.total ? fmt(h.ram.used) : '—', h.ram.total ? fmt(h.ram.total) : '—')}</p>
       ${h.issues.map(i => `<div class="tip"><span>${t('health.issue.' + i)}</span><button type="button" class="btn small" data-go="${destinations[i][0]}" data-go-tab="${destinations[i][1]}">${t('overview.go')}</button></div>`).join('')}
-      <button type="button" class="btn big primary" data-action="boostAsk" ${boostBusy ? 'disabled' : ''}>${t('boost.title')}</button>
+      <button type="button" class="btn primary boost-btn" data-action="boostAsk" ${boostBusy ? 'disabled' : ''}>${t('boost.title')}</button>
     </div>
   </div>`;
 }

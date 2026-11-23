@@ -225,9 +225,9 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 26
 .ring text { transform: rotate(90deg); transform-origin: 90px 90px; fill: var(--text); font-size: 30px; font-weight: 700; }
 .tips { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 8px; }
 .tip { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border-radius: 14px; background: rgba(255, 255, 255, 0.04); }
-.overview-stats { grid-column: 1 / -1; display: flex; flex-wrap: wrap; justify-content: center; gap: 26px; }
+.overview-stats { grid-column: 1 / -1; display: flex; gap: 14px; }
 .overview .stat-tile {
-  flex: 0 0 104px; height: 70px; padding: 6px;
+  flex: 1 1 0; min-width: 0; height: 70px; padding: 6px;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
   border-radius: 16px; text-align: center;
 }
@@ -308,7 +308,7 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 26
 .health-details { flex: 1; display: grid; gap: 8px; }
 .overview .health-details h2, .health-details p { margin: 0; }
 .overview .health-details h2 { padding-inline-end: 32px; }
-.health-details .btn.big { justify-self: start; margin-top: 6px; }
+.health-details .boost-btn { justify-self: start; min-width: 150px; margin-top: 14px; }
 @media (prefers-reduced-motion: reduce) {
   .cleaning-broom, .cleaning-dust circle, .cleaning-track span, .cleaning-track.complete span,
   .done-check, .done-check svg > *, .done-title { animation: none; }
