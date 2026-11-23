@@ -171,6 +171,12 @@ fn recycle_info() -> Option<BinInfo> {
 }
 
 #[tauri::command]
+async fn downloads_size(app: tauri::AppHandle, state: tauri::State<'_, AppState>) -> Result<u64, String> {
+    let dir = app.path().download_dir().unwrap_or_else(|_| state.places.home.join("Downloads"));
+    blocking(move || core::size_of(&dir)).await
+}
+
+#[tauri::command]
 fn open_recycle_bin() -> Result<(), String> {
     #[cfg(windows)]
     system::hidden_command("explorer.exe")
@@ -327,29 +333,36 @@ fn set_lang(lang: String, app: tauri::AppHandle, state: tauri::State<'_, AppStat
 }
 
 #[cfg(windows)]
-fn start_alerts(app: tauri::AppHandle) {
-    std::thread::spawn(move || loop {
-        let state = app.state::<AppState>();
-        let disk = win::disk_info();
-        let (free, total) = disk.as_ref().map_or((u64::MAX, 0), |d| (d.free, d.total));
-        for alert in [settings::Alert::LowSpace, settings::Alert::Weekly] {
-            let lang = {
-                let current = state.settings.lock().unwrap();
-                settings::due_alerts(settings::now(), &current, free, total)
-                    .contains(&alert).then(|| current.lang.clone())
-            };
-            if let Some(lang) = lang {
-                if settings::show_alert(alert, free, &lang).is_ok() {
-                    let mut current = state.settings.lock().unwrap();
-                    match alert {
-                        settings::Alert::LowSpace => current.last_low_space_alert = settings::now(),
-                        settings::Alert::Weekly => current.last_weekly_alert = settings::now(),
+fn start_alerts(app: tauri::AppHandle, start_hidden: bool) {
+    let interval = std::time::Duration::from_secs(30 * 60);
+    std::thread::spawn(move || {
+        // A due toast should not appear during a tray-only login start.
+        if start_hidden {
+            std::thread::sleep(interval);
+        }
+        loop {
+            let state = app.state::<AppState>();
+            let disk = win::disk_info();
+            let (free, total) = disk.as_ref().map_or((u64::MAX, 0), |d| (d.free, d.total));
+            for alert in [settings::Alert::LowSpace, settings::Alert::Weekly] {
+                let lang = {
+                    let current = state.settings.lock().unwrap();
+                    settings::due_alerts(settings::now(), &current, free, total)
+                        .contains(&alert).then(|| current.lang.clone())
+                };
+                if let Some(lang) = lang {
+                    if settings::show_alert(alert, free, &lang).is_ok() {
+                        let mut current = state.settings.lock().unwrap();
+                        match alert {
+                            settings::Alert::LowSpace => current.last_low_space_alert = settings::now(),
+                            settings::Alert::Weekly => current.last_weekly_alert = settings::now(),
+                        }
+                        let _ = current.save(&state.settings_path);
                     }
-                    let _ = current.save(&state.settings_path);
                 }
             }
+            std::thread::sleep(interval);
         }
-        std::thread::sleep(std::time::Duration::from_secs(30 * 60));
     });
 }
 
@@ -445,20 +458,24 @@ pub fn run() {
             });
             #[cfg(windows)]
             {
+                let start_hidden = std::env::args_os().any(|arg| arg == "--hidden");
                 tray::setup(app.handle(), &lang)?;
-                start_alerts(app.handle().clone());
+                start_alerts(app.handle().clone(), start_hidden);
                 if let Some(w) = app.get_webview_window("main") {
                     // Mica on Windows 11, acrylic on 10; the page keeps its own dark tint either way.
                     if window_vibrancy::apply_mica(&w, Some(true)).is_err() {
                         let _ = window_vibrancy::apply_acrylic(&w, Some((20, 16, 28, 200)));
                     }
                 }
-            }
-            if !cfg!(windows) || !std::env::args_os().any(|arg| arg == "--hidden") {
-                if let Some(window) = app.get_webview_window("main") {
-                    window.show()?;
-                    window.emit("window-shown", ())?;
+                if !start_hidden {
+                    tray::show_main(app.handle())?;
                 }
+            }
+            #[cfg(not(windows))]
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.set_skip_taskbar(false);
+                window.show()?;
+                window.emit("window-shown", ())?;
             }
             Ok(())
         })
@@ -469,6 +486,7 @@ pub fn run() {
                     if window.state::<AppState>().settings.lock().unwrap().stay_in_tray() {
                         api.prevent_close();
                         let _ = window.hide();
+                        let _ = window.set_skip_taskbar(true);
                     }
                 }
             }
@@ -482,6 +500,7 @@ pub fn run() {
             clean,
             disk_info,
             recycle_info,
+            downloads_size,
             open_recycle_bin,
             empty_recycle,
             health,

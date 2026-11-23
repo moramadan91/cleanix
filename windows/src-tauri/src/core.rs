@@ -761,6 +761,17 @@ mod tests {
     }
 
     #[test]
+    fn downloads_size_counts_nested_files_and_ignores_other_folders() {
+        let t = tempfile::tempdir().unwrap();
+        let downloads = t.path().join("Downloads");
+        assert_eq!(size_of(&downloads), 0);
+        write(&downloads.join("setup.exe"), 10);
+        write(&downloads.join("nested/archive.zip"), 20);
+        write(&t.path().join("Documents/notes.txt"), 100);
+        assert_eq!(size_of(&downloads), 30);
+    }
+
+    #[test]
     fn old_downloads_by_age() {
         let t = tempfile::tempdir().unwrap();
         let p = places(t.path());

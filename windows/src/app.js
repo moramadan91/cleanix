@@ -34,6 +34,7 @@ const map = { trail: [], selected: new Set(), loading: false };
 let overview = null;
 let overviewLoading = false;
 let overviewReady = !window.__TAURI__;
+let cleaning = false;
 
 const $ = (s, el = document) => el.querySelector(s);
 const t = (k, ...a) => (STRINGS[lang][k] ?? STRINGS.en[k] ?? k).replace(/\{(\d)\}/g, (_, i) => a[i]);
@@ -57,6 +58,7 @@ function flag(code) {
 }
 
 const icon = d => `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg>`;
+const broomIcon = 'm12 12 7-9M10 11l4 3-2 2-5-3zM7 13c-1 3-3 5-5 6 3 2 7 3 10 2 1-2 1-3 0-5M7 20l2-3';
 
 function sorted(list) {
   const by = { largest: (a, b) => b.bytes - a.bytes, smallest: (a, b) => a.bytes - b.bytes, nameAZ: (a, b) => a.name.localeCompare(b.name, lang) };
@@ -83,6 +85,7 @@ function renderShell() {
 }
 
 function render() {
+  if (cleaning) return;
   const main = $('#main');
   if (section === 'overview') main.innerHTML = overviewView();
   else if (section === 'diskMap') main.innerHTML = mapView();
@@ -121,6 +124,43 @@ function scanScreen() {
 }
 
 const spinner = (text = t('common.scanning')) => `<div class="center"><div class="spin" role="status"></div><p>${text}</p></div>`;
+
+async function runCleaning(work) {
+  const minimum = 2500;
+  const finish = 180;
+  const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+  const main = $('#main');
+  const sidebar = $('.sidebar');
+  cleaning = true;
+  sidebar.inert = true;
+  main.innerHTML = `${header()}<div class="center cleaning" style="--clean-ms:${minimum}ms;--finish-ms:${finish}ms">
+    <div class="orb cleaning-orb">
+      <svg viewBox="0 0 84 64" fill="none" aria-hidden="true">
+        <g class="cleaning-dust" fill="currentColor">
+          <circle cx="16" cy="50" r="2"/><circle cx="23" cy="44" r="1.5"/><circle cx="25" cy="55" r="2"/>
+          <circle cx="60" cy="53" r="2"/><circle cx="67" cy="45" r="1.5"/><circle cx="72" cy="51" r="2"/>
+        </g>
+        <g class="cleaning-broom"><path transform="translate(15 4) scale(2.35)" stroke="currentColor"
+          stroke-linecap="round" stroke-linejoin="round" d="${broomIcon}"/></g>
+      </svg>
+    </div>
+    <h2 class="big-text" id="cleaning-title" role="status">${t('common.cleaning')}</h2>
+    <div class="cleaning-track" role="progressbar" aria-labelledby="cleaning-title"><span></span></div>
+  </div>`;
+  main.focus();
+  try {
+    const [result] = await Promise.allSettled([Promise.resolve().then(work), wait(minimum)]);
+    const track = $('.cleaning-track', main);
+    track.classList.add('complete');
+    track.setAttribute('aria-valuenow', '100');
+    await wait(finish);
+    if (result.status === 'rejected') throw result.reason;
+    return result.value;
+  } finally {
+    cleaning = false;
+    sidebar.inert = false;
+  }
+}
 
 function resultsView(v) {
   if (!v.items.length) return `<div class="center"><p class="muted">${t('common.nothing')}</p><button type="button" class="btn big primary" data-action="scan">${t('common.rescan')}</button></div>`;
@@ -162,8 +202,13 @@ function sortMenu() {
 function doneView(r) {
   const canUndo = r.freed > 0;
   return `<div class="center">
-    <div class="orb done">${icon('M5 12.5l4.5 4.5L19 7.5')}</div>
-    <h2 class="big-text">${t('common.cleaned', fmt(r.freed))}</h2>
+    <div class="orb done done-check">
+      <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="24" cy="24" r="21" pathLength="1" transform="rotate(-90 24 24)"/>
+        <path d="m14 24 7 7 13-14" pathLength="1"/>
+      </svg>
+    </div>
+    <h2 class="big-text done-title" role="status">${t('common.cleaned', fmt(r.freed))}</h2>
     ${r.failed.length ? `<p class="warn">${t('common.failed', r.failed.length)}</p>` : ''}
     <div class="result-actions">
       ${canUndo ? `<button type="button" class="orb done result-action undo" data-action="undoClean" aria-describedby="restore-note">${t('common.undo')}</button>` : ''}
@@ -190,9 +235,7 @@ async function scan() {
 /* ---------- Recycle Bin ---------- */
 
 let bin = null;
-let binEmptying = false;
 function binView() {
-  if (binEmptying) return spinner();
   if (bin === null) { refreshBin(); return spinner(); }
   if (bin === 'none') return `<div class="center"><p class="muted">${t('overview.unknown')}</p></div>`;
   if (!bin.items) return `<div class="center"><div class="orb done">${icon('M5 12.5l4.5 4.5L19 7.5')}</div><p>${t('bin.empty')}</p></div>`;
@@ -225,7 +268,7 @@ function healthView(h, previousScore, checkFailed) {
     ? t('health.unchanged', localNumber(h.score))
     : t('health.changed', localNumber(previousScore), localNumber(h.score));
   const note = `<p class="health-status muted" role="status">${status}</p>`;
-  if (!h) return `<div class="panel health">${refresh}<button type="button" class="btn big primary" data-action="boostAsk">${t('boost.title')}</button>${note}</div>`;
+  if (!h) return `<div class="panel health">${refresh}<button type="button" class="btn big primary" data-action="boostAsk" ${boostBusy ? 'disabled' : ''}>${t('boost.title')}</button>${note}</div>`;
   const band = h.score >= 80 ? 'good' : h.score >= 50 ? 'fair' : 'poor';
   const destinations = { disk: ['clutter', 'large'], memory: ['performance', 'heavy'], startup: ['performance', 'startup'], junk: ['cleanup', 'junk'] };
   return `<div class="panel health">
@@ -234,7 +277,6 @@ function healthView(h, previousScore, checkFailed) {
     <div class="health-details">
       <h2>${t('health.' + band)}</h2>
       <p class="muted">${t('health.ram', h.ram.total ? fmt(h.ram.used) : '—', h.ram.total ? fmt(h.ram.total) : '—')}</p>
-      ${h.battery ? `<p class="muted">${t(h.battery.cycles == null ? 'health.battery' : 'health.batteryCycles', percent(h.battery.health), localNumber(h.battery.cycles))}</p>` : ''}
       ${h.issues.map(i => `<div class="tip"><span>${t('health.issue.' + i)}</span><button type="button" class="btn small" data-go="${destinations[i][0]}" data-go-tab="${destinations[i][1]}">${t('overview.go')}</button></div>`).join('')}
       <button type="button" class="btn big primary" data-action="boostAsk" ${boostBusy ? 'disabled' : ''}>${t('boost.title')}</button>
     </div>
@@ -243,7 +285,7 @@ function healthView(h, previousScore, checkFailed) {
 
 function overviewView() {
   if (!overview) { if (overviewReady && !overviewLoading) loadOverview(); return header() + spinner(''); }
-  const { disk, bin: b, health } = overview;
+  const { disk, bin: b, health, downloads } = overview;
   let ring = `<p class="muted">${t('overview.unknown')}</p>`;
   if (disk?.total) {
     const pct = Math.round((disk.total - disk.free) / disk.total * 100);
@@ -261,9 +303,28 @@ function overviewView() {
   return header() + `<div class="overview">
     ${healthView(health, overview.previousScore, overview.checkFailed)}
     <div class="panel disk"><h2>${t('overview.disk', 'C:')}</h2>${ring}</div>
+    <div class="overview-stats">
+      ${statTile('tab.bin', b?.bytes == null ? '—' : fmt(b.bytes), SECTIONS[2].icon, '#2FD1A0')}
+      ${statTile('overview.downloads', downloads == null ? '—' : fmt(downloads), 'M12 3v12m-5-5 5 5 5-5M4 16v4h16v-4', '#4C8DFF')}
+      ${statTile('tab.junk', health?.junk == null ? '—' : fmt(health.junk), broomIcon, '#FFAA3D')}
+      ${health?.battery ? statTile('overview.battery', batteryValue(health.battery), 'M3 7h16v10H3zM21 10v4m-9-5-3 4h4l-2 2', '#9BD12E') : ''}
+    </div>
     <div class="panel tips"><h2>${t('overview.tips')}</h2>
       ${tips.map(([s, k, text]) => `<div class="tip"><span>${text}</span><button type="button" class="btn small" data-go="${s}" data-go-tab="${k ?? ''}">${t('overview.go')}</button></div>`).join('')}
     </div></div>`;
+}
+
+function statTile(label, value, path, tint) {
+  return `<div class="panel stat-tile">
+    <span class="tinted-icon" style="--icon-tint:${tint}">${icon(path)}</span>
+    <span class="stat-label">${t(label)}</span>
+    <strong class="stat-value">${value}</strong>
+  </div>`;
+}
+
+function batteryValue(battery) {
+  const healthPercent = percent(battery.health);
+  return battery.cycles == null ? healthPercent : `${healthPercent} <small>· ${t('overview.cycles', localNumber(battery.cycles))}</small>`;
 }
 
 async function loadOverview(refreshButton) {
@@ -275,11 +336,15 @@ async function loadOverview(refreshButton) {
     refreshButton.disabled = true;
     refreshButton.setAttribute('aria-busy', 'true');
   }
-  const [health, b] = await Promise.all([invoke('health').catch(() => null), invoke('recycle_info').catch(() => null)]);
+  const [health, b, downloads] = await Promise.all([
+    invoke('health').catch(() => null),
+    invoke('recycle_info').catch(() => null),
+    invoke('downloads_size').catch(() => null),
+  ]);
   const disk = health?.disk?.total ? health.disk : await invoke('disk_info').catch(() => null);
   if (overview === previous) {
     overview = {
-      disk, bin: b, health: health ?? previous?.health,
+      disk, bin: b ?? previous?.bin, health: health ?? previous?.health, downloads: downloads ?? previous?.downloads,
       previousScore: refreshButton && health ? previous?.health?.score : undefined,
       checkFailed: Boolean(refreshButton && !health),
     };
@@ -295,25 +360,23 @@ async function loadOverview(refreshButton) {
 let boostBusy = false;
 
 async function askBoost() {
-  if (boostBusy || (!$('#modal').hidden && $('#modal').dataset.kind === 'boost')) return;
+  if (cleaning || boostBusy || !$('#modal').hidden) return;
   boostBusy = true;
   render();
   const preview = await invoke('boost_preview').catch(() => null);
   boostBusy = false;
   render();
+  if (cleaning || !$('#modal').hidden) return;
   if (!preview) return showMessage('boost.title', t('boost.failed'));
   confirmAction('boost.title', t('boost.confirm', fmt(preview.bytes)), 'boost.title', async () => {
-    boostBusy = true;
-    render();
-    const result = await invoke('boost_run').catch(() => null);
-    boostBusy = false;
+    const result = await runCleaning(() => invoke('boost_run')).catch(() => null);
     overview = null;
+    bin = null;
     render();
     if (!result) return showMessage('boost.title', t('boost.failed'));
     showMessage('boost.title', t('boost.result', fmt(result.freed), localNumber(result.ram_before), localNumber(result.ram_after)),
       result.failed.length ? t('common.failed', result.failed.length) : '');
   });
-  $('#modal').dataset.kind = 'boost';
 }
 
 /* ---------- Apps ---------- */
@@ -441,19 +504,49 @@ function accessView() {
 
 /* ---------- Maintenance (Performance) ---------- */
 
-const TASKS = ['dns', 'explorer', 'diskCleanup', 'storageSense', 'defender'];
+const TASKS = [
+  { id: 'dns', path: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3 12h18M12 3c-5 5-5 13 0 18 5-5 5-13 0-18z', tint: '#1FC8D6' },
+  { id: 'explorer', path: 'M12 19H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v2m0 2v4h-4m4 0-2-2a4 4 0 1 0 0 6', tint: '#F5C542' },
+  { id: 'diskCleanup', path: broomIcon, tint: '#2FD1A0' },
+  { id: 'storageSense', path: SECTIONS[0].icon, tint: '#7C5CFF' },
+  { id: 'defender', path: SECTIONS[3].icon, tint: '#4C8DFF' },
+];
+const selectedTasks = new Set();
 const taskState = {};
+let tasksRunning = false;
+
 function maintView() {
-  return `<div class="tasks">${TASKS.map(id => `<div class="panel task">
-      <h2>${t('task.' + id)}</h2><p class="muted">${t('task.' + id + '.body')}</p>
-      <div class="task-end">${taskState[id] ? `<span class="${taskState[id] === 'fail' ? 'warn' : 'ok'}">${t('task.' + taskState[id])}</span>` : ''}
-        <button type="button" class="btn small primary" data-task="${id}" ${taskState[id] === 'run' ? 'disabled' : ''}>${t('task.run')}</button></div>
-    </div>`).join('')}</div>`;
+  return `<div class="tasks">${TASKS.map(({ id, path, tint }) => {
+    const note = t('task.' + id + '.body');
+    const status = taskState[id];
+    return `<button type="button" class="panel task" data-task="${id}" aria-pressed="${selectedTasks.has(id)}"
+      aria-labelledby="task-${id}-title" aria-describedby="task-${id}-note task-${id}-status" ${tasksRunning ? 'disabled' : ''}>
+      <span class="tinted-icon" style="--icon-tint:${tint}">${icon(path)}</span>
+      <span class="task-check" aria-hidden="true">${icon('m5 12 4 4 10-10')}</span>
+      <strong id="task-${id}-title">${t('task.' + id)}</strong>
+      <span id="task-${id}-note" class="task-note muted" title="${esc(note)}">${note}</span>
+      <span id="task-${id}-status" class="task-status ${status === 'fail' ? 'warn' : status === 'done' ? 'ok' : 'muted'}" role="status">${status ? t('task.' + status) : ''}</span>
+    </button>`;
+  }).join('')}</div>
+  <div class="actions"><button type="button" class="btn big primary" data-action="tasksRun" ${tasksRunning || !selectedTasks.size ? 'disabled' : ''}>${t('task.run')}</button></div>`;
 }
 
-async function runTask(id) {
-  taskState[id] = 'run'; render();
-  taskState[id] = await invoke('run_task', { id }).then(() => 'done', () => 'fail');
+function toggleTask(card) {
+  const { task: id } = card.dataset;
+  if (!selectedTasks.delete(id)) selectedTasks.add(id);
+  card.setAttribute('aria-pressed', selectedTasks.has(id));
+  $('[data-action="tasksRun"]').disabled = !selectedTasks.size;
+}
+
+async function runTasks(ids) {
+  tasksRunning = true;
+  for (const id of ids) delete taskState[id];
+  for (const id of ids) {
+    taskState[id] = 'running';
+    render();
+    taskState[id] = await invoke('run_task', { id }).then(() => 'done', () => 'fail');
+  }
+  tasksRunning = false;
   render();
 }
 
@@ -527,7 +620,6 @@ async function openDir(node) {
 
 function modal(html) {
   const m = $('#modal');
-  delete m.dataset.kind;
   m.innerHTML = `<div class="sheet panel" role="dialog" aria-modal="true">${html}</div>`;
   m.hidden = false;
   $('button', m)?.focus();
@@ -535,7 +627,6 @@ function modal(html) {
 const closeModal = () => {
   $('#modal').hidden = true;
   $('#modal').innerHTML = '';
-  delete $('#modal').dataset.kind;
 };
 
 function confirmAction(title, message, action, onConfirm) {
@@ -557,6 +648,7 @@ async function openSettings() {
   settingsLoading = true;
   const settings = await invoke('settings_get').catch(() => null);
   settingsLoading = false;
+  if (cleaning) return;
   if (!settings) return showMessage('settings.title', t('settings.failed'));
   const switches = [
     ['openAtLogin', 'open_at_login', 'settings.login', 'settings.loginNote'],
@@ -585,7 +677,10 @@ function askClean(items, onDone) {
     <button type="button" class="btn primary" data-modal="ok">${t('preview.confirm')}</button></div>`);
   pendingOk = async () => {
     closeModal();
-    const result = await invoke('clean', { paths: items.map(i => i.path) }).catch(() => ({ freed: 0, removed: [], failed: items.map(i => i.path) }));
+    const paths = items.map(i => i.path);
+    const result = await runCleaning(() => invoke('clean', { paths })).catch(() => ({ freed: 0, removed: [], failed: paths }));
+    overview = null;
+    bin = null;
     onDone(result);
   };
 }
@@ -594,15 +689,13 @@ let pendingOk = null;
 /* ---------- events ---------- */
 
 document.addEventListener('click', async e => {
+  if (cleaning) return;
   const el = e.target.closest('[data-section],[data-tab],[data-action],[data-go],[data-crumb],[data-modal],[data-open],[data-settings],[data-task],#lang,#update,#settings');
   if (!el) return;
   if (el.id === 'update') return invoke('open_release', { tag: updateTag }).catch(() => {});
   if (el.dataset.settings) return invoke('open_settings', { page: el.dataset.settings }).catch(() => {});
   if (el.id === 'settings') return openSettings();
-  if (el.dataset.task) {
-    if (el.dataset.task !== 'explorer') return runTask(el.dataset.task);
-    return confirmAction('task.explorer', t('task.explorer.confirm'), 'task.run', () => runTask('explorer'));
-  }
+  if (el.dataset.task) return toggleTask(el);
   if (el.id === 'lang') {
     lang = lang === 'ar' ? 'en' : 'ar';
     store('cleanix.lang', lang);
@@ -635,10 +728,13 @@ document.addEventListener('click', async e => {
     case 'reveal': return invoke('reveal', { path }).catch(() => {});
     case 'up': map.trail.pop(); map.selected = new Set(); return render();
     case 'preview':
-      return askClean(v.items.filter(i => v.selected.has(i.path)), r => { v.result = r; v.phase = 'done'; overview = null; render(); });
+      return askClean(v.items.filter(i => v.selected.has(i.path)), r => { v.result = r; v.phase = 'done'; render(); });
     case 'mapPreview': {
       const cur = map.trail.at(-1);
-      return askClean(cur.nodes.filter(n => map.selected.has(n.path)), () => { overview = null; reloadMap(); });
+      return askClean(cur.nodes.filter(n => map.selected.has(n.path)), result => {
+        reloadMap();
+        if (result.failed.length) showMessage('common.remove', t('common.failed', result.failed.length));
+      });
     }
     case 'startupRefresh': boot.list = null; boot.note = ''; return render();
     case 'appsRefresh': apps.list = null; apps.note = ''; return render();
@@ -648,7 +744,7 @@ document.addEventListener('click', async e => {
         <button type="button" class="btn danger" data-modal="ok">${t('apps.open')}</button></div>`);
       pendingOk = async () => {
         closeModal();
-        const ok = await invoke('uninstall', { id: app.id }).then(() => true, () => false);
+        const ok = await runCleaning(() => invoke('uninstall', { id: app.id })).then(() => true, () => false);
         apps.note = t(ok ? 'apps.launched' : 'apps.failed', app.name);
         render();
       };
@@ -659,16 +755,22 @@ document.addEventListener('click', async e => {
         <button type="button" class="btn danger" data-modal="ok">${t('bin.action')}</button></div>`);
       pendingOk = async () => {
         closeModal();
-        binEmptying = true;
-        render();
-        await invoke('empty_recycle', { confirmed: true }).catch(() => {});
+        const ok = await runCleaning(() => invoke('empty_recycle', { confirmed: true })).then(() => true, () => false);
         overview = null;
+        bin = null;
         await refreshBin();
-        binEmptying = false;
-        render();
+        if (!ok) showMessage('bin.action', t('bin.emptyFailed'));
       };
       return;
     case 'boostAsk': return askBoost();
+    case 'tasksRun': {
+      if (tasksRunning || !selectedTasks.size) return;
+      const ids = TASKS.map(({ id }) => id).filter(id => selectedTasks.has(id));
+      if (ids.includes('explorer')) {
+        return confirmAction('task.explorer', t('task.explorer.confirm'), 'task.run', () => runTasks(ids));
+      }
+      return runTasks(ids);
+    }
     case 'heavyRefresh': heavy = null; heavyNote = ''; return render();
     case 'heavyQuit': {
       const app = heavy?.find(a => a.id === el.closest('[data-heavy]')?.dataset.heavy);

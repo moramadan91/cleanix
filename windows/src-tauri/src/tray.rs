@@ -20,13 +20,15 @@ fn menu(app: &AppHandle, lang: &str) -> tauri::Result<Menu<tauri::Wry>> {
     Menu::with_items(app, &[&boost, &open, &quit])
 }
 
-fn show_main(app: &AppHandle) {
+pub fn show_main(app: &AppHandle) -> tauri::Result<()> {
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.unminimize();
-        let _ = window.show();
+        window.show()?;
+        let _ = window.set_skip_taskbar(false);
         let _ = window.set_focus();
-        let _ = window.emit("window-shown", ());
+        window.emit("window-shown", ())?;
     }
+    Ok(())
 }
 
 fn tooltip(lang: &str, cpu: u8) -> String {
@@ -54,16 +56,17 @@ pub fn setup(app: &AppHandle, lang: &str) -> tauri::Result<()> {
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id().as_ref() {
             "tray-boost" => {
-                show_main(app);
-                let _ = app.emit_to("main", "tray-boost", ());
+                if show_main(app).is_ok() {
+                    let _ = app.emit_to("main", "tray-boost", ());
+                }
             }
-            "tray-open" => show_main(app),
+            "tray-open" => { let _ = show_main(app); }
             "tray-quit" => app.exit(0),
             _ => {}
         })
         .on_tray_icon_event(|tray, event| {
             if matches!(event, TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. }) {
-                show_main(tray.app_handle());
+                let _ = show_main(tray.app_handle());
             }
         });
     if let Some(icon) = app.default_window_icon() {

@@ -73,6 +73,8 @@ export async function mockInvoke(cmd, args = {}) {
     case 'boost_run': {
       if (!boostPaths) throw new Error('no boost preview');
       const freed = bytesOf(boostPaths);
+      bin.bytes += freed;
+      bin.items += boostPaths.length;
       junk = junk.filter(i => !boostPaths.includes(i));
       boostPaths = null;
       const before = ramPercent();
@@ -102,6 +104,7 @@ export async function mockInvoke(cmd, args = {}) {
       return { freed, removed: args.paths, failed: [] };
     }
     case 'disk_info': return disk;
+    case 'downloads_size': return dirs[H].find(([name]) => name === 'Downloads')[1] * MB;
     case 'list_apps': return [
       ['Adobe Photoshop 2025', 'Adobe Inc.', '26.1', 4800], ['Google Chrome', 'Google LLC', '131.0', 620], ['Zoom Workplace', 'Zoom Communications', '6.2.5', 310],
       ['7-Zip 24.08 (x64)', 'Igor Pavlov', '24.08', 5], ['Steam', 'Valve Corporation', '2.10', 0], ['Microsoft Teams', 'Microsoft Corporation', '24295', 740],
