@@ -255,7 +255,7 @@ async function refreshBin() {
 
 function scoreRing(pct, label, text) {
   const c = 2 * Math.PI * 70;
-  return `<svg viewBox="0 0 180 180" width="180" height="180" class="ring" role="img" aria-label="${esc(label)}">
+  return `<svg viewBox="0 0 180 180" width="120" height="120" class="ring" role="img" aria-label="${esc(label)}">
     <circle cx="90" cy="90" r="70" class="track"/><circle cx="90" cy="90" r="70" class="fill" stroke-dasharray="${c * pct / 100} ${c}" ${pct ? '' : 'visibility="hidden"'}/>
     <text x="90" y="98" text-anchor="middle">${text}</text></svg>`;
 }

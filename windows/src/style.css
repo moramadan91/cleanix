@@ -213,9 +213,9 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 26
 :dir(rtl) .sep { transform: scaleX(-1); }
 
 /* ---------- overview ---------- */
-.overview { flex: 1; display: grid; grid-template-columns: minmax(0, 2.15fr) minmax(250px, 1fr); gap: 18px; align-items: start; align-content: start; max-width: 900px; width: 100%; overflow-y: auto; }
-.overview .panel { padding: 18px; }
-.overview h2 { margin: 0 0 14px; font-size: 16px; }
+.overview { flex: 1; display: grid; grid-template-columns: minmax(0, 2.15fr) minmax(250px, 1fr); gap: 16px; align-items: stretch; align-content: start; max-width: 900px; width: 100%; overflow-y: auto; }
+.overview .panel { padding: 14px; }
+.overview h2 { margin: 0 0 8px; font-size: 15px; }
 .disk { display: flex; flex-direction: column; align-items: center; text-align: center; }
 .disk p { margin: 10px 0 0; color: var(--muted); }
 .ring { transform: rotate(-90deg); }
@@ -223,11 +223,12 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 26
 .ring .track { stroke: rgba(255, 255, 255, 0.08); }
 .ring .fill { stroke: var(--tint); stroke-linecap: round; }
 .ring text { transform: rotate(90deg); transform-origin: 90px 90px; fill: var(--text); font-size: 30px; font-weight: 700; }
-.tips { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 8px; }
-.tip { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border-radius: 14px; background: rgba(255, 255, 255, 0.04); }
+.tips { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 3px; }
+.overview .tip .btn.small { padding-block: 2px; }
+.tip { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 12px; font-size: 12px; border-radius: 12px; background: rgba(255, 255, 255, 0.04); }
 .overview-stats { grid-column: 1 / -1; display: flex; gap: 14px; }
 .overview .stat-tile {
-  flex: 1 1 0; min-width: 0; height: 70px; padding: 6px;
+  flex: 1 1 0; min-width: 0; height: 64px; padding: 4px;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
   border-radius: 16px; text-align: center;
 }
@@ -305,10 +306,10 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 26
 .health-refresh[aria-busy="true"] svg { animation: spin 0.9s linear infinite; }
 .health-score { flex: none; display: grid; justify-items: center; text-align: center; }
 .health-status { margin: 0; font-size: 13px; }
-.health-details { flex: 1; display: grid; gap: 8px; }
+.health-details { flex: 1; display: grid; gap: 4px; }
 .overview .health-details h2, .health-details p { margin: 0; }
 .overview .health-details h2 { padding-inline-end: 32px; }
-.health-details .boost-btn { justify-self: start; min-width: 150px; margin-top: 14px; }
+.health-details .boost-btn { justify-self: start; min-width: 150px; margin-top: 10px; }
 @media (prefers-reduced-motion: reduce) {
   .cleaning-broom, .cleaning-dust circle, .cleaning-track span, .cleaning-track.complete span,
   .done-check, .done-check svg > *, .done-title { animation: none; }

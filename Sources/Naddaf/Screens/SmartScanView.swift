@@ -118,8 +118,9 @@ struct OverviewView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                HStack(alignment: .top, spacing: 18) {
+            // Compact so the whole page fits the window without scrolling.
+            VStack(alignment: .leading, spacing: 20) {
+                HStack(alignment: .top, spacing: 16) {
                     healthPanel
                     diskPanel
                         .containerRelativeFrame(.horizontal) { width, _ in max(250, (width - 18) / 3.15) }
@@ -136,8 +137,8 @@ struct OverviewView: View {
                         .frame(maxWidth: .infinity)
                 }
             }
-            .padding(.top, 18)
-            .padding(.bottom, 28)
+            .padding(.top, 20)
+            .padding(.bottom, 10)
         }
         .frame(maxWidth: 900)
         .padding(.horizontal, 40)
@@ -188,7 +189,7 @@ struct OverviewView: View {
                 }
             }
         }
-        .padding(18)
+        .padding(14)
         .frame(maxHeight: .infinity, alignment: .top)
         .depthGlass(RoundedRectangle(cornerRadius: 22))
     }
@@ -213,7 +214,7 @@ struct OverviewView: View {
                 Text(L("overview.unknown")).foregroundStyle(.secondary)
             }
         }
-        .padding(18)
+        .padding(14)
         .frame(maxHeight: .infinity, alignment: .top)
         .depthGlass(RoundedRectangle(cornerRadius: 22))
     }
@@ -233,11 +234,11 @@ struct OverviewView: View {
     }
 
     private var recommendationsPanel: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 7) {
             Text(L("overview.tips"))
-                .font(.system(size: 17, weight: .semibold))
+                .font(.system(size: 15, weight: .semibold))
                 .accessibilityAddTraits(.isHeader)
-                .padding(.bottom, 4)
+                .padding(.bottom, 2)
             tipRow(L("overview.tipJunk"), section: .cleanup, tab: .sweep)
             if let trash = tiles.first(where: { $0.key == "tab.trash" }), trash.bytes > 0 {
                 tipRow(String(format: L("overview.tipBin"), formatBytes(trash.bytes)), section: .cleanup, tab: .trash)
@@ -247,14 +248,14 @@ struct OverviewView: View {
             tipRow(L("overview.tipStartup"), section: .performance, tab: .loginItems)
             tipRow(L("overview.tipMap"), section: .diskMap)
         }
-        .padding(18)
+        .padding(14)
         .depthGlass(RoundedRectangle(cornerRadius: 22))
     }
 
     private func tipRow(_ title: String, section: AppSection, tab: SectionTab? = nil) -> some View {
         HStack(spacing: 12) {
             Text(title)
-                .font(.system(size: 13))
+                .font(.system(size: 12))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -264,8 +265,8 @@ struct OverviewView: View {
                 .accessibilityHint(title)
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 14))
+        .padding(.vertical, 5)
+        .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 12))
     }
 
     private func issueDestination(_ issue: String) -> (AppSection, SectionTab?)? {
@@ -280,18 +281,18 @@ struct OverviewView: View {
 
     private func scoreRing(fraction: Double, value: String, label: String) -> some View {
         ZStack {
-            Circle().strokeBorder(.white.opacity(0.14), lineWidth: 7)
+            Circle().strokeBorder(.white.opacity(0.14), lineWidth: 6)
             if fraction > 0 {
-                Circle().inset(by: 3.5)
+                Circle().inset(by: 3)
                     .trim(from: 0, to: fraction)
-                    .stroke(section.tint, style: StrokeStyle(lineWidth: 7, lineCap: .round))
+                    .stroke(section.tint, style: StrokeStyle(lineWidth: 6, lineCap: .round))
                     .rotationEffect(.degrees(-90))
             }
             Text(value)
-                .font(.system(size: 21, weight: .bold))
+                .font(.system(size: 18, weight: .bold))
                 .monospacedDigit()
         }
-        .frame(width: 90, height: 90)
+        .frame(width: 68, height: 68)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(label)
         .accessibilityValue(value)
@@ -323,7 +324,7 @@ struct OverviewView: View {
         .lineLimit(1)
         .minimumScaleFactor(0.8)
         .padding(.horizontal, 6)
-        .frame(maxWidth: .infinity, minHeight: 70, maxHeight: 70)
+        .frame(maxWidth: .infinity, minHeight: 66, maxHeight: 66)
         .depthGlass(RoundedRectangle(cornerRadius: 16), lift: 0.8)
         .accessibilityElement(children: .combine)
     }
