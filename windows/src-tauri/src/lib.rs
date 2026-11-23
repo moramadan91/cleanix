@@ -483,11 +483,10 @@ pub fn run() {
             #[cfg(windows)]
             if window.label() == "main" {
                 if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                    if window.state::<AppState>().settings.lock().unwrap().stay_in_tray() {
-                        api.prevent_close();
-                        let _ = window.hide();
-                        let _ = window.set_skip_taskbar(true);
-                    }
+                    // X always hides to the tray, like the Mac menu bar; Quit lives in the tray menu.
+                    api.prevent_close();
+                    let _ = window.hide();
+                    let _ = window.set_skip_taskbar(true);
                 }
             }
             #[cfg(not(windows))]

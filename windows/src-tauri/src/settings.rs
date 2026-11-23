@@ -37,11 +37,6 @@ impl Settings {
         fs::write(&tmp, serde_json::to_vec_pretty(self)?)?;
         fs::rename(&tmp, path)
     }
-
-    #[cfg(windows)]
-    pub fn stay_in_tray(&self) -> bool {
-        self.open_at_login || self.alert_low_space || self.alert_weekly
-    }
 }
 
 pub fn now() -> u64 {
