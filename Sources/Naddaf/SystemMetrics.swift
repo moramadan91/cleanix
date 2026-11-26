@@ -107,7 +107,7 @@ final class MenuBarStats {
         }
         guard timer == nil else { return }
         sample()
-        let timer = Timer(timeInterval: 5, repeats: true) { [weak self] _ in
+        let timer = Timer(timeInterval: 10, repeats: true) { [weak self] _ in
             // This timer is installed only on the main run loop.
             MainActor.assumeIsolated { self?.sample() }
         }

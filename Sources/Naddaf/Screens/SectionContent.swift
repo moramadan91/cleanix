@@ -53,7 +53,9 @@ struct SectionContent: View {
         case (_, .sweep?):
             ScanListView(section: section, mode: .clean(.quarantine)) { SweepScanner(home: home) }
         case (_, .trash?):
-            ScanListView(section: section, mode: .emptyTrash) { TrashScanner(trashRoots: [h(".Trash")]) }
+            ScanListView(section: section, mode: .emptyTrash) {
+                TrashScanner(trashRoots: [h(".Trash")], allowFinder: !env.isDemo)
+            }
         case (_, .mail?):
             ScanListView(section: section, mode: .clean(.trash)) {
                 MailAttachmentsScanner(mailDownloads: [

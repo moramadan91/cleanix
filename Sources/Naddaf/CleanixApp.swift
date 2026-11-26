@@ -94,13 +94,27 @@ private struct MonitorMenuBarLabel: View {
 }
 
 private struct MainWindowRegistration: NSViewRepresentable {
-    func makeNSView(context: Context) -> WindowObserver { WindowObserver() }
+    @Environment(\.openWindow) private var openWindow
+
+    func makeNSView(context: Context) -> WindowObserver {
+        let open = openWindow
+        return WindowObserver { open(id: CleanixApp.mainWindowID) }
+    }
     func updateNSView(_ view: WindowObserver, context: Context) {}
 
     final class WindowObserver: NSView {
+        private let reopen: () -> Void
+
+        init(reopen: @escaping () -> Void) {
+            self.reopen = reopen
+            super.init(frame: .zero)
+        }
+
+        required init?(coder: NSCoder) { nil }
+
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
-            if let window { SplashDelegate.registerMainWindow(window) }
+            if let window { SplashDelegate.registerMainWindow(window, reopen: reopen) }
         }
     }
 }
@@ -119,13 +133,13 @@ final class SplashDelegate: NSObject, NSApplicationDelegate {
     private static weak var mainWindow: NSWindow?
     private static weak var monitorPanel: NSWindow?
     private static let registeredWindows = NSHashTable<NSWindow>.weakObjects()
-    private static let suppressedWindows = NSHashTable<NSWindow>.weakObjects()
     private static var waitingForReopen = false
+    private(set) static var reopenMainWindow: (() -> Void)?
+    static var pendingSmartScan = false
     private static var pendingUpdateCheck: (() -> Void)?
 
     func applicationWillFinishLaunching(_ notification: Notification) {
         configureSilentLogin()
-        observeWindowActivation()
         NotificationCenter.default.addObserver(self, selector: #selector(mainWindowWillClose),
                                                name: NSWindow.willCloseNotification, object: nil)
     }
@@ -168,6 +182,7 @@ final class SplashDelegate: NSObject, NSApplicationDelegate {
         panel.contentView = NSHostingView(rootView: IntroView { [weak self] in self?.reveal() })
         self.panel = panel
         splashing = true
+        observeWindowActivation()
 
         mainWindows.forEach(hide)
         panel.orderFrontRegardless()
@@ -177,10 +192,14 @@ final class SplashDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
         guard Self.waitingForReopen || sender.activationPolicy() == .accessory else { return true }
-        return !Self.showMainWindow()
+        if Self.showMainWindow() { return false }
+        guard let reopen = Self.reopenMainWindow else { return true }
+        reopen()
+        return false
     }
 
-    static func registerMainWindow(_ window: NSWindow) {
+    static func registerMainWindow(_ window: NSWindow, reopen: @escaping () -> Void) {
+        reopenMainWindow = reopen
         registeredWindows.add(window)
         mainWindow = window
         if waitingForReopen { suppressLoginWindow(window) }
@@ -192,11 +211,6 @@ final class SplashDelegate: NSObject, NSApplicationDelegate {
         waitingForReopen = false
         if NSApp.activationPolicy() != .regular { NSApp.setActivationPolicy(.regular) }
         MenuBarMonitor.shared.requiresMenuBar = false
-        for window in suppressedWindows.allObjects {
-            window.alphaValue = 1
-            window.ignoresMouseEvents = false
-        }
-        suppressedWindows.removeAllObjects()
         let window = mainWindow ?? registeredWindows.anyObject
         if let window {
             if window.isMiniaturized { window.deminiaturize(nil) }
@@ -212,7 +226,6 @@ final class SplashDelegate: NSObject, NSApplicationDelegate {
     @objc private func mainWindowWillClose(_ notification: Notification) {
         guard let window = notification.object as? NSWindow, Self.registeredWindows.contains(window) else { return }
         Self.registeredWindows.remove(window)
-        Self.suppressedWindows.remove(window)
         if Self.mainWindow === window { Self.mainWindow = nil }
         guard !Self.registeredWindows.allObjects.contains(where: { $0.isVisible || $0.isMiniaturized }) else { return }
         Self.enterMenuBarMode()
@@ -224,10 +237,11 @@ final class SplashDelegate: NSObject, NSApplicationDelegate {
     }
 
     private static func suppressLoginWindow(_ window: NSWindow) {
-        suppressedWindows.add(window)
-        window.alphaValue = 0
-        window.ignoresMouseEvents = true
-        window.orderOut(nil)
+        // Registration can happen while SwiftUI is still attaching its content.
+        Task { @MainActor [weak window] in
+            guard let window, waitingForReopen, registeredWindows.contains(window) else { return }
+            window.close()
+        }
     }
 
     private func observeWindowActivation() {
@@ -238,7 +252,6 @@ final class SplashDelegate: NSObject, NSApplicationDelegate {
                 MainActor.assumeIsolated {
                     guard let self, let w, w !== self.panel else { return }
                     if self.splashing { self.hide(w) }
-                    if Self.waitingForReopen, Self.suppressedWindows.contains(w) { Self.suppressLoginWindow(w) }
                 }
             })
         }

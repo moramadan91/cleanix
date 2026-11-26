@@ -3,26 +3,33 @@ import Foundation
 /// One item per trash bin that has content. Emptying is permanent, so it needs `confirmed: true`.
 public struct TrashScanner: Scanner {
     private let trashRoots: [URL]
+    private let allowFinder: Bool
 
-    public init(trashRoots: [URL]) { self.trashRoots = trashRoots }
+    public init(trashRoots: [URL], allowFinder: Bool = true) {
+        self.trashRoots = trashRoots
+        self.allowFinder = allowFinder
+    }
 
+    @concurrent
     public func scan() async throws -> [ScanItem] {
         var items: [ScanItem] = []
         for root in trashRoots where FS.exists(root) {
             try Task.checkCancellation()
-            if FinderTrash.needed(for: root) {
-                // Finder can count the bin but not size it, so the item carries 0 bytes.
-                let count = FinderTrash.count()
-                if count > 0 {
-                    items.append(ScanItem(url: root, bytes: 0, reason: "\(count) items", safety: .review, group: root.lastPathComponent))
-                }
+            let count: Int
+            let size: Int64?
+            if let children = try? FileManager.default.contentsOfDirectory(atPath: root.path) {
+                count = children.filter { $0 != ".DS_Store" }.count
+                size = count > 0 ? FS.size(of: root) : 0
+            } else if allowFinder, root.lastPathComponent == ".Trash", let summary = FinderTrash.summary() {
+                count = summary.count
+                size = summary.bytes
+            } else {
                 continue
             }
-            let bytes = FS.size(of: root)
-            if bytes > 0 {
-                items.append(ScanItem(url: root, bytes: bytes, reason: "Trash bin",
-                                      safety: .review, group: root.lastPathComponent))
-            }
+            try Task.checkCancellation()
+            guard count > 0 else { continue }
+            items.append(ScanItem(url: root, bytes: size ?? 0, reason: "Trash bin", safety: .review,
+                                  group: root.lastPathComponent, itemCount: count, hasMeasuredSize: size != nil))
         }
         return items
     }
@@ -76,7 +83,7 @@ public func emptyTrash(
 }
 
 /// ~/.Trash can be read only with Full Disk Access, and macOS never asks for it: without it the bin
-/// just looks empty. Then it is counted and emptied through Finder, which asks once to let Cleanix
+/// just looks empty. Then it is measured and emptied through Finder, which asks once to let Cleanix
 /// control it. shortcut: Finder's empty clears every bin (external drives too), as the Finder menu does.
 enum FinderTrash {
     /// The user's own bin, unreadable to us right now.
@@ -91,13 +98,58 @@ enum FinderTrash {
         policy.isAllowed(bin.appendingPathComponent("item"))
     }
 
-    static func count() -> Int { Int(run([#"tell application "Finder" to return count items of trash"#]) ?? "") ?? 0 }
+    static func summary() -> (count: Int, bytes: Int64?)? {
+        // Finder's Apple event properties: trsh = trash, ptsz = size, phys = physical size.
+        let script = """
+        tell application "Finder"
+            with timeout of 10 seconds
+                set itemCount to count items of «property trsh»
+            end timeout
+            if itemCount is 0 then return {0, 0}
+            try
+                with timeout of 10 seconds
+                    set itemSizes to «property ptsz» of every item of «property trsh»
+                    if (count of itemSizes) is not itemCount then return {itemCount}
+                    if missing value is in itemSizes then
+                        set physicalSizes to «property phys» of every item of «property trsh»
+                        repeat with i from 1 to count of itemSizes
+                            if item i of itemSizes is missing value then set item i of itemSizes to item i of physicalSizes
+                        end repeat
+                    end if
+                    if missing value is in itemSizes then
+                        repeat with i from 1 to count of itemSizes
+                            if item i of itemSizes is missing value then
+                                set item i of itemSizes to my sizeForAlias(item i of «property trsh» as alias)
+                            end if
+                        end repeat
+                    end if
+                    set totalBytes to 0.0
+                    repeat with itemSize in itemSizes
+                        if contents of itemSize is missing value then return {itemCount}
+                        set totalBytes to totalBytes + itemSize
+                    end repeat
+                    return {itemCount, totalBytes}
+                end timeout
+            on error
+                return {itemCount}
+            end try
+        end tell
+
+        on sizeForAlias(itemAlias)
+            return size of (info for itemAlias)
+        end sizeForAlias
+        """
+        guard let values = run([script])?.components(separatedBy: ", ").map({ $0.trimmingCharacters(in: .whitespaces) }),
+              let first = values.first, let count = Int(first) else { return nil }
+        let bytes = values.dropFirst().first.flatMap { Double($0.replacingOccurrences(of: ",", with: ".")) }.flatMap { Int64(exactly: $0) }
+        return (count, bytes)
+    }
 
     static func empty() -> Bool {
         run(["with timeout of 3600 seconds", #"tell application "Finder" to empty trash"#, "end timeout"]) != nil
     }
 
-    /// What emptying freed, measured on the volume, since Finder cannot size the bin.
+    /// What emptying freed, measured on the volume.
     static func freeSpace(near url: URL) -> Int64 {
         let home = url.deletingLastPathComponent()
         return Int64((try? home.resourceValues(forKeys: [.volumeAvailableCapacityKey]))?.volumeAvailableCapacity ?? 0)

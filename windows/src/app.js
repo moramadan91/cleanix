@@ -34,7 +34,9 @@ const map = { trail: [], selected: new Set(), loading: false };
 let overview = null;
 let overviewLoading = false;
 let overviewReady = !window.__TAURI__;
+let windowVisible = !window.__TAURI__;
 let cleaning = false;
+const pageVisible = () => windowVisible && !document.hidden;
 
 const $ = (s, el = document) => el.querySelector(s);
 const t = (k, ...a) => (STRINGS[lang][k] ?? STRINGS.en[k] ?? k).replace(/\{(\d)\}/g, (_, i) => a[i]);
@@ -90,6 +92,7 @@ function render() {
   if (section === 'overview') main.innerHTML = overviewView();
   else if (section === 'diskMap') main.innerHTML = mapView();
   else main.innerHTML = scanScreen();
+  pumpFootprints();
 }
 
 function header(extra = '') {
@@ -235,20 +238,29 @@ async function scan() {
 /* ---------- Recycle Bin ---------- */
 
 let bin = null;
+let binRequest = null;
+const binSummary = b => t(b.items === 1 ? 'bin.sizeOne' : 'bin.size', fmt(b.bytes), localNumber(b.items));
+
 function binView() {
   if (bin === null) { refreshBin(); return spinner(); }
   if (bin === 'none') return `<div class="center"><p class="muted">${t('overview.unknown')}</p></div>`;
-  if (!bin.items) return `<div class="center"><div class="orb done">${icon('M5 12.5l4.5 4.5L19 7.5')}</div><p>${t('bin.empty')}</p></div>`;
   return `<div class="center">
-    <div class="orb">${icon(SECTIONS[2].icon)}</div>
-    <h2 class="big-text">${t('bin.size', bin.items, fmt(bin.bytes))}</h2>
-    <button type="button" class="btn big primary" data-action="binAsk">${t('bin.action')}</button>
+    <div class="orb${bin.items ? '' : ' done'}">${icon(bin.items ? SECTIONS[2].icon : 'M5 12.5l4.5 4.5L19 7.5')}</div>
+    <h2 class="big-text">${binSummary(bin)}</h2>
+    ${bin.items ? `<button type="button" class="btn big primary" data-action="binAsk">${t('bin.action')}</button>` : `<p>${t('bin.empty')}</p>`}
   </div>`;
 }
 
+function queryBin() {
+  return binRequest ??= invoke('recycle_info').catch(() => null).finally(() => { binRequest = null; });
+}
+
 async function refreshBin() {
-  try { bin = (await invoke('recycle_info')) ?? 'none'; } catch { bin = 'none'; }
-  render();
+  const b = await queryBin();
+  bin = b ?? 'none';
+  const changed = overview && b && (overview.bin?.bytes !== b.bytes || overview.bin?.items !== b.items);
+  if (changed) overview.bin = b;
+  if (scanKey() === 'bin' || (section === 'overview' && changed)) render();
 }
 
 /* ---------- Overview ---------- */
@@ -294,7 +306,7 @@ function overviewView() {
   }
   const tips = [
     ['cleanup', 'junk', t('overview.tipJunk')],
-    ...(b && b.items ? [['cleanup', 'bin', t('overview.tipBin', fmt(b.bytes))]] : []),
+    ...(b && b.items ? [['cleanup', 'bin', t('overview.tipBin', binSummary(b))]] : []),
     ['clutter', 'large', t('overview.tipLarge')],
     ['apps', null, t('overview.tipApps')],
     ['performance', 'startup', t('overview.tipStartup')],
@@ -304,7 +316,7 @@ function overviewView() {
     ${healthView(health, overview.previousScore, overview.checkFailed)}
     <div class="panel disk"><h2>${t('overview.disk', 'C:')}</h2>${ring}</div>
     <div class="overview-stats">
-      ${statTile('tab.bin', b?.bytes == null ? '—' : fmt(b.bytes), SECTIONS[2].icon, '#2FD1A0')}
+      ${statTile('tab.bin', b ? binSummary(b) : '—', SECTIONS[2].icon, '#2FD1A0')}
       ${statTile('overview.downloads', downloads == null ? '—' : fmt(downloads), 'M12 3v12m-5-5 5 5 5-5M4 16v4h16v-4', '#4C8DFF')}
       ${statTile('tab.junk', health?.junk == null ? '—' : fmt(health.junk), broomIcon, '#FFAA3D')}
       ${health?.battery ? statTile('overview.battery', batteryValue(health.battery), 'M3 7h16v10H3zM21 10v4m-9-5-3 4h4l-2 2', '#9BD12E') : ''}
@@ -338,7 +350,7 @@ async function loadOverview(refreshButton) {
   }
   const [health, b, downloads] = await Promise.all([
     invoke('health').catch(() => null),
-    invoke('recycle_info').catch(() => null),
+    queryBin(),
     invoke('downloads_size').catch(() => null),
   ]);
   const disk = health?.disk?.total ? health.disk : await invoke('disk_info').catch(() => null);
@@ -381,12 +393,14 @@ async function askBoost() {
 
 /* ---------- Apps ---------- */
 
-const apps = { list: null, q: '', note: '' };
+const apps = { list: null, loading: false, q: '', note: '', expanded: new Set(), next: 0, active: 0, frame: null, dirty: false };
+const inUninstall = () => section === 'apps' && scanKey() === 'uninstall';
+const appCount = () => t('apps.count', apps.list.length, fmt(apps.list.reduce((sum, a) => sum + a.bytes, 0)));
 
 function appsView() {
-  if (apps.list === null) { loadApps(); return spinner(); }
+  if (apps.list === null) { if (!apps.loading) loadApps(); return spinner(); }
   if (!apps.list.length) return `<div class="center"><p class="muted">${t('apps.none')}</p></div>`;
-  const total = apps.list.reduce((s, a) => s + a.bytes, 0);
+  apps.dirty = false;
   return `<div class="bar">
       <input type="search" class="search" data-action="appSearch" value="${esc(apps.q)}" placeholder="${t('apps.search')}" aria-label="${t('apps.search')}">
       <span class="grow"></span>${sortMenu()}
@@ -394,23 +408,91 @@ function appsView() {
     </div>
     ${apps.note ? `<p class="note">${esc(apps.note)}</p>` : ''}
     <div class="panel list" id="appList">${appRows()}</div>
-    <div class="actions split"><span class="muted">${t('apps.count', apps.list.length, fmt(total))}</span></div>`;
+    <div class="actions split"><span class="muted" id="appCount">${appCount()}</span></div>`;
 }
 
 function appRows() {
   const q = apps.q.trim().toLowerCase();
   const found = sorted(apps.list.filter(a => !q || a.name.toLowerCase().includes(q) || a.publisher.toLowerCase().includes(q)));
   if (!found.length) return `<p class="muted pad">${t('common.nothing')}</p>`;
-  return found.map(a => `<div class="row" data-app="${esc(a.id)}">
-      <div class="name"><b><bdi>${esc(a.name)}</bdi></b><small>${esc([a.publisher, a.version].filter(Boolean).join(' · '))}</small></div>
-      <span class="size">${a.bytes ? fmt(a.bytes) : '—'}</span>
-      <button type="button" class="btn small" data-action="appAsk">${t('apps.uninstall')}</button>
-    </div>`).join('');
+  return found.map(a => {
+    const expanded = apps.expanded.has(a.id);
+    const detailsId = 'appFolders-' + a.index;
+    return `<div data-app="${esc(a.id)}">
+      <div class="row">
+        <button type="button" class="icon-btn app-chevron" data-action="appFolders" aria-expanded="${expanded}" aria-controls="${detailsId}" aria-label="${t('apps.folders', esc(a.name))}">${icon('m6 9 6 6 6-6')}</button>
+        <div class="name"><b><bdi>${esc(a.name)}</bdi></b><small>${esc([a.publisher, a.version].filter(Boolean).join(' · '))}</small></div>
+        <span class="size">${a.bytes || a.footprint ? fmt(a.bytes) : '—'}</span>
+        <button type="button" class="btn small" data-action="appAsk">${t('apps.uninstall')}</button>
+      </div>
+      <div class="app-folders" id="${detailsId}" ${expanded ? '' : 'hidden'}>${expanded ? appFolders(a) : ''}</div>
+    </div>`;
+  }).join('');
+}
+
+function appFolders(app) {
+  const footprint = app.footprint;
+  if (!footprint?.files.length) {
+    const key = footprint === undefined ? 'apps.measuring' : footprint === null ? 'apps.measureFailed' : 'apps.noFolders';
+    return `<p class="muted">${t(key)}</p>`;
+  }
+  return `<ul>${footprint.files.map(({ path, bytes }) => `<li>
+    <bdi>${esc(path)}</bdi><span class="size">${fmt(bytes)}</span>
+  </li>`).join('')}</ul>`;
+}
+
+function updateAppRows() {
+  const list = $('#appList');
+  if (!list) return;
+  const focused = list.contains(document.activeElement) ? document.activeElement : null;
+  const focusedId = focused?.closest('[data-app]')?.dataset.app;
+  const scrollTop = list.scrollTop;
+  list.innerHTML = appRows();
+  if (focusedId) {
+    const row = [...list.children].find(row => row.dataset.app === focusedId);
+    row?.querySelector(`[data-action="${focused.dataset.action}"]`)?.focus({ preventScroll: true });
+  }
+  list.scrollTop = scrollTop;
+}
+
+function scheduleAppUpdate() {
+  if (!apps.dirty || apps.frame !== null || !pageVisible() || cleaning || !inUninstall()) return;
+  apps.frame = requestAnimationFrame(() => {
+    apps.frame = null;
+    const count = $('#appCount');
+    if (!apps.dirty || !count || !pageVisible() || cleaning || !inUninstall()) return;
+    updateAppRows();
+    count.textContent = appCount();
+    apps.dirty = false;
+  });
+}
+
+function pumpFootprints() {
+  if (!pageVisible() || cleaning || !inUninstall() || !apps.list) return;
+  const list = apps.list;
+  while (apps.active < 4 && apps.next < list.length) {
+    const app = list[apps.next++];
+    apps.active++;
+    invoke('app_footprint', { id: app.id }).catch(() => null).then(footprint => {
+      app.footprint = footprint;
+      if (footprint?.files?.length) app.bytes = footprint.total;
+      apps.active--;
+      if (apps.list === list) {
+        apps.dirty = true;
+        scheduleAppUpdate();
+      }
+      pumpFootprints();
+    });
+  }
 }
 
 async function loadApps() {
-  apps.list = await invoke('list_apps').catch(() => []);
-  if (section === 'apps') render();
+  apps.loading = true;
+  const list = await invoke('list_apps').catch(() => []);
+  apps.list = list.map((app, index) => ({ ...app, index }));
+  apps.next = 0;
+  apps.loading = false;
+  if (inUninstall()) render();
 }
 
 /* ---------- Heavy apps and extensions ---------- */
@@ -702,7 +784,13 @@ document.addEventListener('click', async e => {
     syncLang();
     return renderShell();
   }
-  if (el.dataset.section) { section = el.dataset.section; renderShell(); return $('#main').focus(); }
+  if (el.dataset.section) {
+    section = el.dataset.section;
+    if (scanKey() === 'bin') bin = null;
+    renderShell();
+    if (section === 'overview' && overview) refreshBin();
+    return $('#main').focus();
+  }
   if (el.dataset.tab) { tab[section] = el.dataset.tab; if (el.dataset.tab === 'bin') bin = null; return render(); }
   if (el.dataset.go) { section = el.dataset.go; if (el.dataset.goTab) tab[section] = el.dataset.goTab; if (el.dataset.goTab === 'bin') bin = null; return renderShell(); }
   if (el.dataset.crumb) { map.trail = map.trail.slice(0, +el.dataset.crumb + 1); map.selected = new Set(); return render(); }
@@ -737,7 +825,18 @@ document.addEventListener('click', async e => {
       });
     }
     case 'startupRefresh': boot.list = null; boot.note = ''; return render();
-    case 'appsRefresh': apps.list = null; apps.note = ''; return render();
+    case 'appsRefresh':
+      apps.list = null; apps.note = ''; apps.expanded.clear(); apps.dirty = false;
+      return render();
+    case 'appFolders': {
+      const expanded = !apps.expanded.delete(app.id);
+      if (expanded) apps.expanded.add(app.id);
+      el.setAttribute('aria-expanded', expanded);
+      const details = document.getElementById(el.getAttribute('aria-controls'));
+      details.hidden = !expanded;
+      details.innerHTML = expanded ? appFolders(app) : '';
+      return;
+    }
     case 'appAsk':
       modal(`<h2>${t('apps.confirmTitle', esc(app.name))}</h2><p>${t('apps.confirmBody', esc(app.name))}</p>
         <div class="actions"><button type="button" class="btn" data-modal="cancel">${t('common.cancel')}</button>
@@ -831,17 +930,43 @@ function syncLang() {
   const selected = lang;
   langUpdate = langUpdate.then(() => invoke('set_lang', { lang: selected })).catch(() => {});
 }
-renderShell();
-syncLang();
-if (window.__TAURI__) {
-  function windowShown() {
-    if (overviewReady) return;
+function syncVisibility() {
+  const visible = pageVisible();
+  document.documentElement.toggleAttribute('data-paused', !visible);
+  if (!visible) {
+    if (apps.frame !== null) cancelAnimationFrame(apps.frame);
+    apps.frame = null;
+    return;
+  }
+  if (!overviewReady) {
     overviewReady = true;
     if (section === 'overview') render();
     checkUpdate();
+  } else if ((section === 'overview' && overview) || scanKey() === 'bin') {
+    refreshBin();
   }
+  scheduleAppUpdate();
+  pumpFootprints();
+}
+document.addEventListener('visibilitychange', syncVisibility);
+renderShell();
+syncLang();
+syncVisibility();
+if (window.__TAURI__) {
   const api = window.__TAURI__;
+  let receivedVisibilityEvent = false;
+  const updateVisibility = visible => {
+    receivedVisibilityEvent = true;
+    windowVisible = visible;
+    syncVisibility();
+  };
   api.event.listen('tray-boost', askBoost).catch(() => {});
-  api.event.listen('window-shown', windowShown).then(() => api.window.getCurrentWindow().isVisible())
-    .then(visible => { if (visible) windowShown(); }).catch(() => {});
+  Promise.all([
+    api.event.listen('window-hidden', () => updateVisibility(false)),
+    api.event.listen('window-shown', () => updateVisibility(true)),
+  ]).then(async () => {
+    const mainWindow = api.window.getCurrentWindow();
+    const visible = await mainWindow.isVisible() && !(await mainWindow.isMinimized());
+    if (!receivedVisibilityEvent) updateVisibility(visible);
+  }).catch(() => {});
 }

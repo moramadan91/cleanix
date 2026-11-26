@@ -71,9 +71,7 @@ struct ScanListView: View {
                         Button(L("common.back"), systemImage: "chevron.backward") { reviewing = nil }
                             .buttonStyle(.liquid(small: true))
                     }
-                    let bytes = chosen.reduce(0) { $0 + $1.bytes }
-                    // No size when the only pick is the Trash counted through Finder.
-                    Text(String(format: L("common.itemsSelected"), chosen.count, bytes > 0 || chosen.isEmpty ? formatBytes(bytes) : "—"))
+                    Text(selectionSummary)
                         .font(.system(size: 14, weight: .semibold)).monospacedDigit()
                     Spacer()
                     SortMenu(sort: $sort)
@@ -127,6 +125,17 @@ struct ScanListView: View {
         } message: {
             Text(L("trash.confirmBody"))
         }
+    }
+
+    private var selectionSummary: String {
+        let selectedItems = chosen
+        let bytes = selectedItems.reduce(0) { $0 + $1.bytes }
+        if case .emptyTrash = mode {
+            return formatTrashSummary(bytes: selectedItems.allSatisfy(\.hasMeasuredSize) ? bytes : nil,
+                                      count: selectedItems.reduce(0) { $0 + ($1.itemCount ?? 0) })
+        }
+        return String(format: L("common.itemsSelected"), selectedItems.count,
+                      bytes > 0 || selectedItems.isEmpty ? formatBytes(bytes) : "—")
     }
 
     /// Results open on one card per group when there is more than one group.
@@ -188,8 +197,10 @@ struct ScanListView: View {
             Spacer()
             if isReveal {
                 Button(L("common.reveal")) { revealInFinder(item.url) }.buttonStyle(.liquid())
+            } else if let count = item.itemCount {
+                Text(formatTrashSummary(bytes: item.hasMeasuredSize ? item.bytes : nil, count: count))
+                    .font(.system(size: 15, weight: .medium)).monospacedDigit()
             } else {
-                // 0 = size unknown (the Trash read through Finder), not an empty item.
                 Text(item.bytes > 0 ? formatBytes(item.bytes) : localized("reason", item.reason))
                     .font(.system(size: 15, weight: .medium)).monospacedDigit()
             }

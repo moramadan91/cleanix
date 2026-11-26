@@ -1,3 +1,4 @@
+import AppKit
 import NaddafCore
 import SwiftUI
 
@@ -65,18 +66,45 @@ private final class QuickBoost {
 }
 
 struct QuickBoostControls: View {
-    var big = false
+    var showsQuit = false
     private let boost = QuickBoost.shared
     @Bindable private var purgeAccess = PurgeAccessStatus.shared
 
     var body: some View {
-        switch boost.phase {
-        case .idle:
-            Button(action: boost.scan) {
-                Label(L("boost.title"), systemImage: "bolt.fill")
-                    .frame(maxWidth: .infinity)
+        if showsQuit {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    boostButton
+                    Button(L("monitor.quit"), systemImage: "power") { NSApp.terminate(nil) }
+                        .buttonStyle(.liquid(small: true))
+                    Spacer(minLength: 0)
+                }
+                if !isIdle { status }
             }
-            .buttonStyle(.liquid(prominent: true, big: big))
+        } else if isIdle {
+            boostButton
+        } else {
+            status
+        }
+    }
+
+    private var isIdle: Bool {
+        if case .idle = boost.phase { return true }
+        return false
+    }
+
+    private var boostButton: some View {
+        Button(action: boost.scan) {
+            Label(L("boost.title"), systemImage: "bolt.fill")
+                .frame(maxWidth: showsQuit ? nil : .infinity)
+        }
+        .buttonStyle(.liquid(prominent: true, small: showsQuit))
+        .disabled(!isIdle)
+    }
+
+    @ViewBuilder private var status: some View {
+        switch boost.phase {
+        case .idle: EmptyView()
         case .scanning:
             progress(L("boost.scanning"))
         case .confirm(_, let bytes):

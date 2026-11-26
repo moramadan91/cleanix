@@ -3,7 +3,6 @@ import AppKit
 import NaddafCore
 
 struct RootView: View {
-    @Environment(\.openWindow) private var openWindow
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// Sparkle's check: shows the new version if there is one, or says the app is up to date.
     var checkForUpdates: () -> Void = {}
@@ -28,12 +27,12 @@ struct RootView: View {
             }
         }
         .id(lang)
-        .onAppear {
-            let open = openWindow
-            Alerts.shared.reopenMainWindow = { open(id: CleanixApp.mainWindowID) }
-        }
         .onReceive(NotificationCenter.default.publisher(for: .openSmartScan)) { _ in
+            SplashDelegate.pendingSmartScan = false
             selection = .smartScan
+        }
+        .onAppear {
+            if SplashDelegate.pendingSmartScan { SplashDelegate.pendingSmartScan = false; selection = .smartScan }
         }
         // Coming back from System Settings: check again so the banner goes away by itself.
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in

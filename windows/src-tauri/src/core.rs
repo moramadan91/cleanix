@@ -107,7 +107,7 @@ pub fn size_of(path: &Path) -> u64 {
     while let Some(dir) = stack.pop() {
         let Ok(entries) = fs::read_dir(&dir) else { continue };
         for e in entries.flatten() {
-            let Ok(md) = fs::symlink_metadata(e.path()) else { continue };
+            let Ok(md) = e.metadata() else { continue };
             if is_link(&md) {
                 continue;
             }
@@ -509,8 +509,11 @@ pub fn advise(path: &Path, p: &Places) -> Safety {
 pub fn disk_children(dir: &Path, p: &Places) -> Vec<DiskNode> {
     let entries = children(dir);
     let sizes: Vec<u64> = std::thread::scope(|s| {
-        let handles: Vec<_> = entries.iter().map(|e| s.spawn(move || size_of(e))).collect();
-        handles.into_iter().map(|h| h.join().unwrap_or(0)).collect()
+        let batch_size = entries.len().div_ceil(4).max(1);
+        let handles: Vec<_> = entries.chunks(batch_size)
+            .map(|batch| (batch.len(), s.spawn(move || batch.iter().map(|entry| size_of(entry)).collect::<Vec<_>>())))
+            .collect();
+        handles.into_iter().flat_map(|(n, h)| h.join().unwrap_or_else(|_| vec![0; n])).collect()
     });
     let mut nodes: Vec<DiskNode> = entries
         .into_iter()

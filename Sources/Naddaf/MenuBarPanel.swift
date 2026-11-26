@@ -7,6 +7,8 @@ extension Notification.Name {
 
 @MainActor
 func openCleanix(smartScan: Bool, openWindow: () -> Void) {
+    // A freshly opened window subscribes after this returns, so it reads the flag on appear too.
+    if smartScan { SplashDelegate.pendingSmartScan = true }
     if !SplashDelegate.showMainWindow() { openWindow() }
     if smartScan { NotificationCenter.default.post(name: .openSmartScan, object: nil) }
 }
@@ -56,7 +58,7 @@ struct MenuBarPanel: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            QuickBoostControls()
+            QuickBoostControls(showsQuit: true)
             Divider()
             VStack(spacing: 8) {
                 metric(L("monitor.disk"), disk.map { formatBytes($0.free) })
@@ -84,11 +86,14 @@ struct MenuBarPanel: View {
         .frame(width: 300)
         .preferredColorScheme(.dark)
         .environment(\.layoutDirection, Lang.direction)
+        .environment(\.screenIsVisible, isVisible)
         .id(lang)
         .background(PanelVisibility(isVisible: $isVisible))
-        .onChange(of: isVisible) {
+        .task(id: isVisible) {
             guard isVisible else { return }
-            disk = SystemMetrics.disk()
+            let snapshot = await Task.detached { SystemMetrics.disk() }.value
+            guard !Task.isCancelled else { return }
+            disk = snapshot
             updateMemorySnapshot()
         }
         .onChange(of: stats.showsStats) { if isVisible { updateMemorySnapshot() } }

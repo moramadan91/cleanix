@@ -63,3 +63,21 @@ import Foundation
         #expect(!policy.isAllowed(link.appendingPathComponent("secret.txt")))
     }
 }
+
+@Test func exactAllowanceIsLimitedToTheReviewedPath() throws {
+    try withTempDir { dir in
+        let library = dir.resolvingSymlinksInPath().appendingPathComponent("Library")
+        let reviewed = library.appendingPathComponent("Editor")
+        let child = reviewed.appendingPathComponent("data")
+        let other = library.appendingPathComponent("Unrelated")
+        try makeFile(child)
+        try makeFile(other.appendingPathComponent("data"))
+        let policy = PathPolicy(allowedRoots: []).allowingExactPaths([reviewed])
+        #expect(policy.isAllowed(reviewed))
+        #expect(!policy.isAllowed(child))
+        #expect(!policy.isAllowed(other))
+        try FileManager.default.removeItem(at: reviewed)
+        try FileManager.default.createSymbolicLink(at: reviewed, withDestinationURL: other)
+        #expect(!policy.isAllowed(reviewed))
+    }
+}

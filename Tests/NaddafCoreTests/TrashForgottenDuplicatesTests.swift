@@ -18,10 +18,16 @@ private func age(_ url: URL, days: Int) throws {
     try await withTempDirAsync { dir in
         let a = dir.appendingPathComponent("binA"), b = dir.appendingPathComponent("binB")
         try makeFile(a.appendingPathComponent("x"), bytes: 100)
-        try makeFile(a.appendingPathComponent("y"), bytes: 50)
+        try makeFile(a.appendingPathComponent("folder/y"), bytes: 50)
+        try makeFile(a.appendingPathComponent("folder/empty"), bytes: 0)
         try makeFile(b.appendingPathComponent("z"), bytes: 200)
-        let items = try await TrashScanner(trashRoots: [a, b, dir.appendingPathComponent("missing")]).scan()
-        #expect(items.map(\.bytes).sorted() == [150, 200])
+        let zero = dir.appendingPathComponent("binC")
+        try makeFile(zero.appendingPathComponent("empty"), bytes: 0)
+        let items = try await TrashScanner(trashRoots: [a, b, zero, dir.appendingPathComponent("missing")]).scan()
+        #expect(items.map(\.bytes) == [150, 200, 0])
+        #expect(items.compactMap(\.itemCount) == [2, 1, 1])
+        let measured = items.allSatisfy { $0.hasMeasuredSize }
+        #expect(measured)
     }
 }
 

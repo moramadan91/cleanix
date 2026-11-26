@@ -184,6 +184,13 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 26
 .name small { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; direction: ltr; text-align: start; }
 :dir(rtl) .name small { text-align: end; }
 .size { font-variant-numeric: tabular-nums; font-weight: 500; white-space: nowrap; }
+.app-chevron { flex: none; }
+.app-chevron[aria-expanded="true"] svg { transform: rotate(180deg); }
+.app-folders { padding-block: 4px; padding-inline: 44px 12px; font-size: 12px; }
+.app-folders ul { margin: 0; padding: 0; list-style: none; }
+.app-folders li { display: flex; align-items: baseline; gap: 12px; padding-block: 4px; }
+.app-folders li bdi { flex: 1; min-width: 0; overflow-wrap: anywhere; color: var(--muted); }
+.app-folders p { margin-block: 4px; }
 .meter { display: block; height: 3px; border-radius: 3px; background: rgba(255, 255, 255, 0.08); position: relative; overflow: hidden; }
 .meter::after { content: ""; position: absolute; inset-block: 0; inset-inline-start: 0; width: var(--w); background: var(--tint); border-radius: 3px; }
 
@@ -241,6 +248,10 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 26
 .stat-label { font-size: 10px; color: var(--muted); }
 .stat-value { font-size: 13px; line-height: 1.15; font-variant-numeric: tabular-nums; }
 .stat-value small { font-size: 9px; display: block; color: var(--muted); }
+
+:root[data-paused], :root[data-paused] *, :root[data-paused] *::before, :root[data-paused] *::after {
+  animation-play-state: paused !important;
+}
 
 /* ---------- dialog ---------- */
 .modal { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(8, 6, 12, 0.55); z-index: 10; }

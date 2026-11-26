@@ -15,21 +15,71 @@ use settings::Settings;
 use tauri::{Emitter, Manager};
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
-use std::time::SystemTime;
+#[cfg(windows)]
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex, OnceLock};
+use std::time::{Duration, Instant, SystemTime};
 
 /// Paths the UI was shown (the delete gate), shared by every command.
 struct AppState {
     places: Places,
     offered: Mutex<Offered>,
-    /// Program id -> its uninstall command, from the last listing (the UI only sends ids).
-    apps: Mutex<HashMap<String, String>>,
+    apps: Mutex<Arc<AppListing>>,
+    downloads_size: CachedSize,
+    junk_size: CachedSize,
+    #[cfg(windows)]
+    window_visible: AtomicBool,
     /// Start-up entry ids from the last listing.
     startup: Mutex<HashSet<String>>,
     boost: Mutex<Option<Vec<String>>>,
     heavy: Mutex<HashMap<String, Vec<(u32, u64)>>>,
     settings_path: PathBuf,
     settings: Mutex<Settings>,
+}
+
+#[cfg(windows)]
+fn report_window_visibility(app: &tauri::AppHandle, visible: bool) -> tauri::Result<()> {
+    if let Some(state) = app.try_state::<AppState>() {
+        if state.window_visible.swap(visible, Ordering::Relaxed) != visible {
+            let event = if visible { "window-shown" } else { "window-hidden" };
+            app.emit_to("main", event, ())?;
+        }
+    }
+    Ok(())
+}
+
+#[derive(Default)]
+struct AppListing {
+    by_id: HashMap<String, apps::InstalledApp>,
+    folders: OnceLock<apps::DataFolders>,
+}
+
+#[derive(Default)]
+struct CachedSize(Mutex<Option<(Instant, u64)>>);
+
+impl CachedSize {
+    fn get(&self, measure: impl FnOnce() -> u64) -> u64 {
+        let mut cached = self.0.lock().unwrap();
+        if let Some((at, bytes)) = *cached {
+            if at.elapsed() < Duration::from_secs(60) {
+                return bytes;
+            }
+        }
+        let bytes = measure();
+        *cached = Some((Instant::now(), bytes));
+        bytes
+    }
+
+    fn clear(&self) {
+        *self.0.lock().unwrap() = None;
+    }
+}
+
+impl AppState {
+    fn invalidate_sizes(&self) {
+        self.downloads_size.clear();
+        self.junk_size.clear();
+    }
 }
 
 #[derive(Default, Serialize)]
@@ -88,10 +138,14 @@ fn home(state: tauri::State<'_, AppState>) -> String {
 
 /// Moves the chosen items to the Recycle Bin (recoverable).
 #[tauri::command]
-async fn clean(paths: Vec<String>, state: tauri::State<'_, AppState>) -> Result<CleanResult, String> {
+async fn clean(paths: Vec<String>, app: tauri::AppHandle, state: tauri::State<'_, AppState>) -> Result<CleanResult, String> {
     let offered = Offered(state.offered.lock().unwrap().0.clone());
     let p = state.places.clone();
-    blocking(move || core::remove(&paths, &offered, &p, to_recycle_bin)).await
+    blocking(move || {
+        let result = core::remove(&paths, &offered, &p, to_recycle_bin);
+        app.state::<AppState>().invalidate_sizes();
+        result
+    }).await
 }
 
 #[cfg(windows)]
@@ -108,15 +162,33 @@ fn to_recycle_bin(_: &Path) -> Result<(), String> {
 #[tauri::command]
 async fn list_apps(state: tauri::State<'_, AppState>) -> Result<Vec<apps::InstalledApp>, String> {
     let list = blocking(apps::list).await?;
-    *state.apps.lock().unwrap() = list.iter().map(|a| (a.id.clone(), a.command.clone())).collect();
+    *state.apps.lock().unwrap() = Arc::new(AppListing {
+        by_id: list.iter().map(|a| (a.id.clone(), a.clone())).collect(),
+        folders: OnceLock::new(),
+    });
     Ok(list)
+}
+
+#[tauri::command]
+async fn app_footprint(id: String, state: tauri::State<'_, AppState>) -> Result<apps::Footprint, String> {
+    let listing = Arc::clone(&state.apps.lock().unwrap());
+    let places = state.places.clone();
+    blocking(move || {
+        let app = listing.by_id.get(&id).ok_or("unknown program")?;
+        let folders = listing.folders.get_or_init(|| {
+            let program_data = std::env::var_os("PROGRAMDATA").map(PathBuf::from);
+            apps::DataFolders::new(&places, program_data, listing.by_id.values())
+        });
+        Ok(apps::footprint(app, folders))
+    }).await?
 }
 
 /// Opens the program's own uninstaller; only for ids from the last listing.
 #[tauri::command]
-fn uninstall(id: String, state: tauri::State<'_, AppState>) -> Result<(), String> {
-    let cmd = state.apps.lock().unwrap().get(&id).cloned().ok_or("unknown program")?;
-    apps::launch(&cmd)
+async fn uninstall(id: String, state: tauri::State<'_, AppState>) -> Result<(), String> {
+    let cmd = state.apps.lock().unwrap().by_id.get(&id)
+        .map(|app| app.command.clone()).ok_or("unknown program")?;
+    blocking(move || apps::launch(&cmd)).await?
 }
 
 #[tauri::command]
@@ -129,11 +201,11 @@ async fn startup_list(state: tauri::State<'_, AppState>) -> Result<Vec<startup::
 
 /// Switches a start-up entry on or off (reversible); only ids from the last listing.
 #[tauri::command]
-fn startup_set(id: String, enabled: bool, state: tauri::State<'_, AppState>) -> Result<(), String> {
+async fn startup_set(id: String, enabled: bool, state: tauri::State<'_, AppState>) -> Result<(), String> {
     if !state.startup.lock().unwrap().contains(&id) {
         return Err("unknown entry".into());
     }
-    startup::set_enabled(&id, enabled)
+    blocking(move || startup::set_enabled(&id, enabled)).await?
 }
 
 #[tauri::command]
@@ -147,33 +219,36 @@ async fn run_task(id: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn open_settings(page: String) -> Result<(), String> {
-    apps::launch(system::settings_page(&page).ok_or("unknown page")?)
+async fn open_settings(page: String) -> Result<(), String> {
+    blocking(move || apps::launch(system::settings_page(&page).ok_or("unknown page")?)).await?
 }
 
 /// Opens a Cleanix for Windows release page in the browser (update notice); nothing else.
 #[tauri::command]
-fn open_release(tag: String) -> Result<(), String> {
+async fn open_release(tag: String) -> Result<(), String> {
     if !tag.starts_with("win-v") || !tag[5..].chars().all(|c| c.is_ascii_digit() || c == '.') {
         return Err("bad tag".into());
     }
-    apps::launch(&format!("https://github.com/moramadan91/cleanix/releases/tag/{tag}"))
+    blocking(move || apps::launch(&format!("https://github.com/moramadan91/cleanix/releases/tag/{tag}"))).await?
 }
 
 #[tauri::command]
-fn disk_info() -> Option<DiskInfo> {
-    win::disk_info()
+async fn disk_info() -> Result<Option<DiskInfo>, String> {
+    blocking(win::disk_info).await
 }
 
 #[tauri::command]
-fn recycle_info() -> Option<BinInfo> {
-    win::recycle_info()
+async fn recycle_info() -> Result<Option<BinInfo>, String> {
+    blocking(win::recycle_info).await
 }
 
 #[tauri::command]
 async fn downloads_size(app: tauri::AppHandle, state: tauri::State<'_, AppState>) -> Result<u64, String> {
-    let dir = app.path().download_dir().unwrap_or_else(|_| state.places.home.join("Downloads"));
-    blocking(move || core::size_of(&dir)).await
+    let home = state.places.home.clone();
+    blocking(move || app.state::<AppState>().downloads_size.get(|| {
+        let dir = app.path().download_dir().unwrap_or_else(|_| home.join("Downloads"));
+        core::size_of(&dir)
+    })).await
 }
 
 #[tauri::command]
@@ -213,13 +288,13 @@ fn record_scan(state: &AppState) {
 }
 
 #[tauri::command]
-async fn health(state: tauri::State<'_, AppState>) -> Result<Health, String> {
+async fn health(app: tauri::AppHandle, state: tauri::State<'_, AppState>) -> Result<Health, String> {
     let p = state.places.clone();
     let report = blocking(move || {
         let disk = win::disk_info().unwrap_or_default();
         let ram = health::ram();
         let startup = startup::list(&p).into_iter().filter(|i| i.enabled).count();
-        let junk = core::scan_junk(&p).iter().map(|i| i.bytes).sum();
+        let junk = app.state::<AppState>().junk_size.get(|| core::scan_junk(&p).iter().map(|i| i.bytes).sum());
         let (score, issues) = health::health_score(disk.free, disk.total, ram.ratio(), startup, junk);
         Health { score, issues, disk, ram, startup, junk, battery: health::battery() }
     }).await?;
@@ -253,7 +328,7 @@ struct BoostResult {
 }
 
 #[tauri::command]
-async fn boost_run(state: tauri::State<'_, AppState>) -> Result<BoostResult, String> {
+async fn boost_run(app: tauri::AppHandle, state: tauri::State<'_, AppState>) -> Result<BoostResult, String> {
     let (paths, offered) = {
         let mut boost = state.boost.lock().unwrap();
         let paths = boost.take().ok_or("no boost preview")?;
@@ -264,6 +339,7 @@ async fn boost_run(state: tauri::State<'_, AppState>) -> Result<BoostResult, Str
     blocking(move || {
         let ram_before = (health::ram().ratio() * 100.0).round() as u8;
         let result = core::remove(&paths, &offered, &p, to_recycle_bin);
+        app.state::<AppState>().invalidate_sizes();
         processes::trim_memory();
         let ram_after = (health::ram().ratio() * 100.0).round() as u8;
         BoostResult { freed: result.freed, failed: result.failed, ram_before, ram_after }
@@ -334,7 +410,7 @@ fn set_lang(lang: String, app: tauri::AppHandle, state: tauri::State<'_, AppStat
 
 #[cfg(windows)]
 fn start_alerts(app: tauri::AppHandle, start_hidden: bool) {
-    let interval = std::time::Duration::from_secs(30 * 60);
+    let interval = Duration::from_secs(30 * 60);
     std::thread::spawn(move || {
         // A due toast should not appear during a tray-only login start.
         if start_hidden {
@@ -342,7 +418,8 @@ fn start_alerts(app: tauri::AppHandle, start_hidden: bool) {
         }
         loop {
             let state = app.state::<AppState>();
-            let disk = win::disk_info();
+            let low_space_enabled = state.settings.lock().unwrap().alert_low_space;
+            let disk = low_space_enabled.then(win::disk_info).flatten();
             let (free, total) = disk.as_ref().map_or((u64::MAX, 0), |d| (d.free, d.total));
             for alert in [settings::Alert::LowSpace, settings::Alert::Weekly] {
                 let lang = {
@@ -407,7 +484,7 @@ mod win {
         info.cbSize = std::mem::size_of::<SHQUERYRBINFO>() as u32;
         // SAFETY: info is a correctly sized, writable SHQUERYRBINFO.
         let hr = unsafe { SHQueryRecycleBinW(std::ptr::null(), &mut info) };
-        (hr >= 0).then_some(BinInfo { bytes: info.i64Size as u64, items: info.i64NumItems as u64 })
+        (hr >= 0).then_some(BinInfo { bytes: info.i64Size.max(0) as u64, items: info.i64NumItems.max(0) as u64 })
     }
 
     pub fn empty_recycle() -> Result<(), String> {
@@ -454,6 +531,9 @@ pub fn run() {
             app.manage(AppState {
                 places: Places::from_env(), offered: Mutex::default(), apps: Mutex::default(),
                 startup: Mutex::default(), boost: Mutex::default(), heavy: Mutex::default(),
+                downloads_size: CachedSize::default(), junk_size: CachedSize::default(),
+                #[cfg(windows)]
+                window_visible: AtomicBool::default(),
                 settings_path, settings: Mutex::new(settings),
             });
             #[cfg(windows)]
@@ -482,11 +562,21 @@ pub fn run() {
         .on_window_event(|window, event| {
             #[cfg(windows)]
             if window.label() == "main" {
-                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                    // X always hides to the tray, like the Mac menu bar; Quit lives in the tray menu.
-                    api.prevent_close();
-                    let _ = window.hide();
-                    let _ = window.set_skip_taskbar(true);
+                match event {
+                    tauri::WindowEvent::CloseRequested { api, .. } => {
+                        // X hides to the tray. The tray menu handles process exit.
+                        api.prevent_close();
+                        if window.hide().is_ok() {
+                            let _ = report_window_visibility(window.app_handle(), false);
+                        }
+                        let _ = window.set_skip_taskbar(true);
+                    }
+                    tauri::WindowEvent::Resized(_) => {
+                        if let (Ok(shown), Ok(minimized)) = (window.is_visible(), window.is_minimized()) {
+                            let _ = report_window_visibility(window.app_handle(), shown && !minimized);
+                        }
+                    }
+                    _ => {}
                 }
             }
             #[cfg(not(windows))]
@@ -513,6 +603,7 @@ pub fn run() {
             set_lang,
             reveal,
             list_apps,
+            app_footprint,
             uninstall,
             startup_list,
             startup_set,

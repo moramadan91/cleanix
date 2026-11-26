@@ -14,8 +14,6 @@ final class Alerts: NSObject, UNUserNotificationCenterDelegate {
         var lastSentKey: String { rawValue + "LastSent" }
     }
 
-    var reopenMainWindow: (() -> Void)?
-
     private let defaults = UserDefaults.standard
     // The bare SwiftPM executable has no application identity for notifications.
     private let center = Bundle.main.bundleIdentifier.map { _ in UNUserNotificationCenter.current() }
@@ -104,7 +102,7 @@ final class Alerts: NSObject, UNUserNotificationCenterDelegate {
     }
 
     private func openSmartScan() {
-        openCleanix(smartScan: true) { reopenMainWindow?() }
+        openCleanix(smartScan: true) { SplashDelegate.reopenMainWindow?() }
     }
 }
 

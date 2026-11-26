@@ -29,8 +29,9 @@ struct SectionHero: View {
     let section: AppSection
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.screenIsVisible) private var isVisible
 
-    private var live: Bool { scenePhase == .active && !reduceMotion }
+    private var live: Bool { scenePhase == .active && isVisible && !reduceMotion }
 
     var body: some View {
         ZStack {

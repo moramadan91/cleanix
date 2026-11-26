@@ -1,5 +1,5 @@
 use crate::{health, settings, AppState};
-use std::time::Duration;
+use std::{sync::mpsc, time::Duration};
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
@@ -26,7 +26,7 @@ pub fn show_main(app: &AppHandle) -> tauri::Result<()> {
         window.show()?;
         let _ = window.set_skip_taskbar(false);
         let _ = window.set_focus();
-        window.emit("window-shown", ())?;
+        crate::report_window_visibility(app, true)?;
     }
     Ok(())
 }
@@ -50,6 +50,7 @@ pub fn refresh_menu(app: &AppHandle, lang: &str) -> tauri::Result<()> {
 }
 
 pub fn setup(app: &AppHandle, lang: &str) -> tauri::Result<()> {
+    let (hover, hovering) = mpsc::channel();
     let mut tray = TrayIconBuilder::with_id(ID)
         .menu(&menu(app, lang)?)
         .tooltip(tooltip(lang, 0))
@@ -64,9 +65,14 @@ pub fn setup(app: &AppHandle, lang: &str) -> tauri::Result<()> {
             "tray-quit" => app.exit(0),
             _ => {}
         })
-        .on_tray_icon_event(|tray, event| {
-            if matches!(event, TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. }) {
-                let _ = show_main(tray.app_handle());
+        .on_tray_icon_event(move |tray, event| {
+            match event {
+                TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } => {
+                    let _ = show_main(tray.app_handle());
+                }
+                TrayIconEvent::Enter { .. } => { let _ = hover.send(true); }
+                TrayIconEvent::Leave { .. } => { let _ = hover.send(false); }
+                _ => {}
             }
         });
     if let Some(icon) = app.default_window_icon() {
@@ -76,15 +82,23 @@ pub fn setup(app: &AppHandle, lang: &str) -> tauri::Result<()> {
 
     let app = app.clone();
     std::thread::spawn(move || {
-        let mut prev = health::system_times();
-        loop {
-            std::thread::sleep(Duration::from_secs(3));
-            let now = health::system_times();
-            let cpu = prev.zip(now).map_or(0, |(a, b)| health::cpu_percent(a, b));
-            prev = now;
-            let lang = app.state::<AppState>().settings.lock().unwrap().lang.clone();
-            let Some(tray) = app.tray_by_id(ID) else { break };
-            let _ = tray.set_tooltip(Some(tooltip(&lang, cpu)));
+        while let Ok(entered) = hovering.recv() {
+            if !entered { continue; }
+            let mut prev = health::system_times();
+            let mut interval = Duration::from_millis(250);
+            let started = std::time::Instant::now();
+            // Repeated Enter keeps sampling; Leave or 60 s (a lost Leave) stops it.
+            while matches!(hovering.recv_timeout(interval), Ok(true) | Err(mpsc::RecvTimeoutError::Timeout))
+                && started.elapsed() < Duration::from_secs(60)
+            {
+                let now = health::system_times();
+                let cpu = prev.zip(now).map_or(0, |(a, b)| health::cpu_percent(a, b));
+                prev = now;
+                interval = Duration::from_secs(3);
+                let lang = app.state::<AppState>().settings.lock().unwrap().lang.clone();
+                let Some(tray) = app.tray_by_id(ID) else { return };
+                let _ = tray.set_tooltip(Some(tooltip(&lang, cpu)));
+            }
         }
     });
     Ok(())

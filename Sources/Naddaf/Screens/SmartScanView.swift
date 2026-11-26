@@ -97,6 +97,18 @@ struct SmartScanView: View {
 
 /// Health, storage, and shortcuts to the tools that can help.
 struct OverviewView: View {
+    private struct StorageTile: Sendable {
+        let key: String
+        let symbol: String
+        let bytes: Int64?
+        var itemCount: Int? = nil
+
+        var summary: String {
+            if let itemCount { return formatTrashSummary(bytes: bytes, count: itemCount) }
+            return bytes.map(formatBytes) ?? L("monitor.unavailable")
+        }
+    }
+
     @Environment(\.screenIsVisible) private var isVisible
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.openSection) private var openSection
@@ -106,7 +118,8 @@ struct OverviewView: View {
     @State private var volumeName: String?
     @State private var total: Int64 = 0
     @State private var free: Int64 = 0
-    @State private var tiles: [(key: String, symbol: String, bytes: Int64)] = []
+    @State private var tiles: [StorageTile] = []
+    @State private var tileCache: (refresh: Int, measuredAt: ContinuousClock.Instant)?
     @State private var loading = false
     @State private var refresh = 0
     @State private var health: HealthScore?
@@ -222,7 +235,7 @@ struct OverviewView: View {
     private var statTiles: some View {
         HStack(spacing: 14) {
             ForEach(tiles, id: \.key) { tile in
-                overviewTile(title: L(tile.key), symbol: tile.symbol, value: formatBytes(tile.bytes))
+                overviewTile(title: L(tile.key), symbol: tile.symbol, value: tile.summary)
             }
             if let battery {
                 overviewTile(title: L("overview.battery"), symbol: batterySymbol(for: battery.percent),
@@ -240,8 +253,8 @@ struct OverviewView: View {
                 .accessibilityAddTraits(.isHeader)
                 .padding(.bottom, 2)
             tipRow(L("overview.tipJunk"), section: .cleanup, tab: .sweep)
-            if let trash = tiles.first(where: { $0.key == "tab.trash" }), trash.bytes > 0 {
-                tipRow(String(format: L("overview.tipBin"), formatBytes(trash.bytes)), section: .cleanup, tab: .trash)
+            if let trash = tiles.first(where: { $0.key == "tab.trash" }), (trash.itemCount ?? 0) > 0 {
+                tipRow(String(format: L("overview.tipBin"), trash.summary), section: .cleanup, tab: .trash)
             }
             tipRow(L("overview.tipLarge"), section: .clutter, tab: .large)
             tipRow(L("overview.tipApps"), section: .apps, tab: .unused)
@@ -301,7 +314,7 @@ struct OverviewView: View {
     private func refreshButton(title: String, active: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: "arrow.clockwise")
-                .symbolEffect(.rotate, options: .repeating, isActive: active && !reduceMotion)
+                .symbolEffect(.rotate, options: .repeating, isActive: active && isVisible && !reduceMotion)
         }
         .buttonStyle(.liquid(small: true))
         .disabled(active)
@@ -348,34 +361,48 @@ struct OverviewView: View {
         let sections = await Task.detached { await smart.run() }.value
         lastScanBytes = Int(sections.reduce(0) { $0 + $1.bytes })
         UserDefaults.standard.set(Date(), forKey: "lastSmartScanDate")
-        await load()
+        await load(forceFolderRefresh: true)
         previousScore = before
         checking = false
     }
 
-    private func load() async {
+    private func load(forceFolderRefresh: Bool = false) async {
         guard !Task.isCancelled else { return }
         loading = true
         let started = Date()
         defer { if !Task.isCancelled { loading = false } }
-        let home = AppEnv.shared.home
-        let values = try? home.resourceValues(forKeys: [
-            .volumeNameKey, .volumeTotalCapacityKey, .volumeAvailableCapacityForImportantUsageKey,
-        ])
-        volumeName = values?.volumeName
-        total = Int64(values?.volumeTotalCapacity ?? 0)
-        free = min(total, max(0, values?.volumeAvailableCapacityForImportantUsage ?? 0))
+        let env = AppEnv.shared
+        let home = env.home
+        let revision = refresh
+        let loginItems = loginItems
+        let snapshot = await Task.detached {
+            let values = try? home.resourceValues(forKeys: [
+                .volumeNameKey, .volumeTotalCapacityKey, .volumeAvailableCapacityForImportantUsageKey,
+            ])
+            // Extract Foundation resource values before crossing the task boundary.
+            return (volumeName: values?.volumeName, total: values?.volumeTotalCapacity,
+                    free: values?.volumeAvailableCapacityForImportantUsage,
+                    loginItemCount: loginItems.items().count, battery: BatteryHealth.read())
+        }.value
+        guard !Task.isCancelled else { return }
+        volumeName = snapshot.volumeName
+        total = Int64(snapshot.total ?? 0)
+        free = min(total, max(0, snapshot.free ?? 0))
         health = healthScore(HealthInputs(freeBytes: free, totalBytes: total,
                                          memoryPressure: SystemMetrics.memoryUsed() ?? 0,
-                                         loginItems: loginItems.items().count, junkBytes: Int64(lastScanBytes)))
-        battery = BatteryHealth.read()
+                                         loginItems: snapshot.loginItemCount, junkBytes: Int64(lastScanBytes)))
+        battery = snapshot.battery
+        if !forceFolderRefresh, let tileCache, tileCache.refresh == revision,
+           tileCache.measuredAt.duration(to: .now) < .seconds(60) { return }
         let places = [
-            (key: "tab.trash", path: ".Trash", symbol: "trash"),
             (key: "tab.downloads", path: "Downloads", symbol: "arrow.down.circle"),
             (key: "tab.appCaches", path: "Library/Caches", symbol: "shippingbox"),
             (key: "group.Logs", path: "Library/Logs", symbol: "doc.text"),
         ]
-        // The four folders are sized at the same time (warm cache: ~0.58 s one by one, ~0.35 s together).
+        // No Finder here: its Automation prompt must come from the Trash tab, where the user asked for it.
+        let trashURL = home.appendingPathComponent(".Trash")
+        let trash = TrashScanner(trashRoots: [trashURL], allowFinder: false)
+        async let trashItems = try? trash.scan()
         let sizes = await withTaskGroup(of: (Int, Int64).self) { group in
             for (i, place) in places.enumerated() {
                 group.addTask { (i, FS.size(of: home.appendingPathComponent(place.path))) }
@@ -384,8 +411,15 @@ struct OverviewView: View {
             for await (i, bytes) in group { out[i] = bytes }
             return out
         }
+        let bin = await trashItems?.first
         guard !Task.isCancelled else { return }
-        tiles = zip(places, sizes).map { (key: $0.0.key, symbol: $0.0.symbol, bytes: $0.1) }
+        let unreadable = (try? FileManager.default.contentsOfDirectory(atPath: trashURL.path)) == nil
+        let trashTile = unreadable ? StorageTile(key: "tab.trash", symbol: "trash", bytes: nil)
+            : StorageTile(key: "tab.trash", symbol: "trash",
+                          bytes: bin?.hasMeasuredSize == false ? nil : bin?.bytes ?? 0,
+                          itemCount: bin?.itemCount ?? 0)
+        tiles = [trashTile] + zip(places, sizes).map { StorageTile(key: $0.key, symbol: $0.symbol, bytes: $1) }
+        tileCache = (revision, .now)
         // Keep the spin visible a moment: a refresh that finishes in 0.3 s looks like nothing happened.
         let left = 0.6 - Date().timeIntervalSince(started)
         if !reduceMotion, left > 0 { try? await Task.sleep(for: .seconds(left)) }
@@ -401,9 +435,10 @@ struct LensScanView: View {
     var stages = ["scan.stage1", "scan.stage2", "scan.stage3", "scan.stage4"]
     static let duration = 6.0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.screenIsVisible) private var isVisible
 
     var body: some View {
-        TimelineView(.animation(paused: reduceMotion)) { context in
+        TimelineView(.animation(paused: reduceMotion || !isVisible)) { context in
             let t = max(0, context.date.timeIntervalSince(started))
             let progress = min(1, t / Self.duration)
             VStack(spacing: 28) {

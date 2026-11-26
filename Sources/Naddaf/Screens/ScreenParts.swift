@@ -484,7 +484,18 @@ struct RowBackground: ViewModifier {
 
 /// Path shown with the home folder as "~".
 func displayPath(_ url: URL) -> String {
-    url.path(percentEncoded: false).replacingOccurrences(of: AppEnv.shared.home.path, with: "~")
+    let path = url.path(percentEncoded: false)
+    let env = AppEnv.shared
+    for home in [env.home.path, env.canonicalHome.path] {
+        if path == home { return "~" }
+        if path.hasPrefix(home + "/") { return "~" + path.dropFirst(home.count) }
+    }
+    return path
+}
+
+func formatTrashSummary(bytes: Int64?, count: Int) -> String {
+    String(format: L("trash.summary"), bytes.map(formatBytes) ?? L("monitor.unavailable"),
+           count.formatted(.number.locale(Lang.locale)))
 }
 
 /// Localized name of a scanner group ("Logs", "Developer"...), or the raw name if it has none.

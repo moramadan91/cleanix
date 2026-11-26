@@ -2,6 +2,24 @@
 const H = 'C:\\Users\\Demo';
 const mk = (path, bytes, group, safety = 'safe') => ({ path, name: path.split('\\').pop(), bytes, group, safety });
 const MB = 1024 * 1024;
+const installed = [
+  ['Adobe Photoshop 2025', 'Adobe Inc.', '26.1', 4800],
+  ['Google Chrome', 'Google LLC', '131.0', 620],
+  ['Zoom Workplace', 'Zoom Communications', '6.2.5', 310],
+  ['7-Zip 24.08 (x64)', 'Igor Pavlov', '24.08', 5],
+  ['Steam', 'Valve Corporation', '2.10', 0],
+  ['Microsoft Teams', 'Microsoft Corporation', '24295', 740],
+  ['Unity', 'Unity Technologies', '6000.0', 600],
+].map(([name, publisher, version, mb], i) => ({ id: 'lm64\\app' + i, name, publisher, version, bytes: mb * MB }));
+const footprints = [
+  [['C:\\Program Files\\Adobe\\Adobe Photoshop 2025', 5150], [H + '\\AppData\\Roaming\\Adobe Photoshop 2025', 320]],
+  [['C:\\Program Files\\Google\\Chrome\\Application', 620], [H + '\\AppData\\Local\\Google Chrome', 390]],
+  [[H + '\\AppData\\Local\\Programs\\Zoom Workplace', 390]],
+  [['C:\\Program Files\\7-Zip', 6]],
+  [['C:\\Program Files (x86)\\Steam', 22150], [H + '\\AppData\\Local\\Steam', 580]],
+  [[H + '\\AppData\\Local\\Programs\\Microsoft Teams', 810], ['C:\\ProgramData\\Microsoft Teams', 160]],
+  [['C:\\Program Files\\Unity', 32160], [H + '\\AppData\\Roaming\\Unity', 440], ['C:\\ProgramData\\Unity Technologies\\Unity', 120]],
+];
 const DATA = {
   junk: [
     mk(H + '\\AppData\\Local\\Temp\\setup_4821', 912 * MB, 'temp'),
@@ -105,10 +123,13 @@ export async function mockInvoke(cmd, args = {}) {
     }
     case 'disk_info': return disk;
     case 'downloads_size': return dirs[H].find(([name]) => name === 'Downloads')[1] * MB;
-    case 'list_apps': return [
-      ['Adobe Photoshop 2025', 'Adobe Inc.', '26.1', 4800], ['Google Chrome', 'Google LLC', '131.0', 620], ['Zoom Workplace', 'Zoom Communications', '6.2.5', 310],
-      ['7-Zip 24.08 (x64)', 'Igor Pavlov', '24.08', 5], ['Steam', 'Valve Corporation', '2.10', 0], ['Microsoft Teams', 'Microsoft Corporation', '24295', 740],
-    ].map(([name, publisher, version, mb], i) => ({ id: 'lm64\\app' + i, name, publisher, version, bytes: mb * MB }));
+    case 'list_apps': return installed.map(app => ({ ...app }));
+    case 'app_footprint': {
+      const folders = footprints[installed.findIndex(app => app.id === args.id)];
+      if (!folders) throw new Error('unknown program');
+      const files = folders.map(([path, mb]) => ({ path, bytes: mb * MB }));
+      return { total: bytesOf(files), files };
+    }
     case 'uninstall': return null;
     case 'startup_list': return [
       ['cu|Spotify', 'Spotify', '"C:\\Users\\Demo\\AppData\\Roaming\\Spotify\\Spotify.exe" /minimized', true, false],

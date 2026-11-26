@@ -145,6 +145,22 @@
         }
       }
     },
+    "apps.hideFiles": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إخفاء الملفات"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hide files"
+          }
+        }
+      }
+    },
     "apps.selected": {
       "localizations": {
         "ar": {
@@ -157,6 +173,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Selected: %d apps"
+          }
+        }
+      }
+    },
+    "apps.showFiles": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "عرض الملفات"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show files"
           }
         }
       }
@@ -1645,6 +1677,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Open Cleanix"
+          }
+        }
+      }
+    },
+    "monitor.quit": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إنهاء"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quit"
           }
         }
       }
@@ -4477,6 +4525,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Empty the Trash permanently?"
+          }
+        }
+      }
+    },
+    "trash.summary": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ · %2$@ عنصر"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ · %2$@ items"
           }
         }
       }

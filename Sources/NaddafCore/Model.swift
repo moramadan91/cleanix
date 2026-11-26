@@ -11,9 +11,14 @@ public struct ScanItem: Identifiable, Hashable, Sendable {
     public let group: String
     /// Name shown instead of the file name (e.g. an extension's name for its id folder).
     public let title: String?
+    public let itemCount: Int?
+    public let hasMeasuredSize: Bool
 
-    public init(url: URL, bytes: Int64, reason: String, safety: Safety, group: String, title: String? = nil) {
+    public init(url: URL, bytes: Int64, reason: String, safety: Safety, group: String, title: String? = nil,
+                itemCount: Int? = nil, hasMeasuredSize: Bool = true) {
         self.title = title
+        self.itemCount = itemCount
+        self.hasMeasuredSize = hasMeasuredSize
         self.url = url
         self.bytes = bytes
         self.reason = reason
