@@ -41,6 +41,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 <key>SUPublicEDKey</key><string>xUBexQj6bLRJB5xMC9Fgm/ThBfHbsX0QA1YYwUOyggw=</string>
 <key>SUEnableAutomaticChecks</key><true/>
 <key>SUScheduledCheckInterval</key><integer>86400</integer>
+<key>SUAllowsAutomaticUpdates</key><false/>
 <key>NSPrincipalClass</key><string>NSApplication</string>
 </dict></plist>
 PLIST
