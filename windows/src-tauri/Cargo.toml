@@ -1,6 +1,6 @@
 [package]
 name = "cleanix"
-version = "0.3.3"
+version = "0.3.4"
 description = "Cleanix for Windows"
 edition = "2021"
 
