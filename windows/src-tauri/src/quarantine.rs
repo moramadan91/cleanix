@@ -920,7 +920,7 @@ pub fn classify(original: &Path, places: &Places, installed_names: &[String]) ->
     // out as settings). Generic cache/log-shaped content inside an installed
     // program's own data only needs a look first.
     if starts_with(&places.local) || starts_with(&places.roaming) {
-        let folder = folder_under_appdata(original);
+        let folder = folder_under_appdata(original, places);
         if let Some(name) = folder.as_deref().and_then(|f| matches_installed(f, installed_names)) {
             if is_generic_cache_or_logs(&parts) {
                 return result(Verdict::Review, Kind::AppData, "quarantine.reason.appData", Some(name));
@@ -942,21 +942,23 @@ fn is_generic_cache_or_logs(parts: &[&str]) -> bool {
     parts.iter().any(|p| ["cache", "caches", "cache2", "code cache", "gpucache", "cacheddata", "logs"].contains(p))
 }
 
-fn folder_under_appdata(original: &Path) -> Option<String> {
-    // AppData/<Local|Roaming>/<first folder> is the owning folder, in original case for display.
-    let comps: Vec<&str> = original
-        .components()
-        .filter_map(|c| match c {
-            std::path::Component::Normal(n) => n.to_str(),
-            _ => None,
-        })
-        .collect();
-    let at = comps.iter().position(|p| p.eq_ignore_ascii_case("appdata"))?;
-    let next = comps.get(at + 1)?.to_lowercase();
-    if !["local", "locallow", "roaming"].contains(&next.as_str()) {
-        return None;
+fn folder_under_appdata(original: &Path, places: &Places) -> Option<String> {
+    // AppData/<Local|Roaming>/<first folder> is the owning folder, in
+    // original case for display. Anchored to the stored AppData roots: the
+    // test tempdir itself may sit under a real `AppData\...` prefix (Windows
+    // CI runs under the real %TEMP%), so a blind search for the first
+    // "appdata" component would return the outer "Temp" instead of the
+    // owning folder.
+    for root in [&places.local, &places.roaming] {
+        if path_starts_with(original, root) {
+            let depth = root.components().count();
+            return original.components().nth(depth).and_then(|c| match c {
+                Component::Normal(n) => n.to_str().map(str::to_string),
+                _ => None,
+            });
+        }
     }
-    comps.get(at + 2).map(|s| s.to_string())
+    None
 }
 
 /// Chromium/Firefox profile cache subfolders, with the owning browser name.
@@ -1020,7 +1022,7 @@ mod tests {
         let home = root.join("home");
         let local = home.join("AppData/Local");
         let roaming = home.join("AppData/Roaming");
-        Places::test_profile(home, local.clone(), roaming, local.join("Temp"), Some(root.join("win-temp")))
+        Places::test_profile(home, local, roaming, Some(root.join("win-temp")))
     }
 
     fn write(path: &Path, bytes: usize) {

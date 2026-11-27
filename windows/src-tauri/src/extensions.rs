@@ -87,7 +87,7 @@ mod tests {
     fn lists_plain_localized_and_missing_locale_in_supported_profiles() {
         let tmp = tempfile::tempdir().unwrap();
         let p = Places::test_profile(tmp.path().into(), tmp.path().join("Local"),
-            tmp.path().join("Roaming"), tmp.path().join("Temp"), None);
+            tmp.path().join("Roaming"), None);
         let chrome = p.local.join("Google/Chrome/User Data");
         let plain = chrome.join("Default/Extensions/plain/1.0_0");
         let localized = chrome.join("Profile 2/Extensions/local/2.0_0");

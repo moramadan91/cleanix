@@ -140,12 +140,16 @@ impl Places {
         [&self.home, &self.local, &self.roaming]
     }
 
-    /// A test-profile `Places`: Known Folders sit under `home`, so tests never
-    /// resolve the real profile (on Windows `from_env` would reach the real
-    /// user folders through SHGetKnownFolderPath).
+    /// A test-profile `Places`: Known Folders sit under `home` and temp sits
+    /// under the fake `AppData\Local`, so tests never resolve the real
+    /// profile (on Windows `from_env` would reach the real user folders
+    /// through SHGetKnownFolderPath, and the test tempdir itself lives under
+    /// the real `%TEMP%`). Temp is derived here — never passed in — so a
+    /// caller cannot point it at the real environment by mistake.
     #[cfg(test)]
-    pub fn test_profile(home: PathBuf, local: PathBuf, roaming: PathBuf, temp: PathBuf, win_temp: Option<PathBuf>) -> Places {
+    pub fn test_profile(home: PathBuf, local: PathBuf, roaming: PathBuf, win_temp: Option<PathBuf>) -> Places {
         let known = |fallback: &str| home.join(fallback);
+        let temp = local.join("Temp");
         Places {
             documents: known("Documents"),
             desktop: known("Desktop"),
@@ -796,7 +800,7 @@ mod tests {
         let home = root.join("home");
         let local = home.join("AppData/Local");
         let roaming = home.join("AppData/Roaming");
-        Places::test_profile(home, local.clone(), roaming, local.join("Temp"), None)
+        Places::test_profile(home, local, roaming, None)
     }
 
     fn write(path: &Path, bytes: usize) {
