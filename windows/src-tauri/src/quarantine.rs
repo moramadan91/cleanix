@@ -5,7 +5,7 @@
 //! Everything here is plain std code that takes its root and folders as
 //! arguments, so tests run against a temp folder on any system.
 
-use crate::core::Places;
+use crate::core::{path_starts_with, paths_equal, Places};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Component, Path, PathBuf};
@@ -66,11 +66,14 @@ pub struct Quarantine {
 
 impl Quarantine {
     pub fn with_root(root: PathBuf) -> Self {
+        Self::with_allowed_list(root, Places::from_env().restore_roots())
+    }
+
+    fn with_allowed_list(root: PathBuf, allowed: Vec<PathBuf>) -> Self {
         let records = fs::read(root.join("index.json"))
             .ok()
             .and_then(|bytes| serde_json::from_slice(&bytes).ok())
             .unwrap_or_default();
-        let allowed = Places::from_env().restore_roots();
         let q = Quarantine { root, retention_days: RETENTION_DAYS, lock: Mutex::new(records), allowed };
         q.startup_cleanup();
         q
@@ -341,10 +344,11 @@ impl Quarantine {
             // exist, down to the allowed root, and refuse those. Ancestors
             // above the allowed root are trusted system paths, as in
             // `check_slot`. New parents are created only below this chain.
+            // Component-wise and case-insensitive, matching Windows.
             let allowed_root = self
                 .allowed
                 .iter()
-                .find(|root| original.starts_with(root))
+                .find(|root| path_starts_with(&original, root))
                 .ok_or_else(|| "unknown item".to_string())?;
             for ancestor in original.ancestors().skip(1) {
                 if ancestor.as_os_str().is_empty() {
@@ -353,7 +357,7 @@ impl Quarantine {
                 if fs::symlink_metadata(ancestor).is_ok_and(|md| crate::core::is_link(&md)) {
                     return Err("unknown item".into());
                 }
-                if ancestor == *allowed_root {
+                if paths_equal(ancestor, allowed_root) {
                     break;
                 }
             }
@@ -481,7 +485,7 @@ impl Quarantine {
     }
 
     fn root_starts(&self, path: &Path) -> bool {
-        path == self.root || path.starts_with(&self.root)
+        path_starts_with(path, &self.root)
     }
 
     /// Deletes only the requested `ids` whose record still exists, whose slot
@@ -839,10 +843,11 @@ pub fn classify(original: &Path, places: &Places, installed_names: &[String]) ->
     let parts: Vec<&str> = lower.split('/').filter(|p| !p.is_empty()).collect();
     let file = original.file_name().and_then(|n| n.to_str()).unwrap_or("").to_lowercase();
 
-    let under = |root: &Path| {
-        let r = root.to_string_lossy().replace('\\', "/").to_lowercase();
-        lower == r || lower.starts_with(&(r + "/"))
-    };
+    // Known Folders, Downloads, and OneDrive roots come only from `places`
+    // (resolved once by `Places::from_env`, or a temp profile in tests), so a
+    // fake profile classifies the same on every OS. Component-wise and
+    // case-insensitive, matching Windows (`C:\Users\Ann` vs `c:\users\ann`).
+    let under = |root: &Path| path_starts_with(original, root);
 
     // Personal Known Folders first: never safe to delete for good.
     if places.document_dirs().iter().any(|d| under(d)) {
@@ -1015,7 +1020,7 @@ mod tests {
         let home = root.join("home");
         let local = home.join("AppData/Local");
         let roaming = home.join("AppData/Roaming");
-        Places { temp: local.join("Temp"), home, local, roaming, win_temp: Some(root.join("win-temp")) }
+        Places::test_profile(home, local.clone(), roaming, local.join("Temp"), Some(root.join("win-temp")))
     }
 
     fn write(path: &Path, bytes: usize) {
@@ -1024,10 +1029,12 @@ mod tests {
     }
 
     /// A quarantine whose restore destinations may be this test's temp dir.
+    /// Allowed roots come from the fake profile only: the real environment
+    /// (which on Windows covers the temp dir through `TEMP`) must not leak in.
     fn quarantined(root: &Path) -> Quarantine {
-        let mut q = Quarantine::with_root(root.join("q"));
-        q.allowed.push(root.to_path_buf());
-        q
+        let mut allowed = places(root).restore_roots();
+        allowed.push(root.to_path_buf());
+        Quarantine::with_allowed_list(root.join("q"), allowed)
     }
 
     #[test]
@@ -1247,15 +1254,15 @@ mod tests {
     #[test]
     fn onedrive_roots_are_unsafe_first() {
         let t = tempfile::tempdir().unwrap();
-        let p = places(t.path());
+        let mut p = places(t.path());
         let od = t.path().join("od-root-9f3");
         fs::create_dir_all(&od).unwrap();
-        std::env::set_var("OneDrive", &od);
+        // Stored roots only: no env vars, so parallel tests cannot interfere.
+        p.onedrive.push(od.clone());
         let c = classify(&od.join("Documents/report.docx"), &p, &[]);
-        std::env::remove_var("OneDrive");
         assert_eq!((c.verdict, c.kind), (Verdict::Unsafe, Kind::Document));
-        // A "OneDrive - *" business folder in the profile is unsafe even when
-        // the env var is gone.
+        // A "OneDrive - *" business folder in the profile is unsafe even with
+        // no stored root.
         let c = classified("OneDrive - Acme/notes.txt", &[]);
         assert_eq!((c.verdict, c.reason_key), (Verdict::Unsafe, "quarantine.reason.personal"));
     }
@@ -1268,8 +1275,9 @@ mod tests {
         write(&file, 7);
         let id = q.stash(&file).unwrap().id().unwrap();
         // The same index without the temp dir allowed: the destination is no
-        // longer inside an allowed root.
-        let strict = Quarantine::with_root(t.path().join("q"));
+        // longer inside an allowed root. Allowed roots come from the fake
+        // profile only, never the real environment.
+        let strict = Quarantine::with_allowed_list(t.path().join("q"), places(t.path()).restore_roots());
         assert_eq!(strict.restore(&id).unwrap_err(), "unknown item");
         assert!(q.records().iter().any(|r| r.id().as_deref() == Some(&id)), "record kept");
         assert!(Path::new(&q.records()[0].stored).is_file(), "slot untouched");

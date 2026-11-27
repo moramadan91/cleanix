@@ -183,7 +183,8 @@ mod tests {
     fn suspicious_temp_downloads_or_missing() {
         let home = std::path::PathBuf::from(r"C:\Users\Demo");
         let local = home.join(r"AppData\Local");
-        let p = Places { temp: local.join("Temp"), roaming: home.join(r"AppData\Roaming"), local, home, win_temp: None };
+        let local_temp = local.join("Temp");
+        let p = Places::test_profile(home.clone(), local, home.join(r"AppData\Roaming"), local_temp, None);
         let yes = |_: &Path| true;
         if cfg!(windows) {
             assert!(is_suspicious(r#""C:\Users\Demo\AppData\Local\Temp\x.exe" /run"#, &p, yes));

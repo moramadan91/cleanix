@@ -42,7 +42,11 @@ pub struct CleanResult {
     pub failed: Vec<String>,
 }
 
-/// The user's folders. On Windows they come from the environment; tests build their own.
+/// The user's folders. On Windows `from_env` resolves them once from the
+/// environment (personal Known Folders via SHGetKnownFolderPath, OneDrive
+/// roots from the client env vars plus a profile scan) and stores them here,
+/// so every later check reads only these stored values. Tests build their own
+/// from a temp profile instead and never touch the real one.
 #[derive(Clone, Debug)]
 pub struct Places {
     pub home: PathBuf,
@@ -51,6 +55,15 @@ pub struct Places {
     pub temp: PathBuf,
     /// C:\Windows\Temp, when known.
     pub win_temp: Option<PathBuf>,
+    /// Personal Known Folders, resolved once by `from_env`.
+    pub documents: PathBuf,
+    pub desktop: PathBuf,
+    pub pictures: PathBuf,
+    pub videos: PathBuf,
+    pub music: PathBuf,
+    pub downloads: PathBuf,
+    /// OneDrive roots, collected once by `from_env`.
+    pub onedrive: Vec<PathBuf>,
 }
 
 impl Places {
@@ -61,65 +74,45 @@ impl Places {
         let roaming = var("APPDATA").unwrap_or_else(|| home.join("AppData/Roaming"));
         let temp = var("TEMP").filter(|_| cfg!(windows)).unwrap_or_else(|| local.join("Temp"));
         let win_temp = var("WINDIR").map(|w| w.join("Temp"));
-        Places { home, local, roaming, temp, win_temp }
-    }
-
-    /// One personal Known Folder: the real Windows location when it resolves,
-    /// otherwise the usual profile-relative fallback (also used off Windows).
-    fn known_folder(&self, kind: &str) -> PathBuf {
-        #[cfg(windows)]
-        if let Some(resolved) = known_folder_path(kind) {
-            return resolved;
-        }
-        let _ = kind;
-        self.home.join(match kind {
-            "Desktop" => "Desktop",
-            "Pictures" => "Pictures",
-            "Videos" => "Videos",
-            "Music" => "Music",
-            "Downloads" => "Downloads",
-            _ => "Documents",
-        })
+        // Resolve each personal Known Folder once: the real Windows location
+        // when it resolves, otherwise the usual profile-relative fallback
+        // (also used off Windows).
+        let known = |kind: &str, fallback: &str| {
+            #[cfg(windows)]
+            if let Some(resolved) = known_folder_path(kind) {
+                return resolved;
+            }
+            let _ = kind;
+            home.join(fallback)
+        };
+        let documents = known("Documents", "Documents");
+        let desktop = known("Desktop", "Desktop");
+        let pictures = known("Pictures", "Pictures");
+        let videos = known("Videos", "Videos");
+        let music = known("Music", "Music");
+        let downloads = known("Downloads", "Downloads");
+        let onedrive = collect_onedrive_roots(&home);
+        Places { home, local, roaming, temp, win_temp, documents, desktop, pictures, videos, music, downloads, onedrive }
     }
 
     /// Personal folders whose contents are never safe to delete for good.
     pub fn document_dirs(&self) -> Vec<PathBuf> {
-        vec![self.known_folder("Documents"), self.known_folder("Desktop")]
+        vec![self.documents.clone(), self.desktop.clone()]
     }
 
     /// Personal media folders whose contents are never safe to delete for good.
     pub fn media_dirs(&self) -> Vec<PathBuf> {
-        vec![self.known_folder("Pictures"), self.known_folder("Videos"), self.known_folder("Music")]
+        vec![self.pictures.clone(), self.videos.clone(), self.music.clone()]
     }
 
     /// The user's Downloads folder: needs a look before anything is gone for good.
     pub fn downloads_dir(&self) -> PathBuf {
-        self.known_folder("Downloads")
+        self.downloads.clone()
     }
 
-    /// Every OneDrive root: the client env vars plus any `OneDrive` / `OneDrive - *`
-    /// folder directly in the profile (personal or business names).
+    /// Every OneDrive root known at startup.
     pub fn onedrive_roots(&self) -> Vec<PathBuf> {
-        let mut roots = vec![];
-        for key in ["OneDrive", "OneDriveCommercial", "OneDriveConsumer"] {
-            if let Some(dir) = std::env::var_os(key).map(PathBuf::from) {
-                if !dir.as_os_str().is_empty() && !roots.contains(&dir) {
-                    roots.push(dir);
-                }
-            }
-        }
-        if let Ok(entries) = fs::read_dir(&self.home) {
-            for entry in entries.flatten() {
-                let name = entry.file_name().to_string_lossy().to_lowercase();
-                if name == "onedrive" || name.starts_with("onedrive - ") {
-                    let dir = entry.path();
-                    if !roots.contains(&dir) {
-                        roots.push(dir);
-                    }
-                }
-            }
-        }
-        roots
+        self.onedrive.clone()
     }
 
     /// Anything at, under, or above a personal Known Folder / OneDrive root is
@@ -132,7 +125,7 @@ impl Places {
             .chain(self.media_dirs())
             .chain([self.downloads_dir()])
             .chain(self.onedrive_roots())
-            .any(|root| path.starts_with(&root) || root.starts_with(path))
+            .any(|root| path_starts_with(path, &root) || path_starts_with(&root, path))
     }
 
     /// Roots a restore may go back to: the user profile plus the other
@@ -147,6 +140,28 @@ impl Places {
         [&self.home, &self.local, &self.roaming]
     }
 
+    /// A test-profile `Places`: Known Folders sit under `home`, so tests never
+    /// resolve the real profile (on Windows `from_env` would reach the real
+    /// user folders through SHGetKnownFolderPath).
+    #[cfg(test)]
+    pub fn test_profile(home: PathBuf, local: PathBuf, roaming: PathBuf, temp: PathBuf, win_temp: Option<PathBuf>) -> Places {
+        let known = |fallback: &str| home.join(fallback);
+        Places {
+            documents: known("Documents"),
+            desktop: known("Desktop"),
+            pictures: known("Pictures"),
+            videos: known("Videos"),
+            music: known("Music"),
+            downloads: known("Downloads"),
+            onedrive: vec![],
+            home,
+            local,
+            roaming,
+            temp,
+            win_temp,
+        }
+    }
+
     /// Folders a removal may ever reach into.
     fn roots(&self) -> impl Iterator<Item = &Path> {
         self.user_roots().into_iter().chain(self.win_temp.as_deref())
@@ -157,6 +172,57 @@ impl Places {
             .min_by_key(|root| root.components().count())
             .is_some_and(|root| within_user_folder(path, root))
     }
+}
+
+/// The client env vars plus any `OneDrive` / `OneDrive - *` folder directly in
+/// the profile (personal or business names), collected once.
+fn collect_onedrive_roots(home: &Path) -> Vec<PathBuf> {
+    let mut roots: Vec<PathBuf> = vec![];
+    for key in ["OneDrive", "OneDriveCommercial", "OneDriveConsumer"] {
+        if let Some(dir) = std::env::var_os(key).map(PathBuf::from) {
+            if !dir.as_os_str().is_empty() && !roots.iter().any(|r| paths_equal(r, &dir)) {
+                roots.push(dir);
+            }
+        }
+    }
+    if let Ok(entries) = fs::read_dir(home) {
+        for entry in entries.flatten() {
+            let name = entry.file_name().to_string_lossy().to_lowercase();
+            if name == "onedrive" || name.starts_with("onedrive - ") {
+                let dir = entry.path();
+                if !roots.iter().any(|r| paths_equal(r, &dir)) {
+                    roots.push(dir);
+                }
+            }
+        }
+    }
+    roots
+}
+
+/// Component-wise prefix check: `C:\Users\Ann` matches `c:\users\ann\file`
+/// (drive letters and folder names compare case-insensitively, as on
+/// Windows) while `C:\Users\Ann2` does not. Deliberately OS-independent so
+/// tests exercise the same logic everywhere.
+pub fn path_starts_with(path: &Path, root: &Path) -> bool {
+    use std::path::Component::*;
+    let path: Vec<_> = path.components().collect();
+    let root: Vec<_> = root.components().collect();
+    if root.len() > path.len() {
+        return false;
+    }
+    path[..root.len()].iter().zip(root.iter()).all(|(a, b)| match (a, b) {
+        (Prefix(a), Prefix(b)) => {
+            a.as_os_str().to_string_lossy().to_lowercase() == b.as_os_str().to_string_lossy().to_lowercase()
+        }
+        (RootDir, RootDir) | (CurDir, CurDir) | (ParentDir, ParentDir) => true,
+        (Normal(a), Normal(b)) => a.to_string_lossy().to_lowercase() == b.to_string_lossy().to_lowercase(),
+        _ => false,
+    })
+}
+
+/// Same path modulo Windows case differences.
+pub fn paths_equal(a: &Path, b: &Path) -> bool {
+    path_starts_with(a, b) && path_starts_with(b, a)
 }
 
 /// A personal Known Folder through SHGetKnownFolderPath (Documents, Desktop,
@@ -730,7 +796,7 @@ mod tests {
         let home = root.join("home");
         let local = home.join("AppData/Local");
         let roaming = home.join("AppData/Roaming");
-        Places { temp: local.join("Temp"), home, local, roaming, win_temp: None }
+        Places::test_profile(home, local.clone(), roaming, local.join("Temp"), None)
     }
 
     fn write(path: &Path, bytes: usize) {

@@ -389,7 +389,7 @@ mod tests {
         let local = home.join("Local");
         let roaming = home.join("Roaming");
         let program_data = home.join("ProgramData");
-        let places = Places { temp: local.join("Temp"), home, local, roaming, win_temp: None };
+        let places = Places::test_profile(home, local.clone(), roaming, local.join("Temp"), None);
         let app_root = places.roaming.join("sAmPlE aPp");
         let local_install = places.local.join("Programs").join("SAMPLE APP");
         for (dir, bytes) in [
