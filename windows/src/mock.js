@@ -50,7 +50,51 @@ const dirs = {
 const disk = { total: 512 * 1024 * MB, free: 92 * 1024 * MB };
 let ram = { used: 13 * 1024 * MB, total: 16 * 1024 * MB };
 let junk = DATA.junk.slice();
+let caches = DATA.caches.slice();
 let bin = { bytes: 1300 * MB, items: 214 };
+const daysAgo = n => new Date(Date.now() - n * 864e5).toISOString();
+const qslot = id => `C:\\Users\\Demo\\AppData\\Local\\Cleanix\\Quarantine\\${id}`;
+// `from`/`group`/`safety` remember which scan list the item came from so a
+// restore can put it back; seeds without an origin only live in Quarantine.
+let quarantine = [
+  { id: '3fa85f64-5717-4562-b3fc-2c963f66afa6', name: 'Cache', original: H + '\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\Cache', stored: qslot('3fa85f64-5717-4562-b3fc-2c963f66afa6') + '\\Cache', date: daysAgo(2), bytes: 820 * MB, verdict: 'safe', kind: 'cache', reason: 'quarantine.reason.rebuild', app: 'Chrome', days_left: 28, overdue: false, is_dir: true, item_count: 412, from: 'caches', group: 'Chrome', safety: 'safe' },
+  { id: '6ba7b810-9dad-11d1-80b4-00c04fd430c8', name: 'setup_4821', original: H + '\\AppData\\Local\\Temp\\setup_4821', stored: qslot('6ba7b810-9dad-11d1-80b4-00c04fd430c8') + '\\setup_4821', date: daysAgo(1), bytes: 912 * MB, verdict: 'safe', kind: 'other', reason: 'quarantine.reason.temporary', app: null, days_left: 29, overdue: false, is_dir: true, item_count: 3, from: 'junk', group: 'temp', safety: 'safe' },
+  { id: '6ba7b811-9dad-11d1-80b4-00c04fd430c8', name: 'explorer.exe.1234.dmp', original: H + '\\AppData\\Local\\CrashDumps\\explorer.exe.1234.dmp', stored: qslot('6ba7b811-9dad-11d1-80b4-00c04fd430c8') + '\\explorer.exe.1234.dmp', date: daysAgo(5), bytes: 96 * MB, verdict: 'safe', kind: 'logs', reason: 'quarantine.reason.rebuild', app: null, days_left: 25, overdue: false, is_dir: false, item_count: 1, from: 'junk', group: 'crash', safety: 'safe' },
+  { id: '6ba7b812-9dad-11d1-80b4-00c04fd430c8', name: 'OldGameStudio', original: H + '\\AppData\\Roaming\\OldGameStudio', stored: qslot('6ba7b812-9dad-11d1-80b4-00c04fd430c8') + '\\OldGameStudio', date: daysAgo(9), bytes: 640 * MB, verdict: 'review', kind: 'appData', reason: 'quarantine.reason.appData', app: 'OldGameStudio', days_left: 21, overdue: false, is_dir: true, item_count: 58, from: null, group: 'roaming', safety: 'review' },
+  { id: '6ba7b813-9dad-11d1-80b4-00c04fd430c8', name: 'report (1).pdf', original: H + '\\Documents\\report (1).pdf', stored: qslot('6ba7b813-9dad-11d1-80b4-00c04fd430c8') + '\\report (1).pdf', date: daysAgo(12), bytes: 14 * MB, verdict: 'unsafe', kind: 'document', reason: 'quarantine.reason.personal', app: null, days_left: 18, overdue: false, is_dir: false, item_count: 1, from: null, group: 'report.pdf', safety: 'review' },
+];
+const uuid = () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+  const r = Math.random() * 16 | 0;
+  return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+});
+// One disposal path for Clean and Boost, mirroring the app: safe junk and
+// caches wait in Quarantine, review items (iPhone backups) and everything
+// else go to the Recycle Bin.
+const disposeClean = paths => {
+  const origin = new Map([...junk.map(i => [i.path, { list: 'junk', item: i }]), ...caches.map(i => [i.path, { list: 'caches', item: i }])]);
+  const sizes = new Map([...junk, ...caches, ...DATA.downloads, ...DATA.large, ...DATA.duplicates].map(i => [i.path, i.bytes]));
+  const bytesOf = path => sizes.get(path) ?? 50 * MB;
+  const freed = paths.reduce((sum, path) => sum + bytesOf(path), 0);
+  const moved = paths.filter(path => {
+    const found = origin.get(path);
+    return found && found.item.safety === 'safe';
+  });
+  const rest = paths.filter(path => !moved.includes(path));
+  junk = junk.filter(i => !paths.includes(i.path));
+  caches = caches.filter(i => !paths.includes(i.path));
+  moved.forEach(path => {
+    const { list, item } = origin.get(path);
+    const id = uuid();
+    quarantine.push({ id, name: item.name, original: path, stored: qslot(id) + '\\' + item.name,
+      date: new Date().toISOString(), bytes: bytesOf(path), verdict: 'safe',
+      kind: item.group === 'temp' ? 'other' : 'cache', reason: 'quarantine.reason.rebuild',
+      app: null, days_left: 30, overdue: false, is_dir: false, item_count: 1,
+      from: list, group: item.group, safety: 'safe' });
+  });
+  bin.bytes += rest.reduce((sum, path) => sum + bytesOf(path), 0);
+  bin.items += rest.length;
+  return { freed, moved, rest };
+};
 let boostPaths = null;
 const settings = { open_at_login: false, alert_low_space: false, alert_weekly: false,
   last_scan: 0, last_low_space_alert: 0, last_weekly_alert: 0, lang: 'en' };
@@ -75,7 +119,9 @@ export async function mockInvoke(cmd, args = {}) {
   switch (cmd) {
     case 'scan':
       if (args.kind === 'junk' || args.kind === 'caches') recordScan();
-      return structuredClone(args.kind === 'junk' ? junk : DATA[args.kind] ?? []);
+      if (args.kind === 'junk') return structuredClone(junk);
+      if (args.kind === 'caches') return structuredClone(caches);
+      return structuredClone(DATA[args.kind] ?? []);
     case 'health': {
       recordScan();
       const memoryHigh = ramPercent() > 75;
@@ -90,10 +136,7 @@ export async function mockInvoke(cmd, args = {}) {
       return { bytes: bytesOf(boostPaths), ram_used: ram.used, ram_total: ram.total };
     case 'boost_run': {
       if (!boostPaths) throw new Error('no boost preview');
-      const freed = bytesOf(boostPaths);
-      bin.bytes += freed;
-      bin.items += boostPaths.length;
-      junk = junk.filter(i => !boostPaths.includes(i));
+      const { freed } = disposeClean(boostPaths.map(i => i.path));
       boostPaths = null;
       const before = ramPercent();
       ram = { ...ram, used: 10 * 1024 * MB };
@@ -115,11 +158,33 @@ export async function mockInvoke(cmd, args = {}) {
       return (dirs[p] ?? [['file.bin', 300, 'review', 0], ['Cache', 120, 'safe', 1]]).map(([n, mb, safety, dir]) => ({ path: p + '\\' + n, name: n, bytes: mb * MB, safety, dir: !!dir }));
     }
     case 'clean': {
-      const freed = args.paths.reduce((sum, path) => sum + (junk.find(item => item.path === path)?.bytes ?? 50 * MB), 0);
-      junk = junk.filter(item => !args.paths.includes(item.path));
-      bin.bytes += freed;
-      bin.items += args.paths.length;
+      const { freed } = disposeClean(args.paths);
       return { freed, removed: args.paths, failed: [] };
+    }
+    case 'quarantine_list': return structuredClone(quarantine);
+    case 'quarantine_restore': {
+      const i = quarantine.findIndex(x => x.id === args.id);
+      if (i < 0) throw new Error('unknown item');
+      const [rec] = quarantine.splice(i, 1);
+      // The item shows up in its scan list again, like a real restore.
+      const list = rec.from === 'junk' ? junk : rec.from === 'caches' ? caches : null;
+      if (list && !list.some(x => x.path === rec.original)) {
+        list.push({ path: rec.original, name: rec.name, bytes: rec.bytes, group: rec.group || 'restored', safety: rec.safety || 'safe' });
+      }
+      return null;
+    }
+    case 'quarantine_delete': {
+      const i = quarantine.findIndex(x => x.id === args.id);
+      if (i < 0) throw new Error('unknown item');
+      quarantine.splice(i, 1);
+      return null;
+    }
+    case 'quarantine_delete_safe': {
+      // Like the app: only the confirmed ids that still exist and are still safe.
+      const want = new Set(args.ids ?? []);
+      const gone = quarantine.filter(x => want.has(x.id) && x.verdict === 'safe');
+      quarantine = quarantine.filter(x => !gone.includes(x));
+      return { removed: gone.map(x => x.id), freed: gone.reduce((sum, x) => sum + x.bytes, 0) };
     }
     case 'disk_info': return disk;
     case 'downloads_size': return dirs[H].find(([name]) => name === 'Downloads')[1] * MB;

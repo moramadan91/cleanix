@@ -15,7 +15,7 @@ const SECTIONS = [
   { id: 'diskMap', tint: '#F5C542', deep: '#6E4A0C', icon: 'M12 3a9 9 0 1 0 9 9h-9zM15 3.5A9 9 0 0 1 20.5 9H15z' },
 ];
 const TABS = {
-  cleanup: ['junk', 'caches', 'bin'],
+  cleanup: ['junk', 'caches', 'quarantine', 'bin'],
   protection: ['privacy', 'permissions', 'suspicious'],
   performance: ['maintenance', 'startup', 'heavy'],
   apps: ['uninstall', 'leftovers', 'extensions'],
@@ -30,7 +30,11 @@ let section = 'overview';
 const tab = Object.fromEntries(Object.entries(TABS).map(([k, v]) => [k, v[0]]));
 let sort = store('cleanix.sort') || 'largest';
 const views = {}; // per scan key: { phase, items, selected, result }
-const map = { trail: [], selected: new Set(), loading: false };
+const map = { trail: [], selected: new Set(), sizes: new Map(), loading: false };
+// A selected folder implies its children: path-keyed helpers for the Disk Map.
+const isBelow = (path, ancestor) => path !== ancestor && (path.startsWith(ancestor + '\\') || path.startsWith(ancestor + '/'));
+const impliedSelected = path => [...map.selected].some(sel => isBelow(path, sel));
+const baseName = path => path.split(/[\\/]/).filter(Boolean).pop() || path;
 let overview = null;
 let overviewLoading = false;
 let overviewReady = !window.__TAURI__;
@@ -114,7 +118,7 @@ const view = key => (views[key] ??= { phase: 'intro', items: [], selected: new S
 
 function scanScreen() {
   const key = scanKey();
-  const custom = { bin: binView, uninstall: appsView, permissions: accessView, suspicious: () => startupView(true), startup: () => startupView(false), maintenance: maintView, heavy: heavyView, extensions: extensionsView };
+  const custom = { bin: binView, quarantine: quarantineView, uninstall: appsView, permissions: accessView, suspicious: () => startupView(true), startup: () => startupView(false), maintenance: maintView, heavy: heavyView, extensions: extensionsView };
   if (custom[key]) return header() + tabs() + custom[key]();
   const v = view(key);
   let body;
@@ -263,6 +267,83 @@ async function refreshBin() {
   if (scanKey() === 'bin' || (section === 'overview' && changed)) render();
 }
 
+/* ---------- Quarantine ---------- */
+
+const quar = { items: null, filter: 'all', expanded: new Set(), loading: false };
+const qBadge = verdict => verdict === 'unsafe' ? 'risky' : verdict;
+const qDate = s => { try { return new Date(s).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-GB'); } catch { return s; } };
+const qKind = i => i.app ? t('quarantine.kindAndOwner', t('quarantine.kind.' + i.kind), i.app) : t('quarantine.kind.' + i.kind);
+const qFileIcon = 'M6 2h8l4 4v12H6zM14 2v4h4';
+const qFolderIcon = 'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z';
+
+function quarantineView() {
+  if (quar.items === null) {
+    if (!quar.loading) {
+      quar.loading = true;
+      invoke('quarantine_list').catch(() => []).then(items => {
+        quar.items = items;
+        quar.loading = false;
+        if (scanKey() === 'quarantine' && pageVisible() && !cleaning) render();
+      });
+    }
+    return spinner(t('quarantine.loading'));
+  }
+  const counts = { all: quar.items.length, safe: 0, review: 0, unsafe: 0 };
+  quar.items.forEach(i => { counts[i.verdict] = (counts[i.verdict] || 0) + 1; });
+  const shown = quar.items.filter(i => quar.filter === 'all' || i.verdict === quar.filter);
+  const total = quar.items.reduce((s, i) => s + i.bytes, 0);
+  const safeItems = quar.items.filter(i => i.verdict === 'safe');
+  const safeBytes = safeItems.reduce((s, i) => s + i.bytes, 0);
+  return `<div class="bar"><strong>${t('quarantine.summary', localNumber(quar.items.length), fmt(total))}</strong></div>
+  <div class="tabs" role="tablist">${['all', 'safe', 'review', 'unsafe'].map(f =>
+    `<button type="button" role="tab" aria-selected="${quar.filter === f}" class="tab${quar.filter === f ? ' on' : ''}" data-action="qFilter" data-f="${f}">${t('quarantine.filter.' + f)} (${localNumber(counts[f] || 0)})</button>`).join('')}</div>
+  <div class="panel list">${shown.length ? [...shown].sort((a, b) => b.bytes - a.bytes).map(qRow).join('') : `<p class="muted pad">${t(quar.items.length ? 'quarantine.emptyFilter' : 'quarantine.empty')}</p>`}</div>
+  ${safeItems.length ? `<div class="actions"><button type="button" class="btn big primary" data-action="qSafe">${t('quarantine.deleteSafe')} (${localNumber(safeItems.length)} · ${fmt(safeBytes)})</button></div>` : ''}`;
+}
+
+function qRow(i) {
+  const expanded = quar.expanded.has(i.id);
+  const detailsId = 'q-' + i.id;
+  return `<div data-q="${esc(i.id)}">
+    <div class="row">
+      <button type="button" class="icon-btn app-chevron" data-action="qToggle" aria-expanded="${expanded}" aria-controls="${detailsId}" aria-label="${t(expanded ? 'quarantine.hideDetails' : 'quarantine.showDetails')}">${icon('m6 9 6 6 6-6')}</button>
+      <span class="tinted-icon" style="--icon-tint:var(--tint)">${icon(i.is_dir ? qFolderIcon : qFileIcon)}</span>
+      <div class="name"><b title="${esc(i.original)}"><bdi>${esc(i.name)}</bdi></b>
+        <small><span class="badge ${qBadge(i.verdict)}">${t('quarantine.verdict.' + i.verdict)}</span> ${esc(t(i.reason))}</small>
+        <small>${esc(qKind(i))} · <bdi>${esc(i.original)}</bdi></small>
+        <small>${fmt(i.bytes)} · ${t('quarantine.removedDate')}: ${qDate(i.date)} · ${i.overdue ? t('quarantine.overdue') : t('quarantine.expiry', localNumber(i.days_left))}</small>
+      </div>
+      <span class="size">${fmt(i.bytes)}</span>
+      <button type="button" class="btn small" data-action="qRestore">${t('quarantine.restore')}</button>
+      <button type="button" class="btn small danger" data-action="qDelete">${t('quarantine.delete')}</button>
+    </div>
+    <div class="app-folders" id="${detailsId}" ${expanded ? '' : 'hidden'}>${expanded ? qDetails(i) : ''}</div>
+  </div>`;
+}
+
+function qDetails(i) {
+  const rows = [
+    [t('quarantine.originalPath'), i.original],
+    [t('quarantine.storedPath'), i.stored],
+    [t('quarantine.exactSize'), t('quarantine.bytes', localNumber(i.bytes))],
+    [t('quarantine.removedDate'), qDate(i.date)],
+  ];
+  if (i.is_dir) rows.push([t('quarantine.children'), localNumber(i.item_count)]);
+  return `<ul>${rows.map(([k, v]) => `<li><span>${esc(k)}</span><bdi>${esc(String(v))}</bdi></li>`).join('')}</ul>`;
+}
+
+async function reloadQuarantine() {
+  quar.items = await invoke('quarantine_list').catch(() => quar.items ?? []);
+  quar.expanded.clear();
+  if (scanKey() === 'quarantine' && pageVisible() && !cleaning) render();
+}
+
+async function qRestore(id) {
+  const err = await invoke('quarantine_restore', { id }).then(() => null, e => String(e));
+  await reloadQuarantine();
+  if (err) showMessage('quarantine.errorTitle', t(err.includes('exists') ? 'quarantine.errorExists' : 'quarantine.errorRestore'));
+}
+
 /* ---------- Overview ---------- */
 
 function scoreRing(pct, label, text) {
@@ -272,11 +353,21 @@ function scoreRing(pct, label, text) {
     <text x="90" y="98" text-anchor="middle">${text}</text></svg>`;
 }
 
+const updatedText = at => {
+  if (!at) return '';
+  const mins = Math.floor((Date.now() - at) / 60000);
+  return mins < 1 ? t('overview.updatedNow') : t('overview.updatedAgo', localNumber(mins));
+};
+const refreshSpin = () => overviewLoading ? `<span class="spin spin-sm" role="status" aria-hidden="true"></span>` : '';
+
 function healthView(h, previousScore, checkFailed) {
-  const refresh = `<button type="button" class="icon-btn health-refresh" data-action="healthRefresh" aria-label="${t('health.refresh')}" ${overviewLoading ? 'disabled aria-busy="true"' : ''}>${icon('M20 4v5h-5M20 9a8 8 0 1 0 .2 5')}</button>`;
+  const refresh = `<button type="button" class="icon-btn health-refresh" data-action="healthRefresh" aria-label="${t('health.refresh')}" ${overviewLoading ? 'disabled aria-busy="true"' : ''}>${icon('M20 4v5h-5M20 9a8 8 0 1 0 .2 5')}</button>${refreshSpin()}`;
+  // A failed refresh keeps the old data and its old timestamp, with a short error.
+  const failed = overview.failed?.health;
   let status = '';
-  if (checkFailed) status = t('health.checkFailed');
-  else if (previousScore != null) status = previousScore === h.score
+  if (failed) status = t('overview.refreshFailed');
+  else if (checkFailed) status = t('health.checkFailed');
+  else if (previousScore != null && h) status = previousScore === h.score
     ? t('health.unchanged', localNumber(h.score))
     : t('health.changed', localNumber(previousScore), localNumber(h.score));
   const note = `<p class="health-status muted" role="status">${status}</p>`;
@@ -285,6 +376,7 @@ function healthView(h, previousScore, checkFailed) {
   const destinations = { disk: ['clutter', 'large'], memory: ['performance', 'heavy'], startup: ['performance', 'startup'], junk: ['cleanup', 'junk'] };
   return `<div class="panel health">
     ${refresh}
+    <p class="muted updated">${updatedText(overview.at?.health)}</p>
     <div class="health-score">${scoreRing(h.score, t('health.score', localNumber(h.score)), localNumber(h.score))}${note}</div>
     <div class="health-details">
       <h2>${t('health.' + band)}</h2>
@@ -314,7 +406,11 @@ function overviewView() {
   ];
   return header() + `<div class="overview">
     ${healthView(health, overview.previousScore, overview.checkFailed)}
-    <div class="panel disk"><h2>${t('overview.disk', 'C:')}</h2>${ring}</div>
+    <div class="panel disk"><h2>${t('overview.disk', 'C:')}</h2>
+      <button type="button" class="icon-btn disk-refresh" data-action="diskRefresh" aria-label="${t('overview.refreshDisk')}" ${overviewLoading ? 'disabled aria-busy="true"' : ''}>${icon('M20 4v5h-5M20 9a8 8 0 1 0 .2 5')}</button>${refreshSpin()}
+      ${ring}
+      <p class="muted updated">${updatedText(overview.at?.disk)}</p>
+      ${overview.failed?.disk ? `<p class="warn" role="status">${t('overview.refreshFailed')}</p>` : ''}</div>
     <div class="overview-stats">
       ${statTile('tab.bin', b ? binSummary(b) : '—', SECTIONS[2].icon, '#2FD1A0')}
       ${statTile('overview.downloads', downloads == null ? '—' : fmt(downloads), 'M12 3v12m-5-5 5 5 5-5M4 16v4h16v-4', '#4C8DFF')}
@@ -343,30 +439,67 @@ async function loadOverview(refreshButton) {
   if (overviewLoading) return;
   const previous = overview;
   const restoreFocus = refreshButton && document.activeElement === refreshButton;
+  const focusAction = refreshButton?.dataset.action;
   overviewLoading = true;
-  if (refreshButton) {
+  // A manual refresh re-reads everything (bypassing the 60 s cache); passive
+  // revisits reuse cached sizes. Show the working state while it runs.
+  if (refreshButton && section === 'overview') render();
+  else if (refreshButton) {
     refreshButton.disabled = true;
     refreshButton.setAttribute('aria-busy', 'true');
   }
+  const fresh = Boolean(refreshButton);
   const [health, b, downloads] = await Promise.all([
-    invoke('health').catch(() => null),
+    invoke('health', { refresh: fresh }).catch(() => null),
     queryBin(),
-    invoke('downloads_size').catch(() => null),
+    invoke('downloads_size', { refresh: fresh }).catch(() => null),
   ]);
   const disk = health?.disk?.total ? health.disk : await invoke('disk_info').catch(() => null);
   if (overview === previous) {
-    overview = {
-      disk, bin: b ?? previous?.bin, health: health ?? previous?.health, downloads: downloads ?? previous?.downloads,
+    // Each panel's timestamp advances only when all of its requests succeeded;
+    // on failure the panel keeps its old data and time, with a short error.
+    const now = Date.now();
+    const next = {
+      disk: previous?.disk,
+      bin: b ?? previous?.bin,
+      health: previous?.health,
+      downloads: downloads ?? previous?.downloads,
       previousScore: refreshButton && health ? previous?.health?.score : undefined,
       checkFailed: Boolean(refreshButton && !health),
+      at: { health: previous?.at?.health ?? 0, disk: previous?.at?.disk ?? 0 },
+      failed: { health: false, disk: false },
     };
+    if (health) {
+      next.health = health;
+      next.at.health = now;
+    } else {
+      next.failed.health = true;
+    }
+    if (disk?.total) {
+      next.disk = disk;
+      next.at.disk = now;
+    } else {
+      next.failed.disk = true;
+    }
+    overview = next;
   }
   overviewLoading = false;
+  armUpdatedTimer();
   if (section === 'overview') {
     const refocus = restoreFocus && (document.activeElement === document.body || document.activeElement === refreshButton);
     render();
-    if (refocus) $('[data-action="healthRefresh"]')?.focus();
+    if (refocus && focusAction) $(`[data-action="${focusAction}"]`)?.focus();
   }
+}
+
+let updatedTimer = null;
+function armUpdatedTimer() {
+  if (updatedTimer) { clearInterval(updatedTimer); updatedTimer = null; }
+  // The "Updated N min ago" line ticks once a minute; no timer while hidden.
+  if (document.hidden || !windowVisible) return;
+  updatedTimer = setInterval(() => {
+    if (section === 'overview' && pageVisible() && (overview?.at?.health || overview?.at?.disk)) render();
+  }, 60000);
 }
 
 let boostBusy = false;
@@ -659,22 +792,28 @@ function mapView() {
   const crumbs = map.trail.map((n, i) => `<button type="button" class="crumb${i === map.trail.length - 1 ? ' on' : ''}" data-crumb="${i}">${esc(n.name)}</button>`).join('<span class="sep" aria-hidden="true">›</span>');
   const top = Math.max(1, ...cur.nodes.map(n => n.bytes));
   const total = cur.nodes.reduce((s, n) => s + n.bytes, 0);
-  const chosen = cur.nodes.filter(n => map.selected.has(n.path));
+  // Selection is keyed by full path and survives navigation across the session.
+  const selBytes = [...map.selected].reduce((s, p) => s + (map.sizes.get(p) || 0), 0);
   const body = map.loading ? spinner() : `<div class="panel list">${cur.nodes.length ? cur.nodes.map(n => mapRow(n, top)).join('') : `<p class="muted pad">${t('common.nothing')}</p>`}</div>`;
   return header() + `<div class="bar">
       <button type="button" class="icon-btn" data-action="up" ${map.trail.length < 2 ? 'disabled' : ''} aria-label="back">${icon(lang === 'ar' ? 'M9 6l6 6-6 6' : 'M15 6l-6 6 6 6')}</button>
       <nav class="crumbs">${crumbs}</nav>
     </div>${body}
     <div class="actions split">
-      <button type="button" class="btn primary" data-action="mapPreview" ${chosen.length ? '' : 'disabled'}>${t('common.remove')}</button>
-      <span class="muted">${t('map.inside', esc(cur.name), fmt(total))}</span>
-    </div>`;
+      <strong>${t('map.selectedCount', localNumber(map.selected.size), fmt(selBytes))}</strong>
+      <span class="grow"></span>
+      <button type="button" class="btn small" data-action="mapClear" ${map.selected.size ? '' : 'disabled'}>${t('map.clearSelection')}</button>
+      <button type="button" class="btn primary" data-action="mapPreview" ${map.selected.size ? '' : 'disabled'}>${t('common.remove')}</button>
+    </div>
+    <p class="muted">${t('map.inside', esc(cur.name), fmt(total))}</p>`;
 }
 
 function mapRow(n, top) {
   const on = map.selected.has(n.path);
-  return `<div class="row map${on ? ' on' : ''}${n.dir ? ' dir' : ''}" data-path="${esc(n.path)}" ${n.dir ? 'data-open="1" tabindex="0"' : ''}>
-    <label class="check"><input type="checkbox" ${on ? 'checked' : ''} ${n.safety === 'risky' ? 'disabled' : ''} data-action="mapTick"><span aria-hidden="true"></span><span class="sr">${esc(n.name)}</span></label>
+  // A selected folder implies its children: they show checked and locked.
+  const implied = !on && impliedSelected(n.path);
+  return `<div class="row map${on || implied ? ' on' : ''}${n.dir ? ' dir' : ''}" data-path="${esc(n.path)}" ${n.dir ? 'data-open="1" tabindex="0"' : ''}>
+    <label class="check"><input type="checkbox" ${on || implied ? 'checked' : ''} ${n.safety === 'risky' || implied ? 'disabled' : ''} data-action="mapTick"><span aria-hidden="true"></span><span class="sr">${esc(n.name)}</span></label>
     <div class="name"><b>${esc(n.name)}</b><small><span class="badge ${n.safety}">${t('safety.' + n.safety)}</span></small>
       <i class="meter" style="--w:${(n.bytes / top * 100).toFixed(1)}%"></i></div>
     <span class="size">${fmt(n.bytes)}</span>
@@ -693,7 +832,8 @@ async function openDir(node) {
     const home = await invoke('home').catch(() => '~');
     map.trail = [{ path: home, name: home.split(/[\\/]/).filter(Boolean).pop() || '~', nodes }];
   } else map.trail.at(-1).nodes = nodes;
-  map.selected = new Set();
+  // The selection survives navigation: only sizes refresh for the new level.
+  nodes.forEach(n => map.sizes.set(n.path, n.bytes));
   map.loading = false;
   render();
 }
@@ -787,13 +927,14 @@ document.addEventListener('click', async e => {
   if (el.dataset.section) {
     section = el.dataset.section;
     if (scanKey() === 'bin') bin = null;
+    if (scanKey() === 'quarantine') quar.items = null;
     renderShell();
     if (section === 'overview' && overview) refreshBin();
     return $('#main').focus();
   }
-  if (el.dataset.tab) { tab[section] = el.dataset.tab; if (el.dataset.tab === 'bin') bin = null; return render(); }
-  if (el.dataset.go) { section = el.dataset.go; if (el.dataset.goTab) tab[section] = el.dataset.goTab; if (el.dataset.goTab === 'bin') bin = null; return renderShell(); }
-  if (el.dataset.crumb) { map.trail = map.trail.slice(0, +el.dataset.crumb + 1); map.selected = new Set(); return render(); }
+  if (el.dataset.tab) { tab[section] = el.dataset.tab; if (el.dataset.tab === 'bin') bin = null; if (el.dataset.tab === 'quarantine') quar.items = null; return render(); }
+  if (el.dataset.go) { section = el.dataset.go; if (el.dataset.goTab) tab[section] = el.dataset.goTab; if (el.dataset.goTab === 'bin') bin = null; if (el.dataset.goTab === 'quarantine') quar.items = null; return renderShell(); }
+  if (el.dataset.crumb) { map.trail = map.trail.slice(0, +el.dataset.crumb + 1); return render(); }
   if (el.dataset.modal) {
     const action = pendingOk;
     pendingOk = null;
@@ -808,18 +949,24 @@ document.addEventListener('click', async e => {
   switch (el.dataset.action) {
     case 'scan': return scan();
     case 'undoClean': return invoke('open_recycle_bin').catch(() => showMessage('common.undo', t('bin.openFailed')));
-    case 'healthRefresh': return loadOverview(el);
+    case 'healthRefresh':
+    case 'diskRefresh': return loadOverview(el);
     case 'tick': return; // handled on change
     case 'mapTick': return;
     case 'all': v.items.forEach(i => i.safety !== 'risky' && v.selected.add(i.path)); return render();
     case 'none': v.selected.clear(); return render();
     case 'reveal': return invoke('reveal', { path }).catch(() => {});
-    case 'up': map.trail.pop(); map.selected = new Set(); return render();
+    case 'up': map.trail.pop(); return render();
     case 'preview':
       return askClean(v.items.filter(i => v.selected.has(i.path)), r => { v.result = r; v.phase = 'done'; render(); });
+    case 'mapClear': map.selected.clear(); return render();
     case 'mapPreview': {
-      const cur = map.trail.at(-1);
-      return askClean(cur.nodes.filter(n => map.selected.has(n.path)), result => {
+      // Every selected path across levels, confirmed and deleted through the
+      // existing clean command and its server-side validation.
+      const items = [...map.selected].map(path => ({ path, name: baseName(path), bytes: map.sizes.get(path) || 0 }));
+      if (!items.length) return;
+      return askClean(items, result => {
+        map.selected.clear();
         reloadMap();
         if (result.failed.length) showMessage('common.remove', t('common.failed', result.failed.length));
       });
@@ -861,6 +1008,50 @@ document.addEventListener('click', async e => {
         if (!ok) showMessage('bin.action', t('bin.emptyFailed'));
       };
       return;
+    case 'qFilter': quar.filter = el.dataset.f; return render();
+    case 'qToggle': {
+      const id = el.closest('[data-q]').dataset.q;
+      const item = quar.items.find(x => x.id === id);
+      if (!item) return;
+      const open = !quar.expanded.delete(id);
+      if (open) quar.expanded.add(id);
+      el.setAttribute('aria-expanded', open);
+      el.setAttribute('aria-label', t(open ? 'quarantine.hideDetails' : 'quarantine.showDetails'));
+      const details = document.getElementById('q-' + id);
+      details.hidden = !open;
+      details.innerHTML = open ? qDetails(item) : '';
+      return;
+    }
+    case 'qRestore': return qRestore(el.closest('[data-q]').dataset.q);
+    case 'qDelete': {
+      const item = quar.items.find(x => x.id === el.closest('[data-q]').dataset.q);
+      if (!item) return;
+      modal(`<h2>${t('quarantine.confirmDeleteTitle')}</h2><p>${t('quarantine.confirmDeleteBody', esc(item.name))}</p>
+        <div class="actions"><button type="button" class="btn" data-modal="cancel">${t('common.cancel')}</button>
+        <button type="button" class="btn danger" data-modal="ok">${t('quarantine.delete')}</button></div>`);
+      pendingOk = async () => {
+        closeModal();
+        const err = await invoke('quarantine_delete', { id: item.id }).then(() => null, e => String(e));
+        await reloadQuarantine();
+        if (err) showMessage('quarantine.errorTitle', t('quarantine.errorDelete'));
+      };
+      return;
+    }
+    case 'qSafe': {
+      const safe = quar.items.filter(i => i.verdict === 'safe');
+      if (!safe.length) return;
+      const bytes = safe.reduce((s, i) => s + i.bytes, 0);
+      modal(`<h2>${t('quarantine.confirmSafeTitle')}</h2><p>${t('quarantine.confirmSafeBody', localNumber(safe.length), fmt(bytes))}</p>
+        <div class="actions"><button type="button" class="btn" data-modal="cancel">${t('common.cancel')}</button>
+        <button type="button" class="btn danger" data-modal="ok">${t('quarantine.deleteSafe')}</button></div>`);
+      pendingOk = async () => {
+        closeModal();
+        const err = await invoke('quarantine_delete_safe', { ids: safe.map(i => i.id) }).then(() => null, e => String(e));
+        await reloadQuarantine();
+        if (err) showMessage('quarantine.errorTitle', t('quarantine.errorDelete'));
+      };
+      return;
+    }
     case 'boostAsk': return askBoost();
     case 'tasksRun': {
       if (tasksRunning || !selectedTasks.size) return;
@@ -889,7 +1080,8 @@ async function reloadMap() {
   const cur = map.trail.at(-1);
   map.loading = true; render();
   cur.nodes = await invoke('disk_children', { path: cur.path }).catch(() => []);
-  map.selected = new Set(); map.loading = false; render();
+  cur.nodes.forEach(n => map.sizes.set(n.path, n.bytes));
+  map.loading = false; render();
 }
 
 document.addEventListener('change', e => {
@@ -897,8 +1089,17 @@ document.addEventListener('change', e => {
   if (el.dataset.action === 'sort') { sort = el.value; store('cleanix.sort', sort); return render(); }
   if (el.dataset.action === 'bootToggle') return toggleBoot(el);
   const path = el.closest('[data-path]')?.dataset.path;
-  const set = el.dataset.action === 'mapTick' ? map.selected : el.dataset.action === 'tick' ? views[scanKey()].selected : null;
-  if (!set || !path) return;
+  if (!path) return;
+  if (el.dataset.action === 'mapTick') {
+    // Selecting a folder drops its selected descendants: it implies them.
+    if (el.checked) {
+      for (const sel of [...map.selected]) if (isBelow(sel, path)) map.selected.delete(sel);
+      map.selected.add(path);
+    } else map.selected.delete(path);
+    return render();
+  }
+  if (el.dataset.action !== 'tick') return;
+  const set = views[scanKey()].selected;
   el.checked ? set.add(path) : set.delete(path);
   render();
 });
@@ -933,6 +1134,7 @@ function syncLang() {
 function syncVisibility() {
   const visible = pageVisible();
   document.documentElement.toggleAttribute('data-paused', !visible);
+  armUpdatedTimer();
   if (!visible) {
     if (apps.frame !== null) cancelAnimationFrame(apps.frame);
     apps.frame = null;

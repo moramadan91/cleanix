@@ -3,7 +3,7 @@ import NaddafCore
 
 /// Tabs inside a section. Titles come from the catalog key `tab.<rawValue>`.
 enum SectionTab: String, Identifiable {
-    case sweep, appCaches, trash, mail, shredder
+    case sweep, appCaches, trash, quarantine, mail, shredder
     case privacy, permissions, suspicious, extensions
     case maintenance, loginItems, heavyApps
     case uninstall, leftovers, unused, updates, reset
@@ -14,7 +14,7 @@ enum SectionTab: String, Identifiable {
 
     static func tabs(for section: AppSection) -> [SectionTab] {
         switch section {
-        case .cleanup: [.sweep, .appCaches, .trash, .mail, .shredder]
+        case .cleanup: [.sweep, .appCaches, .trash, .quarantine, .mail, .shredder]
         case .protection: [.privacy, .permissions, .suspicious, .extensions]
         case .performance: [.maintenance, .loginItems, .heavyApps]
         case .apps: [.uninstall, .leftovers, .unused, .updates, .reset]
@@ -56,6 +56,7 @@ struct SectionContent: View {
             ScanListView(section: section, mode: .emptyTrash) {
                 TrashScanner(trashRoots: [h(".Trash")], allowFinder: !env.isDemo)
             }
+        case (_, .quarantine?): QuarantineView()
         case (_, .mail?):
             ScanListView(section: section, mode: .clean(.trash)) {
                 MailAttachmentsScanner(mailDownloads: [

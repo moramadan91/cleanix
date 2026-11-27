@@ -1553,18 +1553,34 @@
         }
       }
     },
-    "map.remove": {
+    "map.clearSelection": {
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "امسح المختار"
+            "value": "مسح التحديد"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Remove selected"
+            "value": "Clear selection"
+          }
+        }
+      }
+    },
+    "map.remove": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "احذف المحدد"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete selected"
           }
         }
       }
@@ -1581,6 +1597,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@ inside is safe to delete"
+          }
+        }
+      }
+    },
+    "map.selection": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ محدد · %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ selected · %@"
           }
         }
       }
@@ -2017,6 +2049,38 @@
         }
       }
     },
+    "overview.updatedMinutes": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "آخر تحديث: من %@ دقيقة"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Updated %@ min ago"
+          }
+        }
+      }
+    },
+    "overview.updatedNow": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "آخر تحديث: الآن"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Updated just now"
+          }
+        }
+      }
+    },
     "perm.Accessibility": {
       "localizations": {
         "ar": {
@@ -2413,6 +2477,934 @@
           "stringUnit": {
             "state": "translated",
             "value": "Turn on"
+          }
+        }
+      }
+    },
+    "quarantine.bytes": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ بايت"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ bytes"
+          }
+        }
+      }
+    },
+    "quarantine.children": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "العناصر جوه المجلد"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Items in this folder"
+          }
+        }
+      }
+    },
+    "quarantine.confirmDeleteBody": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "«%@» هيتمسح من الحجر نهائي."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“%@” will be permanently removed from quarantine."
+          }
+        }
+      }
+    },
+    "quarantine.confirmDeleteTitle": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تمسح العنصر ده نهائي؟"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete this item permanently?"
+          }
+        }
+      }
+    },
+    "quarantine.confirmSafeBody": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "عدد العناصر الآمنة اللي هتتمسح نهائي: %lld. الحجم الكلي: %@."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Safe items to delete permanently: %lld. Total size: %@."
+          }
+        }
+      }
+    },
+    "quarantine.confirmSafeTitle": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تمسح كل العناصر الآمنة نهائي؟"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete all safe items permanently?"
+          }
+        }
+      }
+    },
+    "quarantine.delete": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "امسح نهائي"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete permanently"
+          }
+        }
+      }
+    },
+    "quarantine.deleteSafe": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "امسح كل الآمن"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete all safe items"
+          }
+        }
+      }
+    },
+    "quarantine.dismiss": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تمام"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
+          }
+        }
+      }
+    },
+    "quarantine.empty": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الحجر فاضي."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quarantine is empty."
+          }
+        }
+      }
+    },
+    "quarantine.emptyFilter": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مفيش عناصر في الفئة دي."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No items match this filter."
+          }
+        }
+      }
+    },
+    "quarantine.errorDelete": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cleanix ما قدرش يكمّل مسح عنصر أو أكتر. جرّب تاني."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cleanix couldn’t finish deleting one or more items. Try again."
+          }
+        }
+      }
+    },
+    "quarantine.errorExists": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "فيه حاجة موجودة بالفعل في المكان الأصلي. انقلها أو غيّر اسمها قبل ما ترجّع العنصر."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Something already exists at the original location. Move or rename it before restoring."
+          }
+        }
+      }
+    },
+    "quarantine.errorRestore": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cleanix ما قدرش يرجّع العنصر ده. ممكن يكون اتنقل بالفعل."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cleanix couldn’t restore this item. It may have been moved already."
+          }
+        }
+      }
+    },
+    "quarantine.errorTitle": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "العملية في الحجر ما كملتش"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quarantine action failed"
+          }
+        }
+      }
+    },
+    "quarantine.exactSize": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الحجم بالضبط"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exact size"
+          }
+        }
+      }
+    },
+    "quarantine.expiry": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الأيام المتبقية لحد المسح النهائي: %lld"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Days until permanent deletion: %lld"
+          }
+        }
+      }
+    },
+    "quarantine.filter.all": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الكل"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All"
+          }
+        }
+      }
+    },
+    "quarantine.filter.review": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "محتاج مراجعة"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Needs review"
+          }
+        }
+      }
+    },
+    "quarantine.filter.safe": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "آمن"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Safe"
+          }
+        }
+      }
+    },
+    "quarantine.filter.unsafe": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "غير آمن"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unsafe"
+          }
+        }
+      }
+    },
+    "quarantine.filterCount": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ (%lld)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ (%lld)"
+          }
+        }
+      }
+    },
+    "quarantine.hideDetails": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اخفي التفاصيل"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hide details"
+          }
+        }
+      }
+    },
+    "quarantine.kind.app": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "برنامج"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App"
+          }
+        }
+      }
+    },
+    "quarantine.kind.appData": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "بيانات برنامج"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App data"
+          }
+        }
+      }
+    },
+    "quarantine.kind.cache": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ذاكرة مؤقتة"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cache"
+          }
+        }
+      }
+    },
+    "quarantine.kind.document": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مستند"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Document"
+          }
+        }
+      }
+    },
+    "quarantine.kind.download": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تنزيل"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Download"
+          }
+        }
+      }
+    },
+    "quarantine.kind.logs": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "سجلات"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Logs"
+          }
+        }
+      }
+    },
+    "quarantine.kind.media": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "وسائط"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Media"
+          }
+        }
+      }
+    },
+    "quarantine.kind.other": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "أخرى"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Other"
+          }
+        }
+      }
+    },
+    "quarantine.kind.settings": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إعدادات"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Settings"
+          }
+        }
+      }
+    },
+    "quarantine.kindAndOwner": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · %@"
+          }
+        }
+      }
+    },
+    "quarantine.loading": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "بنحمّل الملفات المحجورة…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading quarantine…"
+          }
+        }
+      }
+    },
+    "quarantine.originalPath": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المسار الأصلي"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Original path"
+          }
+        }
+      }
+    },
+    "quarantine.overdue": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مدة الاحتفاظ انتهت"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retention period ended"
+          }
+        }
+      }
+    },
+    "quarantine.reason.appData": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المكان ده ممكن يكون فيه بيانات برامج تحتاجها تاني."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This location can contain app data you may need again."
+          }
+        }
+      }
+    },
+    "quarantine.reason.application": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ده جزء من برنامج من مجلد التطبيقات عندك."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This is part of an app from your Applications folder."
+          }
+        }
+      }
+    },
+    "quarantine.reason.downloads": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "التنزيلات ممكن يكون فيها ملفات اخترت تحتفظ بيها."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Downloads can contain files you chose to keep."
+          }
+        }
+      }
+    },
+    "quarantine.reason.installed": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "البيانات دي تخص برنامج لسه متثبّت."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This data belongs to an app that is still installed."
+          }
+        }
+      }
+    },
+    "quarantine.reason.keychain": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المكان ده ممكن يكون فيه كلمات سر وبيانات دخول."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This location can contain passwords and other credentials."
+          }
+        }
+      }
+    },
+    "quarantine.reason.personal": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المكان ده ممكن يكون فيه ملفات شخصية أو بيانات متزامنة."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This location can contain personal files or synced data."
+          }
+        }
+      }
+    },
+    "quarantine.reason.rebuild": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "البرامج بتعيد إنشاء الملفات دي لوحدها."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apps rebuild these files on their own."
+          }
+        }
+      }
+    },
+    "quarantine.reason.redownload": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "البرنامج يقدر ينزّل الملفات دي تاني لو احتاجها."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The app can download these files again if needed."
+          }
+        }
+      }
+    },
+    "quarantine.reason.settings": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الإعدادات دي ممكن تغيّر طريقة شغل برنامج أو خدمة."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "These settings can affect how an app or service works."
+          }
+        }
+      }
+    },
+    "quarantine.reason.temporary": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الملفات دي جاية من مجلد مؤقت أو سلة المهملات."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "These files came from a temporary folder or the Trash."
+          }
+        }
+      }
+    },
+    "quarantine.reason.unknown": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cleanix مش قادر يحدد الملفات دي بتُستخدم في إيه."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cleanix can’t determine what these files are used for."
+          }
+        }
+      }
+    },
+    "quarantine.reasonLabel": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "السبب"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reason"
+          }
+        }
+      }
+    },
+    "quarantine.removedDate": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تاريخ الإزالة"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Date removed"
+          }
+        }
+      }
+    },
+    "quarantine.removedRelative": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اتشال %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Removed %@"
+          }
+        }
+      }
+    },
+    "quarantine.restore": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "رجّع"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore"
+          }
+        }
+      }
+    },
+    "quarantine.showDetails": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اعرض التفاصيل"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show details"
+          }
+        }
+      }
+    },
+    "quarantine.storedPath": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المسار في الحجر"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quarantine path"
+          }
+        }
+      }
+    },
+    "quarantine.summary": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "عدد العناصر: %lld · الحجم الكلي: %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Items: %lld · Total size: %@"
+          }
+        }
+      }
+    },
+    "quarantine.verdict.review": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "محتاج مراجعة منك"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Needs your review"
+          }
+        }
+      }
+    },
+    "quarantine.verdict.safe": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "آمن للمسح"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Safe to delete"
+          }
+        }
+      }
+    },
+    "quarantine.verdict.unsafe": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "غير آمن للمسح"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unsafe to delete"
+          }
+        }
+      }
+    },
+    "reason.Disk Map": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "خريطة القرص"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disk Map"
           }
         }
       }
@@ -4109,6 +5101,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Privacy"
+          }
+        }
+      }
+    },
+    "tab.quarantine": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الحجر"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quarantine"
           }
         }
       }

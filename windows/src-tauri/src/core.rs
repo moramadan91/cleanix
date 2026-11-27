@@ -64,6 +64,85 @@ impl Places {
         Places { home, local, roaming, temp, win_temp }
     }
 
+    /// One personal Known Folder: the real Windows location when it resolves,
+    /// otherwise the usual profile-relative fallback (also used off Windows).
+    fn known_folder(&self, kind: &str) -> PathBuf {
+        #[cfg(windows)]
+        if let Some(resolved) = known_folder_path(kind) {
+            return resolved;
+        }
+        let _ = kind;
+        self.home.join(match kind {
+            "Desktop" => "Desktop",
+            "Pictures" => "Pictures",
+            "Videos" => "Videos",
+            "Music" => "Music",
+            "Downloads" => "Downloads",
+            _ => "Documents",
+        })
+    }
+
+    /// Personal folders whose contents are never safe to delete for good.
+    pub fn document_dirs(&self) -> Vec<PathBuf> {
+        vec![self.known_folder("Documents"), self.known_folder("Desktop")]
+    }
+
+    /// Personal media folders whose contents are never safe to delete for good.
+    pub fn media_dirs(&self) -> Vec<PathBuf> {
+        vec![self.known_folder("Pictures"), self.known_folder("Videos"), self.known_folder("Music")]
+    }
+
+    /// The user's Downloads folder: needs a look before anything is gone for good.
+    pub fn downloads_dir(&self) -> PathBuf {
+        self.known_folder("Downloads")
+    }
+
+    /// Every OneDrive root: the client env vars plus any `OneDrive` / `OneDrive - *`
+    /// folder directly in the profile (personal or business names).
+    pub fn onedrive_roots(&self) -> Vec<PathBuf> {
+        let mut roots = vec![];
+        for key in ["OneDrive", "OneDriveCommercial", "OneDriveConsumer"] {
+            if let Some(dir) = std::env::var_os(key).map(PathBuf::from) {
+                if !dir.as_os_str().is_empty() && !roots.contains(&dir) {
+                    roots.push(dir);
+                }
+            }
+        }
+        if let Ok(entries) = fs::read_dir(&self.home) {
+            for entry in entries.flatten() {
+                let name = entry.file_name().to_string_lossy().to_lowercase();
+                if name == "onedrive" || name.starts_with("onedrive - ") {
+                    let dir = entry.path();
+                    if !roots.contains(&dir) {
+                        roots.push(dir);
+                    }
+                }
+            }
+        }
+        roots
+    }
+
+    /// Anything at, under, or above a personal Known Folder / OneDrive root is
+    /// never stashed: the classifier already refuses the first two, and
+    /// stashing an ancestor (e.g. the whole profile) would swallow personal
+    /// data along with the junk.
+    pub fn touches_personal_root(&self, path: &Path) -> bool {
+        self.document_dirs()
+            .into_iter()
+            .chain(self.media_dirs())
+            .chain([self.downloads_dir()])
+            .chain(self.onedrive_roots())
+            .any(|root| path.starts_with(&root) || root.starts_with(path))
+    }
+
+    /// Roots a restore may go back to: the user profile plus the other
+    /// scanner roots (temp folders, Windows Temp).
+    pub fn restore_roots(&self) -> Vec<PathBuf> {
+        let mut roots = vec![self.home.clone(), self.temp.clone()];
+        roots.extend(self.win_temp.clone());
+        roots
+    }
+
     fn user_roots(&self) -> [&Path; 3] {
         [&self.home, &self.local, &self.roaming]
     }
@@ -78,6 +157,54 @@ impl Places {
             .min_by_key(|root| root.components().count())
             .is_some_and(|root| within_user_folder(path, root))
     }
+}
+
+/// A personal Known Folder through SHGetKnownFolderPath (Documents, Desktop,
+/// Pictures, Videos, Music, Downloads). GUIDs are spelled out so no extra
+/// FOLDERID import shape is needed.
+#[cfg(windows)]
+fn known_folder_path(kind: &str) -> Option<PathBuf> {
+    use windows_sys::Win32::Foundation::S_OK;
+    use windows_sys::Win32::System::Com::CoTaskMemFree;
+    use windows_sys::Win32::UI::Shell::SHGetKnownFolderPath;
+    use windows_sys::core::GUID;
+    const DOCUMENTS: GUID = GUID { data1: 0xFDD39AD0, data2: 0x238F, data3: 0x46AF, data4: [0xAD, 0xB4, 0x6C, 0x85, 0x48, 0x03, 0x69, 0xC7] };
+    const DESKTOP: GUID = GUID { data1: 0xB4BFCC3A, data2: 0xDB2C, data3: 0x424C, data4: [0xB0, 0x29, 0x7F, 0xE9, 0x9A, 0x87, 0xC6, 0x41] };
+    const PICTURES: GUID = GUID { data1: 0x33E28130, data2: 0x4E1E, data3: 0x4676, data4: [0x83, 0x5A, 0x98, 0x39, 0x5C, 0x3B, 0xCF, 0xBB] };
+    const VIDEOS: GUID = GUID { data1: 0x18989B1D, data2: 0x99B5, data3: 0x455B, data4: [0x84, 0x1C, 0xAB, 0x7C, 0x74, 0xE4, 0xDD, 0xFC] };
+    const MUSIC: GUID = GUID { data1: 0x4BD8D571, data2: 0x6D19, data3: 0x48D3, data4: [0xBE, 0x97, 0x42, 0x22, 0x20, 0x08, 0x0E, 0x43] };
+    const DOWNLOADS: GUID = GUID { data1: 0x374DE290, data2: 0x123F, data3: 0x4565, data4: [0x91, 0x64, 0x39, 0xC4, 0x92, 0x5E, 0x46, 0x7B] };
+    let id = match kind {
+        "Desktop" => DESKTOP,
+        "Pictures" => PICTURES,
+        "Videos" => VIDEOS,
+        "Music" => MUSIC,
+        "Downloads" => DOWNLOADS,
+        _ => DOCUMENTS,
+    };
+    let mut raw: *mut u16 = std::ptr::null_mut();
+    // SAFETY: `id` is a valid Known Folder GUID; the API hands back a
+    // CoTaskMemAlloc'd NUL-terminated string that we free below. The token is
+    // a HANDLE (a pointer in windows-sys 0.59), so the null token is null.
+    let hr = unsafe { SHGetKnownFolderPath(&id, 0, std::ptr::null_mut(), &mut raw) };
+    if hr != S_OK || raw.is_null() {
+        // A failed call may still have handed back a buffer: free it.
+        if !raw.is_null() {
+            unsafe { CoTaskMemFree(raw as _) };
+        }
+        return None;
+    }
+    let len = unsafe {
+        let mut n = 0;
+        while *raw.add(n) != 0 {
+            n += 1;
+        }
+        n
+    };
+    let path = PathBuf::from(String::from_utf16_lossy(unsafe { std::slice::from_raw_parts(raw, len) }));
+    // SAFETY: `raw` came from SHGetKnownFolderPath in this same call.
+    unsafe { CoTaskMemFree(raw as _) };
+    (!path.as_os_str().is_empty()).then_some(path)
 }
 
 /// Symlinks and junctions are never followed: they can point anywhere, including system folders.

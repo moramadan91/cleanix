@@ -31,8 +31,10 @@ public final class Cleaner: Sendable {
         self.trasher = trasher
     }
 
+    @concurrent
     public func clean(_ items: [ScanItem], disposal: Disposal, progress: CleanProgress? = nil) async -> CleanResult {
         var result = CleanResult()
+        var stashed = false
         for (index, item) in items.enumerated() {
             let fraction = items.count > 1 ? Double(index) / Double(items.count) : nil
             await progress?(item.title ?? item.url.lastPathComponent, fraction)
@@ -47,7 +49,9 @@ public final class Cleaner: Sendable {
             do {
                 switch disposal {
                 case .trash: try trasher(item.url)
-                case .quarantine: _ = try quarantine.stash(item.url)
+                case .quarantine:
+                    _ = try quarantine.stash(item.url)
+                    stashed = true
                 }
                 result.removed.append(item.url)
                 result.freedBytes += item.bytes
@@ -55,6 +59,7 @@ public final class Cleaner: Sendable {
                 result.failed.append((item.url, error.localizedDescription))
             }
         }
+        if stashed { try? quarantine.purgeExpired() }
         return result
     }
 }

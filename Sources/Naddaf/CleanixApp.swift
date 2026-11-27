@@ -154,6 +154,7 @@ final class SplashDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        Task.detached(priority: .utility) { try? AppEnv.shared.quarantine.purgeExpired() }
         configureSilentLogin()
         Alerts.shared.registerDelegate()
         quitMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in

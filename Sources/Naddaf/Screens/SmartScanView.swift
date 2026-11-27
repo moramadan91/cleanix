@@ -119,9 +119,10 @@ struct OverviewView: View {
     @State private var total: Int64 = 0
     @State private var free: Int64 = 0
     @State private var tiles: [StorageTile] = []
-    @State private var tileCache: (refresh: Int, measuredAt: ContinuousClock.Instant)?
-    @State private var loading = false
-    @State private var refresh = 0
+    @State private var tileCache: ContinuousClock.Instant?
+    @State private var loadingDisk = false
+    @State private var diskUpdatedAt: Date?
+    @State private var healthUpdatedAt: Date?
     @State private var health: HealthScore?
     @State private var battery: BatteryHealth?
     /// Health re-check: a quick Smart Scan so the score sees what cleaning changed.
@@ -134,9 +135,15 @@ struct OverviewView: View {
             // Compact so the whole page fits the window without scrolling.
             VStack(alignment: .leading, spacing: 20) {
                 HStack(alignment: .top, spacing: 16) {
-                    healthPanel
-                    diskPanel
-                        .containerRelativeFrame(.horizontal) { width, _ in max(250, (width - 18) / 3.15) }
+                    VStack(alignment: .leading, spacing: 6) {
+                        healthPanel
+                        updatedLine(healthUpdatedAt)
+                    }
+                    VStack(alignment: .leading, spacing: 6) {
+                        diskPanel
+                        updatedLine(diskUpdatedAt)
+                    }
+                    .containerRelativeFrame(.horizontal) { width, _ in max(250, (width - 18) / 3.15) }
                 }
                 // Both panels as tall as the taller one.
                 .fixedSize(horizontal: false, vertical: true)
@@ -156,7 +163,11 @@ struct OverviewView: View {
         .frame(maxWidth: 900)
         .padding(.horizontal, 40)
         .frame(maxWidth: .infinity)
-        .task(id: isVisible ? refresh : nil) { if isVisible { await load() } }
+        .onChange(of: isVisible, initial: true) {
+            guard isVisible else { return }
+            refreshDisk(passive: true)
+            refreshHealth(passive: true)
+        }
     }
 
     private var healthPanel: some View {
@@ -174,9 +185,8 @@ struct OverviewView: View {
                         .accessibilityAddTraits(.isHeader)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     refreshButton(title: L("health.recheck"), active: checking) {
-                        Task { await recheck() }
+                        refreshHealth()
                     }
-                    .disabled(loading)
                 }
                 if let health {
                     ForEach(health.issues, id: \.self) { issue in
@@ -214,8 +224,7 @@ struct OverviewView: View {
                     .font(.system(size: 17, weight: .semibold))
                     .accessibilityAddTraits(.isHeader)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                refreshButton(title: L("overview.refresh"), active: loading && !checking) { refresh += 1 }
-                    .disabled(loading || checking)
+                refreshButton(title: L("overview.refresh"), active: loadingDisk) { refreshDisk() }
             }
             if total > 0 {
                 let used = Double(total - free) / Double(total)
@@ -230,6 +239,23 @@ struct OverviewView: View {
         .padding(14)
         .frame(maxHeight: .infinity, alignment: .top)
         .depthGlass(RoundedRectangle(cornerRadius: 22))
+    }
+
+    private func updatedLine(_ completedAt: Date?) -> some View {
+        Group {
+            if isVisible, let completedAt {
+                TimelineView(.periodic(from: completedAt, by: 60)) { context in
+                    let minutes = Int(max(0, context.date.timeIntervalSince(completedAt)) / 60)
+                    Text(minutes == 0 ? L("overview.updatedNow")
+                         : String(format: L("overview.updatedMinutes"),
+                                  minutes.formatted(.number.locale(Lang.locale))))
+                }
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
+            }
+        }
+        .frame(height: 16, alignment: .leading)
     }
 
     private var statTiles: some View {
@@ -313,7 +339,7 @@ struct OverviewView: View {
 
     private func refreshButton(title: String, active: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Image(systemName: "arrow.clockwise")
+            Image(systemName: active && reduceMotion ? "hourglass" : "arrow.clockwise")
                 .symbolEffect(.rotate, options: .repeating, isActive: active && isVisible && !reduceMotion)
         }
         .buttonStyle(.liquid(small: true))
@@ -352,48 +378,80 @@ struct OverviewView: View {
         }
     }
 
-    /// Measures the junk again (same scan as Smart Scan) and rebuilds the score from it.
-    private func recheck() async {
-        guard !checking else { return }
-        checking = true
-        let before = health?.score
-        let smart = makeSmartScan(includeBrowserCaches: true)
-        let sections = await Task.detached { await smart.run() }.value
-        lastScanBytes = Int(sections.reduce(0) { $0 + $1.bytes })
-        UserDefaults.standard.set(Date(), forKey: "lastSmartScanDate")
-        await load(forceFolderRefresh: true)
-        previousScore = before
-        checking = false
+    private func refreshDisk(passive: Bool = false) {
+        guard !loadingDisk else { return }
+        if passive, let tileCache, tileCache.duration(to: .now) < .seconds(60) { return }
+        loadingDisk = true
+        Task {
+            defer { loadingDisk = false }
+            let started = ContinuousClock.now
+            let home = AppEnv.shared.home
+            async let storage = Self.measureStorage(home: home)
+            let volume = await Self.readVolume(home: home)
+            let (measuredTiles, measuredBattery) = await storage
+            let completedAt = Date.now
+            let measuredAt = ContinuousClock.now
+            if !passive { try? await ContinuousClock().sleep(until: started + .milliseconds(400)) }
+            guard !Task.isCancelled else { return }
+            tileCache = measuredAt
+            volumeName = volume.name
+            total = volume.total
+            free = volume.free
+            tiles = measuredTiles
+            battery = measuredBattery
+            diskUpdatedAt = completedAt
+        }
     }
 
-    private func load(forceFolderRefresh: Bool = false) async {
-        guard !Task.isCancelled else { return }
-        loading = true
-        let started = Date()
-        defer { if !Task.isCancelled { loading = false } }
-        let env = AppEnv.shared
-        let home = env.home
-        let revision = refresh
-        let loginItems = loginItems
-        let snapshot = await Task.detached {
-            let values = try? home.resourceValues(forKeys: [
-                .volumeNameKey, .volumeTotalCapacityKey, .volumeAvailableCapacityForImportantUsageKey,
-            ])
-            // Extract Foundation resource values before crossing the task boundary.
-            return (volumeName: values?.volumeName, total: values?.volumeTotalCapacity,
-                    free: values?.volumeAvailableCapacityForImportantUsage,
-                    loginItemCount: loginItems.items().count, battery: BatteryHealth.read())
-        }.value
-        guard !Task.isCancelled else { return }
-        volumeName = snapshot.volumeName
-        total = Int64(snapshot.total ?? 0)
-        free = min(total, max(0, snapshot.free ?? 0))
-        health = healthScore(HealthInputs(freeBytes: free, totalBytes: total,
-                                         memoryPressure: SystemMetrics.memoryUsed() ?? 0,
-                                         loginItems: snapshot.loginItemCount, junkBytes: Int64(lastScanBytes)))
-        battery = snapshot.battery
-        if !forceFolderRefresh, let tileCache, tileCache.refresh == revision,
-           tileCache.measuredAt.duration(to: .now) < .seconds(60) { return }
+    private func refreshHealth(passive: Bool = false) {
+        guard !checking else { return }
+        checking = true
+        Task {
+            defer { checking = false }
+            let started = ContinuousClock.now
+            let before = health?.score
+            var junk = Int64(lastScanBytes)
+            if !passive {
+                let smart = makeSmartScan(includeBrowserCaches: true)
+                let sections = await smart.run()
+                guard !Task.isCancelled else { return }
+                junk = sections.reduce(0) { $0 + $1.bytes }
+            }
+            let measured = await Self.measureHealth(home: AppEnv.shared.home, loginItems: loginItems, junk: junk)
+            let completedAt = Date.now
+            if !passive { try? await ContinuousClock().sleep(until: started + .milliseconds(400)) }
+            guard !Task.isCancelled else { return }
+            health = measured
+            previousScore = passive ? nil : before
+            if !passive {
+                lastScanBytes = Int(junk)
+                UserDefaults.standard.set(completedAt, forKey: "lastSmartScanDate")
+                healthUpdatedAt = completedAt
+            }
+        }
+    }
+
+    @concurrent
+    private static func measureHealth(home: URL, loginItems: LoginItemsReader, junk: Int64) async -> HealthScore {
+        let volume = await readVolume(home: home)
+        return healthScore(HealthInputs(freeBytes: volume.free, totalBytes: volume.total,
+                                       memoryPressure: SystemMetrics.memoryUsed() ?? 0,
+                                       loginItems: loginItems.items().count, junkBytes: junk))
+    }
+
+    @concurrent
+    private static func readVolume(home: URL) async -> (name: String?, total: Int64, free: Int64) {
+        // Construct a fresh URL so Foundation reads the current capacity.
+        let volume = URL(fileURLWithPath: home.path, isDirectory: true)
+        let values = try? volume.resourceValues(forKeys: [
+            .volumeNameKey, .volumeTotalCapacityKey, .volumeAvailableCapacityForImportantUsageKey,
+        ])
+        let total = Int64(values?.volumeTotalCapacity ?? 0)
+        return (values?.volumeName, total, min(total, max(0, values?.volumeAvailableCapacityForImportantUsage ?? 0)))
+    }
+
+    @concurrent
+    private static func measureStorage(home: URL) async -> ([StorageTile], BatteryHealth?) {
         let places = [
             (key: "tab.downloads", path: "Downloads", symbol: "arrow.down.circle"),
             (key: "tab.appCaches", path: "Library/Caches", symbol: "shippingbox"),
@@ -412,17 +470,13 @@ struct OverviewView: View {
             return out
         }
         let bin = await trashItems?.first
-        guard !Task.isCancelled else { return }
         let unreadable = (try? FileManager.default.contentsOfDirectory(atPath: trashURL.path)) == nil
         let trashTile = unreadable ? StorageTile(key: "tab.trash", symbol: "trash", bytes: nil)
             : StorageTile(key: "tab.trash", symbol: "trash",
                           bytes: bin?.hasMeasuredSize == false ? nil : bin?.bytes ?? 0,
                           itemCount: bin?.itemCount ?? 0)
-        tiles = [trashTile] + zip(places, sizes).map { StorageTile(key: $0.key, symbol: $0.symbol, bytes: $1) }
-        tileCache = (revision, .now)
-        // Keep the spin visible a moment: a refresh that finishes in 0.3 s looks like nothing happened.
-        let left = 0.6 - Date().timeIntervalSince(started)
-        if !reduceMotion, left > 0 { try? await Task.sleep(for: .seconds(left)) }
+        return ([trashTile] + zip(places, sizes).map { StorageTile(key: $0.key, symbol: $0.symbol, bytes: $1) },
+                BatteryHealth.read())
     }
 }
 

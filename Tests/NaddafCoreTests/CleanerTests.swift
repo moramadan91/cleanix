@@ -48,7 +48,7 @@ private actor ProgressReports {
     try withTempDir { dir in
         let file = dir.appendingPathComponent("data/a.txt")
         try makeFile(file, bytes: 5)
-        let q = Quarantine(root: dir.appendingPathComponent("q"))
+        let q = Quarantine(root: dir.appendingPathComponent("q"), home: dir)
         let rec = try q.stash(file, now: Date())
         #expect(!FileManager.default.fileExists(atPath: file.path))
         #expect(FileManager.default.fileExists(atPath: rec.stored.path))
@@ -73,6 +73,25 @@ private actor ProgressReports {
         #expect(!FileManager.default.fileExists(atPath: oldRec.stored.path))
         #expect(FileManager.default.fileExists(atPath: freshRec.stored.path))
         #expect(q.records().map(\.original) == [fresh])
+    }
+}
+
+@Test func quarantineCleaningPurgesOlderStashes() async throws {
+    try await withTempDirAsync { dir in
+        let allowed = dir.appendingPathComponent("cache")
+        let old = allowed.appendingPathComponent("old")
+        let fresh = allowed.appendingPathComponent("fresh")
+        try makeFile(old)
+        try makeFile(fresh)
+        let quarantine = Quarantine(root: dir.appendingPathComponent("q"), home: dir)
+        let record = try quarantine.stash(old, now: Date(timeIntervalSince1970: 0))
+        let cleaner = Cleaner(policy: PathPolicy(allowedRoots: [allowed]), quarantine: quarantine)
+
+        let result = await cleaner.clean([item(fresh)], disposal: .quarantine)
+
+        #expect(result.removed == [fresh])
+        #expect(quarantine.records().map(\.original) == [fresh])
+        #expect(!FileManager.default.fileExists(atPath: record.stored.path))
     }
 }
 

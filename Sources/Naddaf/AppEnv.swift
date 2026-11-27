@@ -31,7 +31,7 @@ final class AppEnv: Sendable {
         canonicalHome = base.standardizedFileURL.resolvingSymlinksInPath()
         let userApps = AppEnv.userOnly(appDirs)
         uninstallPolicy = PathPolicy(allowedRoots: userApps)
-        quarantine = Quarantine(root: lib.appendingPathComponent("Application Support/Naddaf/Quarantine"))
+        quarantine = Quarantine(root: lib.appendingPathComponent("Application Support/Naddaf/Quarantine"), home: base)
         // Allowlist: only the folders the scanners report from. Everything else is refused by Cleaner.
         let roots = ["Caches", "HTTPStorages", "Containers", "Group Containers", "Application Support",
                      "Logs", "Developer/Xcode/DerivedData", "Mail Downloads", "Preferences",

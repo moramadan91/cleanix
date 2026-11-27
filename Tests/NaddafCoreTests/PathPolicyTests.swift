@@ -81,3 +81,20 @@ import Foundation
         #expect(!policy.isAllowed(reviewed))
     }
 }
+
+@Test func exactAllowanceResolvesSymlinkedHomePrefix() throws {
+    try withTempDir { dir in
+        let home = dir.appendingPathComponent("Home")
+        let alias = dir.appendingPathComponent("Home Alias")
+        let reviewed = home.appendingPathComponent("Library/Application Support/Editor")
+        let child = reviewed.appendingPathComponent("data")
+        try makeFile(child)
+        try FileManager.default.createSymbolicLink(at: alias, withDestinationURL: home)
+
+        let aliasPath = alias.appendingPathComponent("Library/Application Support/Editor")
+        let policy = PathPolicy(allowedRoots: []).allowingExactPaths([aliasPath])
+        #expect(policy.isAllowed(aliasPath))
+        #expect(policy.isAllowed(reviewed))
+        #expect(!policy.isAllowed(child))
+    }
+}

@@ -6,15 +6,18 @@ struct PreviewSheet: View {
     let section: AppSection
     let items: [ScanItem]
     let disposal: Disposal
+    let showsPaths: Bool
     let onConfirm: ([ScanItem]) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var selected: Set<URL>
 
-    init(section: AppSection, items: [ScanItem], disposal: Disposal, onConfirm: @escaping ([ScanItem]) -> Void) {
+    init(section: AppSection, items: [ScanItem], disposal: Disposal, showsPaths: Bool = false,
+         onConfirm: @escaping ([ScanItem]) -> Void) {
         self.section = section
         self.items = items
         self.disposal = disposal
+        self.showsPaths = showsPaths
         self.onConfirm = onConfirm
         _selected = State(initialValue: Set(items.map(\.url)))
     }
@@ -37,6 +40,9 @@ struct PreviewSheet: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(item.url.lastPathComponent).font(.system(size: 14, weight: .semibold))
                         Text(localized("reason", item.reason)).font(.caption).foregroundStyle(.secondary)
+                        if showsPaths {
+                            Text(displayPath(item.url)).font(.caption).foregroundStyle(.secondary)
+                        }
                     }
                     Spacer()
                     Text(size(item.bytes)).monospacedDigit().foregroundStyle(.secondary)

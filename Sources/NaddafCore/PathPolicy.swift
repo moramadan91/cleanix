@@ -10,10 +10,10 @@ public struct PathPolicy: Sendable {
         roots = allowedRoots.map { Self.components($0) }
     }
 
-    /// Supply canonical paths recorded by discovery, without resolving them again at confirmation.
+    /// Resolve exact paths once when constructing the allowance.
     public func allowingExactPaths(_ urls: [URL]) -> Self {
         var policy = self
-        policy.exactPaths.formUnion(urls.map { $0.standardizedFileURL.path })
+        policy.exactPaths.formUnion(urls.map { $0.standardizedFileURL.resolvingSymlinksInPath().path })
         return policy
     }
 

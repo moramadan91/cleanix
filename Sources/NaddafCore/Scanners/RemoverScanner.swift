@@ -56,7 +56,7 @@ public struct RemoverScanner: Sendable {
 
     /// Find apps up to four levels below each root, treating bundles as leaves.
     @concurrent
-    public func apps() async -> [AppInfo] {
+    public func apps(measuringSize: Bool = true) async -> [AppInfo] {
         var seen: Set<URL> = []
         let urls = appDirs.flatMap { Self.appBundles(in: $0, depth: 4) }
             .filter { seen.insert($0.standardizedFileURL.resolvingSymlinksInPath()).inserted }
@@ -67,7 +67,7 @@ public struct RemoverScanner: Sendable {
                     guard let id = plist?["CFBundleIdentifier"] as? String else { return nil }
                     let name = (plist?["CFBundleName"] as? String) ?? url.deletingPathExtension().lastPathComponent
                     let store = FS.exists(url.appendingPathComponent("Contents/_MASReceipt/receipt"))
-                    return AppInfo(name: name, bundleID: id, url: url, bytes: FS.size(of: url),
+                    return AppInfo(name: name, bundleID: id, url: url, bytes: measuringSize ? FS.size(of: url) : 0,
                                    vendor: Self.vendor(from: id), source: store ? .appStore : .other)
                 }
             }

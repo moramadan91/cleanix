@@ -254,6 +254,23 @@ private func writePlist(_ url: URL, _ dict: [String: Any]) throws {
     }
 }
 
+@Test func diskMapKeepsOpenFolderVisibleWhenItShrinks() async throws {
+    try await withTempDirAsync { dir in
+        try makeFile(dir.appendingPathComponent("big"), bytes: 10_000)
+        let largeFile = dir.appendingPathComponent("open/large")
+        try makeFile(largeFile, bytes: 5_000)
+        try makeFile(dir.appendingPathComponent("open/small"), bytes: 1)
+        let initial = try await buildDiskTree(root: dir, depth: 2)
+        let open = try #require(initial.children.first { $0.name == "open" })
+
+        try FileManager.default.removeItem(at: largeFile)
+        let refreshed = try await buildDiskTree(root: dir, depth: 2, keepingVisible: [open.url])
+
+        #expect(refreshed.children.map(\.name) == ["big", "open"])
+        #expect(refreshed.children.last?.bytes == 1)
+    }
+}
+
 @Test func diskMapDoesNotFollowSymlinks() async throws {
     try await withTempDirAsync { dir in
         let root = dir.appendingPathComponent("root")

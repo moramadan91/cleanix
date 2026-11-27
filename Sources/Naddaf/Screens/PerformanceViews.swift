@@ -165,7 +165,9 @@ struct LoginItemsView: View {
 
     private func disable(_ item: LoginItem) {
         do {
-            try reader.disable(item, using: AppEnv.shared.quarantine)
+            let quarantine = AppEnv.shared.quarantine
+            try reader.disable(item, using: quarantine)
+            Task.detached(priority: .utility) { try? quarantine.purgeExpired() }
             error = nil
         } catch {
             self.error = error.localizedDescription

@@ -3,13 +3,14 @@ mod core;
 mod extensions;
 mod health;
 mod processes;
+mod quarantine;
 mod settings;
 mod startup;
 mod system;
 #[cfg(windows)]
 mod tray;
 
-use core::{CleanResult, DiskNode, Offered, Places, ScanItem};
+use core::{CleanResult, DiskNode, Offered, Places, Safety, ScanItem};
 use serde::Serialize;
 use settings::Settings;
 use tauri::{Emitter, Manager};
@@ -17,8 +18,9 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 #[cfg(windows)]
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::fs;
 use std::sync::{Arc, Mutex, OnceLock};
-use std::time::{Duration, Instant, SystemTime};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 /// Paths the UI was shown (the delete gate), shared by every command.
 struct AppState {
@@ -33,6 +35,10 @@ struct AppState {
     startup: Mutex<HashSet<String>>,
     boost: Mutex<Option<Vec<String>>>,
     heavy: Mutex<HashMap<String, Vec<(u32, u64)>>>,
+    quarantine: Arc<quarantine::Quarantine>,
+    /// Paths last offered by the junk/caches scans: cleaning them stashes into
+    /// Quarantine instead of the Recycle Bin.
+    quarantine_paths: Mutex<HashSet<PathBuf>>,
     settings_path: PathBuf,
     settings: Mutex<Settings>,
 }
@@ -103,6 +109,7 @@ async fn blocking<T: Send + 'static>(f: impl FnOnce() -> T + Send + 'static) -> 
 async fn scan(kind: String, state: tauri::State<'_, AppState>) -> Result<Vec<ScanItem>, String> {
     let p = state.places.clone();
     let counts_as_scan = matches!(kind.as_str(), "junk" | "caches");
+    let quarantined = matches!(kind.as_str(), "junk" | "caches");
     let items = blocking(move || match kind.as_str() {
         "junk" => core::scan_junk(&p),
         "caches" => core::scan_caches(&p),
@@ -118,6 +125,13 @@ async fn scan(kind: String, state: tauri::State<'_, AppState>) -> Result<Vec<Sca
     })
     .await?;
     state.offered.lock().unwrap().add_items(&items);
+    if quarantined {
+        // Only safe-verdict items wait in Quarantine: review items (iPhone
+        // backups, privacy traces, leftovers...) stay on the Recycle Bin route.
+        state.quarantine_paths.lock().unwrap().extend(
+            items.iter().filter(|i| i.safety == Safety::Safe).map(|i| PathBuf::from(&i.path)),
+        );
+    }
     if counts_as_scan { record_scan(&state); }
     Ok(items)
 }
@@ -136,16 +150,44 @@ fn home(state: tauri::State<'_, AppState>) -> String {
     state.places.home.to_string_lossy().into_owned()
 }
 
-/// Moves the chosen items to the Recycle Bin (recoverable).
+/// Moves the chosen items to Quarantine (junk: temp, caches, logs, browser
+/// caches) or the Recycle Bin (everything else: user files stay there).
 #[tauri::command]
 async fn clean(paths: Vec<String>, app: tauri::AppHandle, state: tauri::State<'_, AppState>) -> Result<CleanResult, String> {
     let offered = Offered(state.offered.lock().unwrap().0.clone());
     let p = state.places.clone();
+    let quarantinable: HashSet<PathBuf> = state.quarantine_paths.lock().unwrap().clone();
     blocking(move || {
-        let result = core::remove(&paths, &offered, &p, to_recycle_bin);
+        let result = core::remove(&paths, &offered, &p, |path| dispose(path, &quarantinable, &app));
         app.state::<AppState>().invalidate_sizes();
         result
     }).await
+}
+
+/// Safe junk offered by the junk/caches scans goes to Quarantine (still
+/// restorable); a failed stash and everything else go to the Recycle Bin as
+/// before — but only when the source is still intact at its original path.
+/// Right before stashing, each path is reclassified: only a path the scanner
+/// marked Safe whose live classification is still Safe, and which neither is
+/// nor contains a Known Folder / OneDrive root, is stashed.
+fn dispose(path: &Path, quarantinable: &HashSet<PathBuf>, app: &tauri::AppHandle) -> Result<(), String> {
+    #[cfg(windows)]
+    {
+        let state: tauri::State<'_, AppState> = app.state::<AppState>();
+        if quarantinable.contains(path)
+            && quarantine::classify(path, &state.places, &installed_names(&state)).verdict == quarantine::Verdict::Safe
+            && !state.places.touches_personal_root(path)
+            && state.quarantine.stash(path).is_ok()
+        {
+            return Ok(());
+        }
+    }
+    #[cfg(not(windows))]
+    let _ = (quarantinable, app);
+    if fs::symlink_metadata(path).is_err() {
+        return Err("missing source".into());
+    }
+    to_recycle_bin(path)
 }
 
 #[cfg(windows)]
@@ -243,12 +285,19 @@ async fn recycle_info() -> Result<Option<BinInfo>, String> {
 }
 
 #[tauri::command]
-async fn downloads_size(app: tauri::AppHandle, state: tauri::State<'_, AppState>) -> Result<u64, String> {
+async fn downloads_size(refresh: bool, app: tauri::AppHandle, state: tauri::State<'_, AppState>) -> Result<u64, String> {
     let home = state.places.home.clone();
-    blocking(move || app.state::<AppState>().downloads_size.get(|| {
-        let dir = app.path().download_dir().unwrap_or_else(|_| home.join("Downloads"));
-        core::size_of(&dir)
-    })).await
+    blocking(move || {
+        let sizes = &app.state::<AppState>().downloads_size;
+        // A manual refresh re-reads the disk; passive revisits use the 60 s cache.
+        if refresh {
+            sizes.clear();
+        }
+        sizes.get(|| {
+            let dir = app.path().download_dir().unwrap_or_else(|_| home.join("Downloads"));
+            core::size_of(&dir)
+        })
+    }).await
 }
 
 #[tauri::command]
@@ -270,6 +319,135 @@ async fn empty_recycle(confirmed: bool) -> Result<(), String> {
     blocking(win::empty_recycle).await?
 }
 
+/* ---------- Quarantine ---------- */
+
+/// One stashed item with everything the Quarantine tab renders: size, verdict,
+/// kind, reason, owning app, days left, folder shape. The stable slot id is the
+/// only thing the UI ever sends back; raw paths are never accepted.
+#[derive(Serialize)]
+struct QuarantineItem {
+    id: String,
+    name: String,
+    original: String,
+    stored: String,
+    date: String,
+    bytes: u64,
+    verdict: quarantine::Verdict,
+    kind: quarantine::Kind,
+    reason: &'static str,
+    app: Option<String>,
+    days_left: i64,
+    overdue: bool,
+    is_dir: bool,
+    item_count: u64,
+}
+
+impl QuarantineItem {
+    fn describe(record: &quarantine::Record, places: &Places, installed: &[String], now: SystemTime) -> Self {
+        let stored = PathBuf::from(&record.stored);
+        let (bytes, is_dir, item_count) = match fs::symlink_metadata(&stored) {
+            Ok(md) if md.is_dir() && !core::is_link(&md) => {
+                (core::size_of(&stored), true, count_items(&stored))
+            }
+            Ok(md) if !core::is_link(&md) => (md.len(), false, 1),
+            _ => (0, false, 0),
+        };
+        let c = quarantine::classify(Path::new(&record.original), places, installed);
+        let removed = quarantine::parse_time(&record.date).unwrap_or(UNIX_EPOCH);
+        let elapsed_days = now
+            .duration_since(removed)
+            .map(|d| (d.as_secs() / quarantine::DAY_SECS).min(i64::MAX as u64) as i64)
+            .unwrap_or(0);
+        let days_left = (quarantine::RETENTION_DAYS as i64 - elapsed_days).max(0);
+        let name = Path::new(&record.original)
+            .file_name().map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_else(|| record.original.clone());
+        QuarantineItem {
+            id: record.id().unwrap_or_default(),
+            name, original: record.original.clone(), stored: record.stored.clone(), date: record.date.clone(),
+            bytes, verdict: c.verdict, kind: c.kind, reason: c.reason_key, app: c.app,
+            days_left, overdue: days_left == 0, is_dir, item_count,
+        }
+    }
+}
+
+fn count_items(root: &Path) -> u64 {
+    let mut count = 0;
+    let mut stack = vec![root.to_path_buf()];
+    while let Some(dir) = stack.pop() {
+        let Ok(entries) = fs::read_dir(&dir) else { continue };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if fs::symlink_metadata(&path).is_ok_and(|m| m.is_dir() && !core::is_link(&m)) {
+                stack.push(path);
+            }
+            count += 1;
+        }
+    }
+    count
+}
+
+fn installed_names(state: &AppState) -> Vec<String> {
+    state.apps.lock().unwrap().by_id.values().flat_map(|a| [a.name.clone(), a.publisher.clone()]).collect()
+}
+
+#[tauri::command]
+async fn quarantine_list(state: tauri::State<'_, AppState>) -> Result<Vec<QuarantineItem>, String> {
+    let p = state.places.clone();
+    let installed = installed_names(&state);
+    let records = state.quarantine.records();
+    blocking(move || {
+        let now = SystemTime::now();
+        records.iter().map(|r| QuarantineItem::describe(r, &p, &installed, now)).collect()
+    })
+    .await
+}
+
+/// Moves the item back to its original path. Fails with "exists" when
+/// something already sits there, so a restore never overwrites user files.
+#[tauri::command]
+async fn quarantine_restore(id: String, state: tauri::State<'_, AppState>) -> Result<(), String> {
+    let q = Arc::clone(&state.quarantine);
+    blocking(move || q.restore(&id).map(|_| ())).await?
+}
+
+/// Deletes one stashed item for good (slot directory plus index entry).
+#[tauri::command]
+async fn quarantine_delete(id: String, state: tauri::State<'_, AppState>) -> Result<(), String> {
+    let q = Arc::clone(&state.quarantine);
+    blocking(move || q.delete(&id).map(|_| ())).await?
+}
+
+#[derive(Serialize, Default)]
+struct QuarantineDeleted {
+    removed: Vec<String>,
+    freed: u64,
+}
+
+/// Deletes the UI-confirmed `ids` whose record still exists and still
+/// classifies Safe; anything else (moved, reclassified, unknown) stays.
+/// One index lock from lookup through the commit.
+#[tauri::command]
+async fn quarantine_delete_safe(ids: Vec<String>, state: tauri::State<'_, AppState>) -> Result<QuarantineDeleted, String> {
+    let q = Arc::clone(&state.quarantine);
+    let p = state.places.clone();
+    let installed = installed_names(&state);
+    blocking(move || {
+        let now = SystemTime::now();
+        let mut bytes_by_id = HashMap::new();
+        for record in q.records() {
+            let item = QuarantineItem::describe(&record, &p, &installed, now);
+            if !item.id.is_empty() {
+                bytes_by_id.insert(item.id.clone(), item.bytes);
+            }
+        }
+        let removed = q.delete_safe(&ids, &p, &installed)?;
+        let freed = removed.iter().map(|id| bytes_by_id.get(id).copied().unwrap_or(0)).sum();
+        Ok(QuarantineDeleted { removed, freed })
+    })
+    .await?
+}
+
 #[derive(Serialize)]
 struct Health {
     score: u8,
@@ -288,8 +466,11 @@ fn record_scan(state: &AppState) {
 }
 
 #[tauri::command]
-async fn health(app: tauri::AppHandle, state: tauri::State<'_, AppState>) -> Result<Health, String> {
+async fn health(refresh: bool, app: tauri::AppHandle, state: tauri::State<'_, AppState>) -> Result<Health, String> {
     let p = state.places.clone();
+    if refresh {
+        state.junk_size.clear();
+    }
     let report = blocking(move || {
         let disk = win::disk_info().unwrap_or_default();
         let ram = health::ram();
@@ -315,6 +496,9 @@ async fn boost_preview(state: tauri::State<'_, AppState>) -> Result<BoostPreview
     let (items, ram) = blocking(move || (core::scan_junk(&p), health::ram())).await?;
     let mut boost = state.boost.lock().unwrap();
     state.offered.lock().unwrap().add_items(&items);
+    state.quarantine_paths.lock().unwrap().extend(
+        items.iter().filter(|i| i.safety == Safety::Safe).map(|i| PathBuf::from(&i.path)),
+    );
     *boost = Some(items.iter().map(|i| i.path.clone()).collect());
     Ok(BoostPreview { bytes: items.iter().map(|i| i.bytes).sum(), ram_used: ram.used, ram_total: ram.total })
 }
@@ -336,9 +520,10 @@ async fn boost_run(app: tauri::AppHandle, state: tauri::State<'_, AppState>) -> 
         (paths, offered)
     };
     let p = state.places.clone();
+    let quarantinable: HashSet<PathBuf> = state.quarantine_paths.lock().unwrap().clone();
     blocking(move || {
         let ram_before = (health::ram().ratio() * 100.0).round() as u8;
-        let result = core::remove(&paths, &offered, &p, to_recycle_bin);
+        let result = core::remove(&paths, &offered, &p, |path| dispose(path, &quarantinable, &app));
         app.state::<AppState>().invalidate_sizes();
         processes::trim_memory();
         let ram_after = (health::ram().ratio() * 100.0).round() as u8;
@@ -531,11 +716,19 @@ pub fn run() {
             app.manage(AppState {
                 places: Places::from_env(), offered: Mutex::default(), apps: Mutex::default(),
                 startup: Mutex::default(), boost: Mutex::default(), heavy: Mutex::default(),
+                quarantine: Arc::new(quarantine::Quarantine::with_root(quarantine::app_root())),
+                quarantine_paths: Mutex::default(),
                 downloads_size: CachedSize::default(), junk_size: CachedSize::default(),
                 #[cfg(windows)]
                 window_visible: AtomicBool::default(),
                 settings_path, settings: Mutex::new(settings),
             });
+            {
+                let app = app.handle().clone();
+                std::thread::spawn(move || {
+                    let _ = app.state::<AppState>().quarantine.purge_expired(SystemTime::now());
+                });
+            }
             #[cfg(windows)]
             {
                 let start_hidden = std::env::args_os().any(|arg| arg == "--hidden");
@@ -589,6 +782,10 @@ pub fn run() {
             clean,
             disk_info,
             recycle_info,
+            quarantine_list,
+            quarantine_restore,
+            quarantine_delete,
+            quarantine_delete_safe,
             downloads_size,
             open_recycle_bin,
             empty_recycle,
